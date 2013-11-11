@@ -1,5 +1,0 @@
-
-Halal.js
-----------------
-EventDispatcher.js
-Halal.js
