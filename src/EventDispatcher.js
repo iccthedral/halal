@@ -5,7 +5,6 @@
     EventDispatcher = (function() {
       function EventDispatcher() {
         this.listeners = [];
-        this.list_arr = [];
       }
 
       return EventDispatcher;
@@ -51,11 +50,10 @@
       if (target == null) {
         target = this;
       }
-      this.list_arr = this.listeners[type];
-      if (!this.list_arr) {
+      if (!this.listeners[type]) {
         return;
       }
-      _ref = this.list_arr;
+      _ref = this.listeners[type];
       _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         clb = _ref[_i];

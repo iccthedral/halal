@@ -1,8 +1,8 @@
 "use strict"
 
-define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"],
+define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2", "DeferredCounter", "DOMEventManager"],
 
-(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2) ->
+(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, DeferredCounter, DOMEventManager) ->
 
     ###
         A shim (sort of) to support RAF execution
@@ -32,17 +32,16 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
 
     fps_cap             = 30
     fstep               = 1 / fps_cap
+    _draw_info          = null
 
     rafLoop = () ->
         prev_time = cur_time
         cur_time = performance.now()
-        delta = cur_time - prev_time
-        delta = Math.min(delta * 0.001, fstep)
+        delta = (cur_time - prev_time) * 0.001
         cur_fps_time += delta
-        Hal.trigger "ENTER_FRAME", delta
+        delta = Math.min(delta, fstep)
 
-        if Hal.debug_mode
-            Hal.drawInfo()
+        Hal.trigger "ENTER_FRAME", delta
 
         if cur_fps_time >= fps_trigger_time
             fps = fps_counter
@@ -96,6 +95,7 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
 
     Halal::init = () ->
         @glass = new Renderer(@viewportBounds(), null, 11)
+        @evm = new DOMEventManager()
         log.debug "Engine initialized"
         
     Halal::start = () ->
@@ -105,34 +105,68 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
         log.debug "Engine started"
         rafLoop()
 
+    Halal::debug = (@debug_mode) ->
+        if @debug_mode and not _draw_info?
+            Hal.on "EXIT_FRAME", _draw_info = (delta) ->
+                Hal.drawInfo()
+        else if not @debug_mode
+            Hal.remove "EXIT_FRAME", _draw_info
+            _draw_info = null
+
     Halal::ID = () ->
         return ++@id
 
     Halal::drawInfo = () ->
+        @glass.ctx.setTransform(1, 0, 0, 1, 0, 0)
+        @glass.ctx.fillStyle = "black"
         @glass.ctx.fillText("FPS: #{fps}", 0, 10)
 
-    Halal::speedLerp = (t, obj, property, from, to) ->
+    Halal::tween = (obj, property, t, from, to, repeat = 1) ->
+        defer = new DeferredCounter(repeat)
         t *= 0.001
         accul = 0
-        speed = (to-from) / t
+        speed = (to - from) / t
+        val = from
+        Hal.on "ENTER_FRAME", $ = (delta) ->
+            accul += delta
+            val += speed * delta
+            obj.attr(property, val)
+            accul = Math.min(accul, t)
+            if t is accul
+                repeat--
+                defer.release(obj)
+                obj.attr(property, to)
+                if repeat is 0
+                    Hal.remove "ENTER_FRAME", $
+                    return
+                else
+                    accul = 0
+                    val = from
+
+        return defer.promise()
+
+    Halal::tweenF = (t, func, from, to) ->
+        t *= 0.001
+        accul = 0
+        speed = (to - from) / t
         Hal.on "ENTER_FRAME", $ = (delta) ->
             accul += delta
             from += speed * delta
-            obj.attr(property, from)
+            func(from)
             accul = Math.min(accul, t)
             if t is accul
                 Hal.remove "ENTER_FRAME", $
-                obj.attr(property, from)
+                func(to)
                 return
-        return
+        return        
 
     Halal::fadeInViewport = (t) ->
-        @speedLerp(t, Hal.dom.viewport.style, "opacity", 0, 1)
+        @tweenF(t, ((val) -> Hal.dom.viewport.style["opacity"] = val), 0, 1)
 
     Halal::fadeOutViewport = (t) ->
-        @speedLerp(t, Hal.dom.viewport.style, "opacity", 1, 0)
+        @tweenF(t, ((val) -> Hal.dom.viewport.style["opacity"] = val), 1, 0)
 
-    Halal.Keys = 
+    Halal::Keys = 
         SHIFT: 16
         G: 71
         D: 68
@@ -154,6 +188,5 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
         @todo kontekst bi valjalo prosledjivati, mozda window ne bude window
         i undefined ne bude undefined
     ###
-    window.Hal      = new Halal()
-    # window.Hal.
-    return window.Hal
+    
+    return (window.Hal = new Halal())

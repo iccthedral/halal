@@ -27,10 +27,21 @@ define [],
         @ctx.strokeStyle = style
         @ctx.beginPath()
         @ctx.moveTo(points[0][0], points[0][1])
-        for p in points[1..]
+        for p in points[1...]
             @ctx.lineTo(p[0], p[1])
         @ctx.closePath()
         @ctx.stroke()
-        @ctx.strokeStyle = ""
+
+    Renderer::drawLine = (x0, y0, x1, y1, style) ->
+        @ctx.strokeStyle = style
+        @ctx.beginPath()
+        @ctx.moveTo(x0, y0)
+        @ctx.lineTo(x1, y1)
+        @ctx.closePath()
+        @ctx.stroke()
+    
+    Renderer::strokeRect = (pts, style) ->
+        @ctx.strokeStyle = style
+        @ctx.strokeRect(pts[0], pts[1], pts[2], pts[3])
 
     return Renderer

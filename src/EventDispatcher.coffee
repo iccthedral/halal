@@ -5,7 +5,7 @@ define  ()->
     class EventDispatcher
         constructor: () ->
             @listeners = []      
-            @list_arr = []
+            # @list_arr = []
 
     EventDispatcher::on = (type, clb) ->
         if type instanceof Array
@@ -33,9 +33,9 @@ define  ()->
             @listeners = []
         
     EventDispatcher::trigger = (type, msg, target = @) ->
-        @list_arr = @listeners[type]
-        return if not @list_arr
-        for clb in @list_arr
+        # @list_arr = 
+        return if not @listeners[type]
+        for clb in @listeners[type]
             clb.call(target, msg, clb) if clb?
 
     return EventDispatcher

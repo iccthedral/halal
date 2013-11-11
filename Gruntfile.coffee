@@ -39,7 +39,7 @@ module.exports = (grunt) ->
             coffee:
                 files: [
                     "#{config.src_dir}/**/*.coffee"
-                    "**/*.coffee"
+                    # "**/*.coffee"
                 ]
                 tasks: ["coffee:glob_all"]
                 options:

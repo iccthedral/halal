@@ -110,7 +110,7 @@ define ["Vec2"],
     MathUtil.isPointInCircle = (pt, circpos, radius) ->
         distX = pt[0] - circpos[0]
         distY = pt[1] - circpos[1]
-        dist = Math.sqrt((distX * distX) + (distY * distY))
+        dist  = Math.sqrt((distX * distX) + (distY * distY))
         return dist < radius
 
     pointComparison = (a, b, center) ->

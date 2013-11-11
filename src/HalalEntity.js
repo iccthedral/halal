@@ -9,6 +9,8 @@
       __extends(HalalEntity, _super);
 
       function HalalEntity() {
+        this.anim_chain = [];
+        this.anim_done = true;
         HalalEntity.__super__.constructor.call(this);
       }
 
@@ -36,6 +38,23 @@
             continue;
           }
           this[key] = val;
+        }
+        return this;
+      };
+
+      HalalEntity.prototype.tween = function(meta) {
+        var _this = this;
+        if (this.anim_done) {
+          this.anim_done = false;
+          Hal.tween(this, meta.attr, meta.duration, meta.from, meta.to, meta.repeat).then(function() {
+            _this.anim_done = true;
+            meta = _this.anim_chain.pop();
+            if (meta != null) {
+              return _this.tween(meta);
+            }
+          });
+        } else {
+          this.anim_chain.unshift(meta);
         }
         return this;
       };

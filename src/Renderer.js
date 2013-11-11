@@ -37,8 +37,19 @@
         this.ctx.lineTo(p[0], p[1]);
       }
       this.ctx.closePath();
-      this.ctx.stroke();
-      return this.ctx.strokeStyle = "";
+      return this.ctx.stroke();
+    };
+    Renderer.prototype.drawLine = function(x0, y0, x1, y1, style) {
+      this.ctx.strokeStyle = style;
+      this.ctx.beginPath();
+      this.ctx.moveTo(x0, y0);
+      this.ctx.lineTo(x1, y1);
+      this.ctx.closePath();
+      return this.ctx.stroke();
+    };
+    Renderer.prototype.strokeRect = function(pts, style) {
+      this.ctx.strokeStyle = style;
+      return this.ctx.strokeRect(pts[0], pts[1], pts[2], pts[3]);
     };
     return Renderer;
   });
