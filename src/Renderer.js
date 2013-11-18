@@ -8,9 +8,7 @@
         if (canvas != null) {
           this.canvas = canvas;
         } else {
-          this.canvas = Hal.dom.createCanvasLayer(z);
-          this.bounds[0] = 0;
-          this.bounds[1] = 0;
+          this.canvas = Hal.dom.createCanvasLayer(this.bounds[2], this.bounds[3], z);
           Hal.dom.addCanvas(this.canvas, this.bounds[0], this.bounds[1], true);
         }
         this.ctx = this.canvas.getContext("2d");
@@ -51,8 +49,14 @@
       this.ctx.strokeStyle = style;
       return this.ctx.strokeRect(pts[0], pts[1], pts[2], pts[3]);
     };
-    Renderer.prototype.drawSprite = function(sprite) {
-      return this.ctx.drawImage(sprite.img, -sprite.w2, -sprite.h2);
+    Renderer.prototype.drawSprite = function(sprite, x, y) {
+      if (x == null) {
+        x = 0;
+      }
+      if (y == null) {
+        y = 0;
+      }
+      return this.ctx.drawImage(sprite.img, -sprite.w2 - x, -sprite.h2 - y);
     };
     return Renderer;
   });

@@ -384,10 +384,20 @@ usage:
       return store[key];
     };
     AssetManager.prototype.getSpritesFromFolder = function(folder) {
-      var k, key, out, storage, v, _ref, _ref1;
+      var ind, k, key, out, storage, v, _ref, _ref1;
+      if (folder === "/") {
+        return this.getSpriteFolders();
+      }
+      ind = folder.indexOf("/");
+      if (ind === 0) {
+        folder = folder.substring(ind + 1);
+      }
+      ind = folder.charAt(folder.length - 1);
+      if (ind !== "/") {
+        folder = "" + folder + "/";
+      }
       out = {};
       _ref = this.resolveFolderPath("sprites/" + folder), storage = _ref[0], key = _ref[1];
-      log.debug(storage);
       _ref1 = storage[key];
       for (k in _ref1) {
         v = _ref1[k];
@@ -398,7 +408,15 @@ usage:
       return out;
     };
     AssetManager.prototype.getSpriteFoldersFromFolder = function(folder) {
-      var k, key, out, storage, v, _ref, _ref1;
+      var ind, k, key, out, storage, v, _ref, _ref1;
+      ind = folder.indexOf("/");
+      if (ind === 0) {
+        folder = folder.substring(ind + 1);
+      }
+      ind = folder.charAt(folder.length - 1);
+      if (ind !== "/") {
+        folder = "" + folder + "/";
+      }
       out = {};
       _ref = this.resolveFolderPath("sprites/" + folder), storage = _ref[0], key = _ref[1];
       _ref1 = storage[key];
@@ -411,8 +429,7 @@ usage:
       return out;
     };
     AssetManager.prototype.getSpriteFolders = function() {
-      log.info(Object.keys(this.assets.sprites));
-      return Object.keys(this.assets.sprites);
+      return this.assets.sprites;
     };
     AssetManager.prototype.waitFor = function(spr_instance, sprurl) {
       return this.wait_queue[sprurl] = spr_instance;

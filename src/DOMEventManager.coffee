@@ -11,8 +11,9 @@ define [],
             @mouse_rightbtn_down     = false
             @can_drag                = true
             @pos                     = [0, 0]
-            @viewport                = Hal.dom.viewport
+            @viewport                = Hal.dom.hud
             @dragging                = false
+            @under_dom               = false
 
             ### @todo ovo izbaciti iz engina posle ###
             #ako ne podrzava queryselectorall
@@ -50,26 +51,31 @@ define [],
             Hal.trigger("LEFT_DBL_CLICK", @pos)
 
         mouseClick: (evt) =>
-            #return if @under_dom
+            #@under_dom = @viewport.querySelectorAll(':hover').length > 0
+            return if @under_dom
             @getMousePos(evt)
             Hal.trigger("MOUSE_CLICK", @pos)
-            evt.preventDefault()
-            evt.stopPropagation()
+            # evt.preventDefault()
+            # evt.stopPropagation()
 
         mouseMove: (evt) =>
-            # @under_dom = @hud.querySelectorAll(':hover').length > 0
-            # return if @under_dom
+            @under_dom = @viewport.querySelectorAll(':hover').length > 0
+            return if @under_dom
             @getMousePos(evt)
             Hal.trigger("MOUSE_MOVE", @pos)
             if (@mouse_leftbtn_down and (not @dragging and @can_drag))
                 Hal.trigger("DRAG_STARTED", @pos)
                 @dragging = true
                 @can_drag = false
-            evt.preventDefault()
-            evt.stopPropagation()
+            # evt.preventDefault()
+            # evt.stopPropagation()
 
         mouseUp: (evt) =>
-            # @under_dom = @hud.querySelectorAll(':hover').length > 0
+            #@under_dom = @viewport.querySelectorAll(':hover').length > 0
+            if @under_dom
+                @mouse_leftbtn_down = false
+                return
+
             @getMousePos(evt)
             
             if @dragging
@@ -85,6 +91,10 @@ define [],
 
 
         mouseDown: (evt) =>
+            if @under_dom
+                @mouse_leftbtn_down = false
+                return
+                
             @getMousePos(evt)
             if evt.button == 0
                 @mouse_leftbtn_down = true

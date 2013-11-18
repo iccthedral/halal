@@ -14,20 +14,19 @@
         }
         Entity.__super__.constructor.call(this);
         this.id = Hal.ID();
-        this.shape = meta.shape ? meta.shape : [[0, 0], [0, 1], [1, 1], [1, 0]];
-        this.x = meta.x ? meta.x : 0;
-        this.y = meta.y ? meta.y : 0;
-        this.angle = meta.angle ? meta.angle : 0;
-        this.scale = meta.scale ? meta.scale : 1;
-        this.stroke_color = meta.stroke_color ? meta.stroke_color : "black";
-        this.glow = meta.glow ? meta.glow : false;
-        this.glow_color = meta.glow_color ? meta.glow_color : "blue";
-        this.glow_amount = meta.glow_amount ? meta.glow_amount : 16;
-        this.line_width = meta.line_width ? meta.line_width : 1.0;
-        this.draw_shape = meta.draw_shape ? meta.draw_shape : true;
+        this.shape = meta.shape != null ? meta.shape : [[0, 0], [0, 1], [1, 1], [1, 0]];
+        this.x = meta.x != null ? meta.x : 0;
+        this.y = meta.y != null ? meta.y : 0;
+        this.angle = meta.angle != null ? meta.angle : 0;
+        this.scale = meta.scale != null ? meta.scale : 1;
+        this.stroke_color = meta.stroke_color != null ? meta.stroke_color : "black";
+        this.glow = meta.glow != null ? meta.glow : false;
+        this.glow_color = meta.glow_color != null ? meta.glow_color : "blue";
+        this.glow_amount = meta.glow_amount != null ? meta.glow_amount : 16;
+        this.line_width = meta.line_width != null ? meta.line_width : 1.0;
+        this.draw_shape = meta.draw_shape != null ? meta.draw_shape : true;
         this.parent = null;
         this.world_pos = [0, 0];
-        this.ent_cache = {};
         this.quadspace = null;
         this.needs_updating = true;
         this.draw_origin = false;
@@ -36,12 +35,13 @@
         this.children = [];
         this.shapes = [];
         this.drawables = [];
-        this.selected_color = "red";
+        this.scene = null;
+        this.selected_color = "white";
         this.unselected_color = this.stroke_color;
         this.on("CHANGE", function(attr) {
           var ch, prop, _i, _len, _ref, _results;
           prop = attr[0];
-          if (prop === "angle" || prop === "scale" || prop === "x" || prop === "y" || prop === "glow" || prop === "parent" || prop === "line_width") {
+          if (prop === "angle" || prop === "scale" || prop === "x" || prop === "y" || prop === "glow" || prop === "parent" || prop === "line_width" || prop === "h") {
             this.needs_updating = true;
           }
           if (prop === "shape") {
@@ -62,7 +62,6 @@
           }
         });
         this.on("ENTITY_ADDED", function() {
-          log.debug("yay, I've been added " + this.id);
           return this.init();
         });
       }
@@ -83,7 +82,7 @@
           });
         }
         this.on("EXIT_FRAME", function() {
-          return Hal.glass.ctx.setTransform(1, 0, 0, 1, 0, 0);
+          return this.scene.g.ctx.setTransform(1, 0, 0, 1, 0, 0);
         });
         return this.on("LEFT_CLICK", function(attr) {
           this.selected = !this.selected;
@@ -113,29 +112,51 @@
 
       Entity.prototype.addEntity = function(ent) {
         this.children.push(ent);
-        this.parent.addEntity(ent);
-        ent.attr("parent", this);
-        return this.trigger("CHILD_ENTITY_ADDED", ent);
+        this.scene.addEntity(ent);
+        this.trigger("CHILD_ENTITY_ADDED", ent);
+        ent.attr("scene", this.scene);
+        return ent.attr("parent", this);
       };
 
-      Entity.prototype.removeEntity = function(ent) {};
-
-      Entity.prototype.drawOrigin = function() {};
-
-      Entity.prototype.destroy = function() {
-        this.parent.removeEntity(this);
+      Entity.prototype.destroy = function(destroy_children) {
+        if (destroy_children == null) {
+          destroy_children = true;
+        }
+        this.removeAll();
+        if (destroy_children) {
+          this.destroyChildren();
+        }
+        this.drawables = null;
         this.parent = null;
-        return this.removeAll();
+        if (this.quadspace == null) {
+          log.warn("this entity had no quadspace");
+        } else {
+          this.quadspace.remove(this);
+        }
+        this.scene.removeEntity(this);
+        this.quadspace = null;
+        return this.scene = null;
+      };
+
+      Entity.prototype.destroyChildren = function() {
+        var c, _i, _len, _ref, _results;
+        _ref = this.children;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          c = _ref[_i];
+          _results.push(c.destroy());
+        }
+        return _results;
       };
 
       Entity.prototype.update = function(delta) {
-        Hal.glass.ctx.setTransform(this.local_matrix[0], this.local_matrix[3], this.local_matrix[1], this.local_matrix[4], this.local_matrix[2], this.local_matrix[5]);
+        this.scene.g.ctx.setTransform(this.local_matrix[0], this.local_matrix[3], this.local_matrix[1], this.local_matrix[4], this.local_matrix[2], this.local_matrix[5]);
         if (this.needs_updating) {
           this.local_matrix = Matrix3.mul(this.rotationMatrix(), this.localMatrix());
           this.local_matrix = Matrix3.mul(this.local_matrix, this.parent.local_matrix);
           this.needs_updating = false;
           if (!this.glow) {
-            return Hal.glass.ctx.shadowBlur = 0;
+            return this.scene.g.ctx.shadowBlur = 0;
           }
         }
       };
@@ -152,28 +173,28 @@
         var s, _i, _j, _len, _len1, _ref, _ref1, _results;
         if (this.draw_shape) {
           if (this.line_width > 1.0) {
-            Hal.glass.ctx.lineWidth = this.line_width;
+            this.scene.g.ctx.lineWidth = this.line_width;
           }
         }
         if (this.glow) {
-          Hal.glass.ctx.shadowBlur = this.glow_amount;
-          Hal.glass.ctx.shadowColor = this.glow_color;
+          this.scene.g.ctx.shadowBlur = this.glow_amount;
+          this.scene.g.ctx.shadowColor = this.glow_color;
         }
         if (this.draw_shape) {
-          Hal.glass.strokePolygon(this.shape, !this.selected ? this.stroke_color : this.selected_color);
+          this.scene.g.strokePolygon(this.shape, !this.selected ? this.stroke_color : this.selected_color);
         }
         if (this.glow) {
-          Hal.glass.ctx.shadowBlur = 0;
+          this.scene.g.ctx.shadowBlur = 0;
         }
         if (this.line_width !== 1.0 && this.draw_shape) {
-          Hal.glass.ctx.lineWidth = 1.0;
+          this.scene.g.ctx.lineWidth = 1.0;
         }
         if (this.draw_origin) {
-          Hal.glass.drawLine(0, 0, 0, -100, "green");
-          Hal.glass.drawLine(-50, 0, 50, 0, "green");
+          this.scene.g.drawLine(0, 0, 0, -100, "green");
+          this.scene.g.drawLine(-50, 0, 50, 0, "green");
         }
         if (this.draw_bbox) {
-          Hal.glass.strokeRect(this.bbox, "cyan");
+          this.scene.g.strokeRect(this.bbox, "cyan");
         }
         _ref = this.drawables;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -184,7 +205,7 @@
         _results = [];
         for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
           s = _ref1[_j];
-          _results.push(Hal.glass.strokePolygon(s, "blue"));
+          _results.push(this.scene.g.strokePolygon(s, "blue"));
         }
         return _results;
       };

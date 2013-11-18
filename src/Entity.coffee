@@ -8,20 +8,19 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
         constructor: (meta = {}) ->
             super()
             @id             = Hal.ID()
-            @shape          = if meta.shape then meta.shape else [[0, 0], [0, 1], [1,1], [1,0]]
-            @x              = if meta.x then meta.x else 0
-            @y              = if meta.y then meta.y else 0
-            @angle          = if meta.angle then meta.angle else 0
-            @scale          = if meta.scale then meta.scale else 1
-            @stroke_color   = if meta.stroke_color then meta.stroke_color else "black"
-            @glow           = if meta.glow then meta.glow else false
-            @glow_color     = if meta.glow_color then meta.glow_color else "blue"
-            @glow_amount    = if meta.glow_amount then meta.glow_amount else 16
-            @line_width     = if meta.line_width then meta.line_width else 1.0
-            @draw_shape     = if meta.draw_shape then meta.draw_shape else true
+            @shape          = if meta.shape? then meta.shape else [[0, 0], [0, 1], [1,1], [1,0]]
+            @x              = if meta.x? then meta.x else 0
+            @y              = if meta.y? then meta.y else 0
+            @angle          = if meta.angle? then meta.angle else 0
+            @scale          = if meta.scale? then meta.scale else 1
+            @stroke_color   = if meta.stroke_color? then meta.stroke_color else "black"
+            @glow           = if meta.glow? then meta.glow else false
+            @glow_color     = if meta.glow_color? then meta.glow_color else "blue"
+            @glow_amount    = if meta.glow_amount? then meta.glow_amount else 16
+            @line_width     = if meta.line_width? then meta.line_width else 1.0
+            @draw_shape     = if meta.draw_shape? then meta.draw_shape else true
             @parent         = null
             @world_pos      = [0, 0]
-            @ent_cache      = {}
 
             # its part of quadspace
             @quadspace      = null
@@ -34,14 +33,14 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
             @children       = []
             @shapes         = []
             @drawables      = []
+            @scene          = null
 
-            @selected_color     = "red"
+            @selected_color     = "white"
             @unselected_color   = @stroke_color
-
 
             @on "CHANGE", (attr) ->
                 prop = attr[0]
-                if prop in ["angle", "scale", "x", "y", "glow", "parent", "line_width"]
+                if prop in ["angle", "scale", "x", "y", "glow", "parent", "line_width", "h"]
                     @needs_updating = true
 
                 if prop is "shape"
@@ -55,7 +54,6 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
                             @parent.trigger "ENTITY_MOVING", ch
 
             @on "ENTITY_ADDED", () ->
-                log.debug "yay, I've been added #{@id}"
                 @init()
 
         localMatrix: () ->
@@ -78,13 +76,15 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
                     @needs_updating = true
 
             @on "EXIT_FRAME", () ->
-               Hal.glass.ctx.setTransform(1, 0, 0, 1, 0, 0)
+               @scene.g.ctx.setTransform(1, 0, 0, 1, 0, 0)
                
             @on "LEFT_CLICK", (attr) ->
                 @selected = not @selected
                 log.debug "yay, i've been selected: #{@id}"
-                #color = if @selected then @selected_color else @unselected_color
-                #@attr("stroke_color", color)
+            
+            # @scene.camera.on "CHANGE", () =>
+            #     log.debug "hello from #{@id}"
+            #     log.debug @
 
         viewportPos: () ->
             inv = Matrix3.transpose([], @local_matrix)
@@ -102,24 +102,35 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
 
         addEntity: (ent) ->
             @children.push(ent)
-            @parent.addEntity(ent)
-            ent.attr("parent", @)
+            @scene.addEntity(ent)
             @trigger "CHILD_ENTITY_ADDED", ent
+            ent.attr("scene", @scene)
+            ent.attr("parent", @)
 
-        removeEntity: (ent) ->
-
-        drawOrigin: () -> return
-
-        destroy: () ->
-            #remove entity from parent
-            @parent.removeEntity(@)
-            @parent = null
-
+        destroy: (destroy_children = true) ->
             #remove all listeners
             @removeAll()
+            if destroy_children
+                @destroyChildren()
+
+            #isto tako i za drawables
+            #i za shapes uostalom
+            @drawables  = null
+            @parent     = null
+            if not @quadspace?
+                log.warn "this entity had no quadspace"
+            else 
+                @quadspace.remove(@)
+            @scene.removeEntity(@)
+            @quadspace = null
+            @scene = null
+
+        destroyChildren: () ->
+            for c in @children
+                c.destroy()
 
         update: (delta) ->
-            Hal.glass.ctx.setTransform(
+            @scene.g.ctx.setTransform(
                 @local_matrix[0], 
                 @local_matrix[3],
                 @local_matrix[1],
@@ -133,7 +144,7 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
                 @local_matrix = Matrix3.mul(@local_matrix, @parent.local_matrix)
                 @needs_updating = false
                 if not @glow
-                    Hal.glass.ctx.shadowBlur = 0
+                    @scene.g.ctx.shadowBlur = 0
 
         addDrawable: (drawableFunc) ->
             @drawables.push(drawableFunc)
@@ -143,31 +154,31 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
 
         draw: (delta) ->
             if @draw_shape
-                Hal.glass.ctx.lineWidth = @line_width if @line_width > 1.0
+                @scene.g.ctx.lineWidth = @line_width if @line_width > 1.0
             
             if @glow
-                Hal.glass.ctx.shadowBlur = @glow_amount 
-                Hal.glass.ctx.shadowColor = @glow_color
+                @scene.g.ctx.shadowBlur = @glow_amount 
+                @scene.g.ctx.shadowColor = @glow_color
             
             if @draw_shape   
-                Hal.glass.strokePolygon(@shape, if not @selected then @stroke_color else @selected_color)
+                @scene.g.strokePolygon(@shape, if not @selected then @stroke_color else @selected_color)
 
             if @glow
-                Hal.glass.ctx.shadowBlur = 0
+                @scene.g.ctx.shadowBlur = 0
             
-            Hal.glass.ctx.lineWidth = 1.0 if @line_width isnt 1.0 and @draw_shape
+            @scene.g.ctx.lineWidth = 1.0 if @line_width isnt 1.0 and @draw_shape
 
             if @draw_origin
-                Hal.glass.drawLine(0, 0, 0, -100, "green")
-                Hal.glass.drawLine(-50, 0, 50, 0, "green")
+                @scene.g.drawLine(0, 0, 0, -100, "green")
+                @scene.g.drawLine(-50, 0, 50, 0, "green")
 
             if @draw_bbox
-                Hal.glass.strokeRect(@bbox, "cyan")
+                @scene.g.strokeRect(@bbox, "cyan")
 
             for s in @drawables
                 s.call(@, delta)
 
             for s in @shapes
-                Hal.glass.strokePolygon(s, "blue")
+                @scene.g.strokePolygon(s, "blue")
 
     return Entity

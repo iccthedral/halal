@@ -1,0 +1,263 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+    /*font-family: "Trebuchet MS", "Helvetica", "Arial",  "Verdana", "sans-serif";*/
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -o-user-select: none;
+    user-select: none;
+    /*background-color: #4D5C52;*/
+}
+
+.title-buttons .fa {
+    float: right;
+    padding: 5px;
+    color: white;
+    font-size: 1.2em; 
+}
+
+.title-buttons .fa:hover {
+    color: black;
+}
+
+.selectable-box .fa-folder-open {
+    color: rgb(183, 223, 132);
+    font-size: 46px;
+}
+
+.selectable-box .fa-folder-open:hover {
+    color: white;
+}
+
+.toolbox .fa-arrow-circle-left {
+    padding: 4px;
+    color: white;
+    font-size: 1.3em;
+}
+
+.viewport {
+    position: absolute;
+    /*border: 1px solid black;*/
+    width: 100%;
+    height: 100%;
+    background: white;
+    opacity: 0;
+    /*background-color: white;*/
+}
+
+.selectable {
+    display: block;
+    width: 300px;
+    height: 300px;
+}
+
+.holder {
+    border:1px solid white;
+    width: 300px;
+    height: 270px;
+    background: rgb(125,126,125); /* Old browsers */
+    background: -moz-linear-gradient(top,  rgba(125,126,125,1) 0%, rgba(14,14,14,1) 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(125,126,125,1)), color-stop(100%,rgba(14,14,14,1))); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top,  rgba(125,126,125,1) 0%,rgba(14,14,14,1) 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top,  rgba(125,126,125,1) 0%,rgba(14,14,14,1) 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top,  rgba(125,126,125,1) 0%,rgba(14,14,14,1) 100%); /* IE10+ */
+    background: linear-gradient(to bottom,  rgba(125,126,125,1) 0%,rgba(14,14,14,1) 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#7d7e7d', endColorstr='#0e0e0e',GradientType=0 ); /* IE6-9 */
+}
+
+.selectable .content {
+    color:white;
+    padding:10px;
+    font-family: "Gudea", sans-serif;
+}
+
+.folder-icon {
+    width: 50px;
+    height: 50px;
+    background-size: contain;
+    background-image: url("../img/folder-icon.png")
+}
+
+.back-icon {
+    width: 30px;
+    height: 30px;
+    background-size: contain;
+    background-image: url("img/back-icon.png")
+}
+
+.folder-icon:hover {
+    border: 1px solid white;
+}
+
+.selectable {
+    float: right;
+}
+
+.border-active {
+    border: 2px dashed white
+}
+
+.selectable h5 {
+    font-family: "Gudea", sans-serif;
+    background:transparent;
+    color:white;
+    margin: 0px auto;
+    padding: 5px;
+    position: absolute;
+    z-index: 2;
+}
+
+.selectable .title-container {
+    background-color: rgb(125,126,125);
+    width: inherit;
+    height: 30px;
+/*    border-bottom: 1px;
+    border-bottom-color: white;
+    border-bottom-style: solid;*/
+    border: 1px solid white;
+    -moz-border-radius-topright:5px;
+    -moz-border-radius-topleft:5px;
+    -webkit-border-top-right-radius:5px;
+    -webkit-border-top-left-radius:5px;
+}
+
+.title-container .title-buttons {
+    float: right;
+    width: inherit;
+    height: 30px;
+    font-family: "Gudea", sans-serif;
+    background: transparent;
+    color:white;
+    margin: 0px auto;
+    position: absolute;
+    z-index: 1;
+}
+
+.selectable .toolbox {
+    height: 30px;
+    width: inherit;
+    background-color: transparent;
+}
+
+.selectable-box { 
+    text-decoration: none; 
+    position: relative;
+    margin: 3px; 
+    list-style: none;
+    float: left;
+    width: 50px;
+    height: 60px;
+    font-size: 0.7em; 
+}
+
+.selectable-box .selectable-title {
+    font-family: "Gudea", sans-serif;
+    position: absolute;
+    width: inherit;
+    height: 25%;
+    display: block;
+    text-align: center;
+    font-size: 0.9em;
+    overflow: hidden
+}
+
+.selectable-box > img:hover {
+    border: 1px solid;
+}
+
+.content {
+    height: 220px;
+}
+
+.selectable-box > img { 
+    display: block;
+    margin: auto;
+    width: 75%;
+    height: 75%;
+}
+
+.hud {
+    position: absolute;
+    width: inherit;
+    height: inherit;
+    z-index: 250000;
+    background: transparent;
+}
+
+.renderspace {
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0px auto;
+    padding: 0;
+    position: relative;
+}
+
+.viewport canvas {
+    z-index: 1000;
+    position: absolute;
+    background: transparent;
+}
+
+.keyval {
+    
+}
+
+.keyval > div {
+     height: 20px;
+     clear: both;
+}
+
+.keyval label {
+    float: left;
+    text-align: right;
+    font-size: 0.8em;
+    font-family: "Gudea", sans-serif;
+}
+
+.keyval input {
+    width: 65%;
+    float: right;
+    border: 1px solid white;
+    color: white;
+    background-color: gray;
+}
+
+.keyval select {
+    width: 65%;
+    float: right;
+    color: white;
+    background-color: gray;
+}
+
+/* minigrid styles */
+.minigrid {
+    position: relative;
+    display: table-cell;
+    border: 1px solid #fff;
+    border-width: 1px 0 0 1px;
+    -webkit-transform: scaleY(0.5) rotate(45deg);
+}
+
+.minigrid-wrapper {
+    display: inline-block;
+    float: right;
+    padding-top: 5px;
+    width: 65% !important;
+    /*background-color: white;*/
+}
+
+.minigrid div {
+    border: 1px solid #fff;
+    border-width: 0 1px 1px 0;
+    float: left;
+}
+
+.minigrid-active-cell {
+    background-color: white;
+}

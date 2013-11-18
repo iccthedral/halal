@@ -20,8 +20,9 @@
         this.mouse_rightbtn_down = false;
         this.can_drag = true;
         this.pos = [0, 0];
-        this.viewport = Hal.dom.viewport;
+        this.viewport = Hal.dom.hud;
         this.dragging = false;
+        this.under_dom = false;
         /* @todo ovo izbaciti iz engina posle*/
 
         /* end @todo*/
@@ -62,25 +63,32 @@
       };
 
       DOMEventManager.prototype.mouseClick = function(evt) {
+        if (this.under_dom) {
+          return;
+        }
         this.getMousePos(evt);
-        Hal.trigger("MOUSE_CLICK", this.pos);
-        evt.preventDefault();
-        return evt.stopPropagation();
+        return Hal.trigger("MOUSE_CLICK", this.pos);
       };
 
       DOMEventManager.prototype.mouseMove = function(evt) {
+        this.under_dom = this.viewport.querySelectorAll(':hover').length > 0;
+        if (this.under_dom) {
+          return;
+        }
         this.getMousePos(evt);
         Hal.trigger("MOUSE_MOVE", this.pos);
         if (this.mouse_leftbtn_down && (!this.dragging && this.can_drag)) {
           Hal.trigger("DRAG_STARTED", this.pos);
           this.dragging = true;
-          this.can_drag = false;
+          return this.can_drag = false;
         }
-        evt.preventDefault();
-        return evt.stopPropagation();
       };
 
       DOMEventManager.prototype.mouseUp = function(evt) {
+        if (this.under_dom) {
+          this.mouse_leftbtn_down = false;
+          return;
+        }
         this.getMousePos(evt);
         if (this.dragging) {
           this.dragging = false;
@@ -97,6 +105,10 @@
       };
 
       DOMEventManager.prototype.mouseDown = function(evt) {
+        if (this.under_dom) {
+          this.mouse_leftbtn_down = false;
+          return;
+        }
         this.getMousePos(evt);
         if (evt.button === 0) {
           return this.mouse_leftbtn_down = true;

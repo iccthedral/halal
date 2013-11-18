@@ -315,15 +315,27 @@ define ["Deferred", "DeferredCounter", "Ajax", "SpriteFactory", "Sprite", "Sprit
     return store[key]
 
   AssetManager::getSpritesFromFolder = (folder) ->
+    return @getSpriteFolders() if folder is "/"
+    ind = folder.indexOf("/") 
+    if ind is 0
+      folder = folder.substring(ind + 1)      
+    ind = folder.charAt(folder.length-1)
+    if ind isnt "/"
+      folder = "#{folder}/"
     out = {}
     [storage, key] = @resolveFolderPath("sprites/" + folder)
-    log.debug storage
     for k, v of storage[key]
       if v.img?
         out[k] = v
     return out
 
   AssetManager::getSpriteFoldersFromFolder = (folder) ->
+    ind = folder.indexOf("/") 
+    if ind is 0
+      folder = folder.substring(ind + 1)      
+    ind = folder.charAt(folder.length-1)
+    if ind isnt "/"
+      folder = "#{folder}/"
     out = {}
     [storage, key] = @resolveFolderPath("sprites/" + folder)
     for k, v of storage[key]
@@ -332,8 +344,8 @@ define ["Deferred", "DeferredCounter", "Ajax", "SpriteFactory", "Sprite", "Sprit
     return out
     
   AssetManager::getSpriteFolders = () ->
-    log.info Object.keys(@assets.sprites)
-    return Object.keys(@assets.sprites)
+    # log.info Object.keys(@assets.sprites)
+    return @assets.sprites
 
   AssetManager::waitFor = (spr_instance, sprurl) ->
     @wait_queue[sprurl] = spr_instance

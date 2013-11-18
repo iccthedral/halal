@@ -9,9 +9,7 @@ define [],
             if canvas? 
                 @canvas     = canvas
             else 
-                @canvas     = Hal.dom.createCanvasLayer(z)
-                @bounds[0]  = 0
-                @bounds[1]  = 0
+                @canvas     = Hal.dom.createCanvasLayer(@bounds[2], @bounds[3], z)
                 Hal.dom.addCanvas(@canvas, @bounds[0], @bounds[1], true)
             
             @ctx = @canvas.getContext("2d")
@@ -44,7 +42,7 @@ define [],
         @ctx.strokeStyle = style
         @ctx.strokeRect(pts[0], pts[1], pts[2], pts[3])
 
-    Renderer::drawSprite = (sprite) ->
-        @ctx.drawImage(sprite.img, -sprite.w2, -sprite.h2)
+    Renderer::drawSprite = (sprite, x = 0, y = 0) ->
+        @ctx.drawImage(sprite.img, -sprite.w2 - x, -sprite.h2 - y)
 
     return Renderer

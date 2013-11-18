@@ -26,7 +26,7 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
     fps_trigger_time    = 1
     cur_fps_time        = 0
     fps_counter         = 0
-    fps                 = 0
+    # fps                 = 0
     last_frame_id       = 0
     prev_time           = 0
 
@@ -49,12 +49,12 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
             sc.draw(delta)
 
         if cur_fps_time >= fps_trigger_time
-            fps = fps_counter
+            Hal.fps = fps_counter
             cur_fps_time = 0
             fps_counter = 0
-            Hal.trigger "FPS_UPDATE", fps
+            Hal.trigger "FPS_UPDATE", Hal.fps
 
-        Hal.trigger "EXIT_FRAME"
+        Hal.trigger "EXIT_FRAME", delta
 
         last_frame_id = requestAnimFrame(rafLoop)
         fps_counter++
@@ -68,6 +68,7 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
             @debug_mode     = false
             @pressed_keys   = []
             @scenes         = []
+            @fps            = 0
             log.debug "Engine constructed"
 
     Halal::addScene = (scene) ->
@@ -110,11 +111,18 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
     Halal::init = () ->
         @evm = new DOMEventManager()
 
-        Hal.on "MOUSE_MOVE", (pos) ->
+        @on "MOUSE_MOVE", (pos) ->
             for sc in @scenes
                 sc.mpos = pos
                 sc.world_pos = sc.worldToLocal(pos)
-                
+        
+        @on "DESTROY_SCENE", (scene) ->
+            ind = @scenes.indexOf(scene)
+            if ind is -1
+                log.error "No such scene: #{scene.name}"
+            @scenes[ind] = null
+            @scenes.splice(ind, 1)
+
         log.debug "Engine initialized"
         
     Halal::start = () ->
@@ -128,20 +136,21 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
         return paused
 
     Halal::debug = (@debug_mode) ->
-        if @debug_mode and not draw_info?
-            Hal.on "EXIT_FRAME", _draw_info = (delta) ->
-                Hal.drawInfo()
-        else if not @debug_mode
-            Hal.remove "EXIT_FRAME", draw_info
-            draw_info = null
+        # if @debug_mode and not draw_info?
+        #     Hal.on "EXIT_FRAME", draw_info = (delta) ->
+        #         Hal.drawInfo()
+        # else if not @debug_mode
+        #     Hal.remove "EXIT_FRAME", draw_info
+        #     draw_info = null
 
     Halal::ID = () ->
         return ++@id
 
     Halal::drawInfo = () ->
+        # need to clear this shit #
         @glass.ctx.setTransform(1, 0, 0, 1, 0, 0)
         @glass.ctx.fillStyle = "black"
-        @glass.ctx.fillText("FPS: #{fps}", 0, 10)
+        @glass.ctx.fillText("FPS: #{@fps}", 0, 10)
 
     Halal::tween = (obj, property, t, from, to, repeat = 1) ->
         defer = new DeferredCounter(repeat)
@@ -167,19 +176,25 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
 
         return defer.promise()
 
-    Halal::tweenF = (t, func, from, to) ->
+    Halal::tweenF = (t, func, from, to, repeat = 1) ->
         t *= 0.001
         accul = 0
         speed = (to - from) / t
+        val = from
         Hal.on "ENTER_FRAME", $ = (delta) ->
             accul += delta
-            from += speed * delta
-            func(from)
+            val += speed * delta
+            func(val, delta)
             accul = Math.min(accul, t)
             if t is accul
-                Hal.remove "ENTER_FRAME", $
-                func(to)
-                return
+                repeat--
+                func(to, delta)
+                if repeat is 0
+                    Hal.remove "ENTER_FRAME", $
+                    return
+                else
+                    accul = 0
+                    val = from
         return        
 
     Halal::fadeInViewport = (t) ->

@@ -5,16 +5,28 @@ require.config
     baseUrl: "src"
     paths:
         "loglevel": "../vendor/loglevel/dist/loglevel"
+        "jquery": "../vendor/jquery/jquery"
+        "jquery-ui": "../vendor/jquery-ui/ui/jquery-ui"
+        "jquery-contextmenu": "../vendor/jquery.contextmenu"
+        "handlebars": "../vendor/handlebars"
+
     shim:
+        "jquery-ui":
+            exports: "$"
+            deps: ['jquery', 'jquery-contextmenu']
+        "jquery-contextmenu":
+            exports: "$"
+            deps: ["jquery"]
         "loglevel":
             exports: "log"
 
 require ["loglevel"], (log) ->
     window.log = log
-    require ["Halal", "Scene", "Entity", "SpriteEntity"], 
-    (Halal, Scene, Entity, SpriteEntity) ->
+    require ["Halal", "Scene", "Entity", "SpriteEntity", "IsometricMap"], 
+    (Halal, Scene, Entity, SpriteEntity, IsometricMap) ->
         #Hal.asm.setResourcesRelativeURL "/assets/"
-        Hal.asm.loadSpritesFromFileList "assets/sprites/sprites.list"
+        Hal.asm.loadViaSocketIO() #SpritesFromFileList "assets/sprites/sprites.list"
+        ###
         e = new Entity({
             shape: Hal.math.createRegularon(3, 45)
         })
@@ -35,19 +47,32 @@ require ["loglevel"], (log) ->
                 super()
                 @search_range = 50
 
+                Hal.on "RIGHT_CLICK", (pos) =>
+                    return if @paused
+                    @camera.lerpTo(pos)
+
             draw: (delta) ->
+                return if @paused
                 super()
 
-                #pos = @entities[1].worldToLocal(@localToWorld(@worldToLocal(@mpos)))
-                # log.debug pos
-                #Hal.glass.strokeRect([pos[0], pos[1], 20, 20], "yellow")
-    
                 for p in @entities
                     p.update(delta)
                     p.draw(delta)
 
-                Hal.glass.ctx.setTransform(1, 0, 0, 1, -@search_range*@camera.zoom, -@search_range*@camera.zoom)
-                Hal.glass.strokeRect([
+                @g.ctx.setTransform(
+                    @local_matrix[0], 
+                    @local_matrix[3],
+                    @local_matrix[1],
+                    @local_matrix[4],
+                    @local_matrix[2],
+                    @local_matrix[5]
+                )
+
+                @drawQuadSpace(@quadspace)
+                @g.strokeRect(@camera.view_frustum, "green")
+
+                @g.ctx.setTransform(1, 0, 0, 1, -@search_range*@camera.zoom, -@search_range*@camera.zoom)
+                @g.strokeRect([
                     @mpos[0], 
                     @mpos[1], 
                     2*@search_range*@camera.zoom, 
@@ -61,7 +86,7 @@ require ["loglevel"], (log) ->
         Hal.addScene(bla)
         
         do addRandom = () ->
-            i = 30
+            i = 10
             while i > 0
                 x       = bla.bounds[2] * Math.random()
                 y       = bla.bounds[3] * Math.random()
@@ -77,7 +102,6 @@ require ["loglevel"], (log) ->
                     shape: Hal.math.createRegularon(reg, size)
                 })
                 bla.addEntity(ent)
-                log.debug i
                 i--
 
         e.attr("shape", Hal.math.createRegularon(3, 45))
@@ -111,7 +135,7 @@ require ["loglevel"], (log) ->
         #e1.addDrawable (delta) ->
             # pos = @worldToLocal(@parent.localToWorld(@parent.worldToLocal(@parent.mpos)))
             # # log.debug pos
-            # Hal.glass.strokeRect([pos[0], pos[1], 20, 20], "yellow")
+            # @g.strokeRect([pos[0], pos[1], 20, 20], "yellow")
     
         e2.attr("shape", Hal.math.createRegularon(4, 15))
         e2.attr("scale", 1)
@@ -144,13 +168,60 @@ require ["loglevel"], (log) ->
 
         bla.addEntity(e)
         bla.addEntity(e1)
-        #bla.addEntity(e2)
-
         e.addEntity(e2)
 
         log.debug [e.id, e1.id, e2.id]
 
+
+        class Trla extends Scene
+            constructor: (meta) ->
+                super(meta)
+                Hal.on "RIGHT_CLICK", (pos) =>
+                    return if @paused
+                    @camera.lerpTo(pos)
+
+            draw: (delta) ->
+                return if @paused
+                super()
+
+                for p in @entities
+                    p.update(delta)
+                    p.draw(delta)
+
+  
+        # bla_bounds = bla.attr("bounds");
+        # trla_bounds = [
+        #     bla_bounds[2] - 600,
+        #     bla_bounds[3] - 300,
+        #     600,
+        #     300
+        # ]
+        # trla = new Trla(
+        #     name: "Trla scena"
+        #     bg_color: "white"
+        #     z: 2
+        #     bounds: trla_bounds
+        # )
+        # Hal.addScene(trla)
+        ###
+
         Hal.asm.on "SPRITES_LOADED", () ->
+            isomap = new IsometricMap(
+                name: "IsoMap"
+                tilew: 128
+                tileh: 64
+                rows: 50
+                cols: 50
+                bg_color: "gray"
+                draw_camera_center: true
+                draw_quadspace: false
+            )
+
+            log.setLevel log.levels.DEBUG
+            Hal.addScene(isomap)
             Hal.start()
             Hal.fadeInViewport(1000)
             Hal.debug(true)
+            
+            require ["MapEditor", "HudProlog"], (MapEditor, HudProlog) ->
+                log.debug "MapEditor loaded"

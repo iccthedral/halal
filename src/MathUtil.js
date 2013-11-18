@@ -19,6 +19,15 @@
       }
       return out;
     };
+    MathUtil.clamp = function(val, from, to) {
+      if (val < from) {
+        val = from;
+      }
+      if (val > to) {
+        val = to;
+      }
+      return val;
+    };
     MathUtil.toDegrees = function(radians) {
       return radians * 180 / Math.PI;
     };

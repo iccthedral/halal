@@ -14,7 +14,7 @@ define [],
             @canvases           = []
             @in_fullscreen      = false
            
-            @screen_w           = window.screen.availHeight
+            @screen_w           = window.screen.availWidth
             @screen_h           = window.screen.availHeight
             @fullscreen_scale   = [1.0, 1.0]
 
@@ -44,12 +44,12 @@ define [],
                     callb.call(null, @hud)
                     
             window.addEventListener("resize", () =>
-                log.debug "Window resize happened"
                 @area = @renderspace.getBoundingClientRect()
                 # in case move happened between two monitors, or resolution 
                 # changed on the system
                 @screen_w = window.screen.availHeight
                 @screen_h = window.screen.availHeight
+                Hal.trigger "RESIZE", @area
             )
 
             document.addEventListener("fullscreenchange", () ->
@@ -69,7 +69,7 @@ define [],
 
             Hal.on "REQUEST_FULLSCREEN", (scene) =>
                 if not Hal.supports("FULLSCREEN")
-                    log.warn "fullscreen not available"
+                    log.warn "Fullscreen not supported"
                     return
                 if not @in_fullscreen
                     @renderspace.style["width"] = @screen_w + "px"
@@ -82,11 +82,11 @@ define [],
         canvas.height  = height
         return canvas
     
-    DOMManager::createCanvasLayer = (z) ->
+    DOMManager::createCanvasLayer = (width = @area.width, height = @area.height, z) ->
         ind = @current_zindex + z
         if @canvases[ind]
             return @canvases[ind]
-        canvas = @createCanvas()
+        canvas = @createCanvas(width, height)
         canvas.style["z-index"] = ind
         return canvas
 

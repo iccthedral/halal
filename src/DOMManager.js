@@ -12,7 +12,7 @@
         this.current_zindex = 1000;
         this.canvases = [];
         this.in_fullscreen = false;
-        this.screen_w = window.screen.availHeight;
+        this.screen_w = window.screen.availWidth;
         this.screen_h = window.screen.availHeight;
         this.fullscreen_scale = [1.0, 1.0];
         Hal.on("SUPPORTS_FULLSCREEN", function() {
@@ -48,10 +48,10 @@
           }
         });
         window.addEventListener("resize", function() {
-          log.debug("Window resize happened");
           _this.area = _this.renderspace.getBoundingClientRect();
           _this.screen_w = window.screen.availHeight;
-          return _this.screen_h = window.screen.availHeight;
+          _this.screen_h = window.screen.availHeight;
+          return Hal.trigger("RESIZE", _this.area);
         });
         document.addEventListener("fullscreenchange", function() {
           this.in_fullscreen = !this.in_fullscreen;
@@ -67,7 +67,7 @@
         }, false);
         Hal.on("REQUEST_FULLSCREEN", function(scene) {
           if (!Hal.supports("FULLSCREEN")) {
-            log.warn("fullscreen not available");
+            log.warn("Fullscreen not supported");
             return;
           }
           if (!_this.in_fullscreen) {
@@ -94,13 +94,19 @@
       canvas.height = height;
       return canvas;
     };
-    DOMManager.prototype.createCanvasLayer = function(z) {
+    DOMManager.prototype.createCanvasLayer = function(width, height, z) {
       var canvas, ind;
+      if (width == null) {
+        width = this.area.width;
+      }
+      if (height == null) {
+        height = this.area.height;
+      }
       ind = this.current_zindex + z;
       if (this.canvases[ind]) {
         return this.canvases[ind];
       }
-      canvas = this.createCanvas();
+      canvas = this.createCanvas(width, height);
       canvas.style["z-index"] = ind;
       return canvas;
     };

@@ -21,6 +21,13 @@ define ["Vec2"],
             ang += ang_step
         return out
 
+    MathUtil.clamp = (val, from, to) ->
+        if val < from
+            val = from
+        if val > to
+            val = to
+        return val
+        
     MathUtil.toDegrees = (radians) ->
         return radians * 180 / Math.PI
 

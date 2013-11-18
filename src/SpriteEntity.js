@@ -12,27 +12,29 @@
         var _this = this;
         SpriteEntity.__super__.constructor.call(this, meta);
         this.sprite = Hal.asm.getSprite(meta.sprite);
+        this.visible_sprite = meta.visible_sprite != null ? meta.visible_sprite : true;
+        this.h = meta.height != null ? meta.height : 0;
+        this.w = meta.width != null ? meta.width : 0;
         if (this.sprite == null) {
           this.sprite = SpriteFactory.dummySprite();
           Hal.asm.waitFor(this.sprite, meta.sprite);
+        } else {
+          this.calcShapeAndBBox();
         }
         this.sprite.onLazyLoad = function() {
-          var b_rect, i, pt, shape, _i, _len;
-          _this.attr("bbox", BBoxAlgos.rectBBoxFromSprite(_this.sprite));
-          shape = BBoxAlgos.polyBBoxFromSprite(_this.sprite);
-          b_rect = BBoxAlgos.rectFromPolyShape(shape);
-          for (i = _i = 0, _len = shape.length; _i < _len; i = ++_i) {
-            pt = shape[i];
-            shape[i][0] -= b_rect[2] * 0.5;
-            shape[i][1] -= b_rect[3] * 0.5;
-          }
-          return _this.attr("shape", shape);
+          return _this.calcShapeAndBBox();
         };
       }
 
+      SpriteEntity.prototype.calcShapeAndBBox = function() {
+        return this.attr("bbox", BBoxAlgos.rectBBoxFromSprite(this.sprite));
+      };
+
       SpriteEntity.prototype.draw = function() {
         SpriteEntity.__super__.draw.call(this);
-        return Hal.glass.drawSprite(this.sprite);
+        if (this.visible_sprite) {
+          return this.scene.g.drawSprite(this.sprite, this.w, this.h);
+        }
       };
 
       return SpriteEntity;

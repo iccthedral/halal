@@ -8,7 +8,7 @@
         A shim (sort of) to support RAF execution
     */
 
-    var Halal, cur_fps_time, cur_time, delta, draw_info, fps, fps_cap, fps_counter, fps_trigger_time, fstep, last_frame_id, paused, prev_time, rafLoop;
+    var Halal, cur_fps_time, cur_time, delta, draw_info, fps_cap, fps_counter, fps_trigger_time, fstep, last_frame_id, paused, prev_time, rafLoop;
     window.requestAnimFrame = (function() {
       return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function(callback) {
         return window.setTimeout(callback, 1);
@@ -27,7 +27,6 @@
     fps_trigger_time = 1;
     cur_fps_time = 0;
     fps_counter = 0;
-    fps = 0;
     last_frame_id = 0;
     prev_time = 0;
     fps_cap = 30;
@@ -49,12 +48,12 @@
         sc.draw(delta);
       }
       if (cur_fps_time >= fps_trigger_time) {
-        fps = fps_counter;
+        Hal.fps = fps_counter;
         cur_fps_time = 0;
         fps_counter = 0;
-        Hal.trigger("FPS_UPDATE", fps);
+        Hal.trigger("FPS_UPDATE", Hal.fps);
       }
-      Hal.trigger("EXIT_FRAME");
+      Hal.trigger("EXIT_FRAME", delta);
       last_frame_id = requestAnimFrame(rafLoop);
       return fps_counter++;
     };
@@ -69,6 +68,7 @@
         this.debug_mode = false;
         this.pressed_keys = [];
         this.scenes = [];
+        this.fps = 0;
         log.debug("Engine constructed");
       }
 
@@ -112,7 +112,7 @@
     };
     Halal.prototype.init = function() {
       this.evm = new DOMEventManager();
-      Hal.on("MOUSE_MOVE", function(pos) {
+      this.on("MOUSE_MOVE", function(pos) {
         var sc, _i, _len, _ref, _results;
         _ref = this.scenes;
         _results = [];
@@ -122,6 +122,15 @@
           _results.push(sc.world_pos = sc.worldToLocal(pos));
         }
         return _results;
+      });
+      this.on("DESTROY_SCENE", function(scene) {
+        var ind;
+        ind = this.scenes.indexOf(scene);
+        if (ind === -1) {
+          log.error("No such scene: " + scene.name);
+        }
+        this.scenes[ind] = null;
+        return this.scenes.splice(ind, 1);
       });
       return log.debug("Engine initialized");
     };
@@ -136,16 +145,7 @@
       return paused;
     };
     Halal.prototype.debug = function(debug_mode) {
-      var _draw_info;
       this.debug_mode = debug_mode;
-      if (this.debug_mode && (draw_info == null)) {
-        return Hal.on("EXIT_FRAME", _draw_info = function(delta) {
-          return Hal.drawInfo();
-        });
-      } else if (!this.debug_mode) {
-        Hal.remove("EXIT_FRAME", draw_info);
-        return draw_info = null;
-      }
     };
     Halal.prototype.ID = function() {
       return ++this.id;
@@ -153,7 +153,7 @@
     Halal.prototype.drawInfo = function() {
       this.glass.ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.glass.ctx.fillStyle = "black";
-      return this.glass.ctx.fillText("FPS: " + fps, 0, 10);
+      return this.glass.ctx.fillText("FPS: " + this.fps, 0, 10);
     };
     Halal.prototype.tween = function(obj, property, t, from, to, repeat) {
       var $, accul, defer, speed, val;
@@ -184,19 +184,29 @@
       });
       return defer.promise();
     };
-    Halal.prototype.tweenF = function(t, func, from, to) {
-      var $, accul, speed;
+    Halal.prototype.tweenF = function(t, func, from, to, repeat) {
+      var $, accul, speed, val;
+      if (repeat == null) {
+        repeat = 1;
+      }
       t *= 0.001;
       accul = 0;
       speed = (to - from) / t;
+      val = from;
       Hal.on("ENTER_FRAME", $ = function(delta) {
         accul += delta;
-        from += speed * delta;
-        func(from);
+        val += speed * delta;
+        func(val, delta);
         accul = Math.min(accul, t);
         if (t === accul) {
-          Hal.remove("ENTER_FRAME", $);
-          func(to);
+          repeat--;
+          func(to, delta);
+          if (repeat === 0) {
+            Hal.remove("ENTER_FRAME", $);
+          } else {
+            accul = 0;
+            return val = from;
+          }
         }
       });
     };
