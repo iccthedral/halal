@@ -1,11 +1,11 @@
 "use strict"
 
-define ["Halal", "Vec2"],
+define ["Vec2"],
 
-(Halal, Vec2) ->
+(Vec2) ->
 
     BBoxAlgos = {
-        polyBBoxFromSprite: (sprite, sampler = HorizontalSampler, downsampler = BBoxDownsamplers.DouglasPecker) ->
+        polyBBoxFromSprite: (sprite, sampler = HorizontalSampler, downsampler = DouglasPecker) ->
             return BBoxResolver(
                 sprite, 
                 sampler, 
@@ -37,23 +37,23 @@ define ["Halal", "Vec2"],
             return [rad]
 
         rectIntersectsRect: (rect) ->
-            return Hal.m.rectIntersectsRect(rect, [@pos[0], @pos[1], @bounds[2], @bounds[3]])
+            return Hal.math.rectIntersectsRect(rect, [@pos[0], @pos[1], @bounds[2], @bounds[3]])
 
         rectIntersectsCircle: (rect) ->
-            return Hal.m.rectIntersectsAndHullsCircle(rect, @pos, @bounds[0])
+            return Hal.math.rectIntersectsAndHullsCircle(rect, @pos, @bounds[0])
 
         rectBoundCheck: (pos) ->
-            return Hal.m.isPointInRect(pos, [@pos[0], @pos[1], @bounds[2], @bounds[3]])
+            return Hal.math.isPointInRect(pos, [@pos[0], @pos[1], @bounds[2], @bounds[3]])
 
         circularBoundCheck: (pos) ->
-            return Hal.m.isPointInCircle(pos, @pos, @bounds[0])
+            return Hal.math.isPointInCircle(pos, @pos, @bounds[0])
     }
 
     BBoxResolver = (sprite, sampler, downsampler) -> 
         points      = []
         width       = sprite.w
         height      = sprite.h
-        canvas      = Halal.dom.createCanvas(width, height)
+        canvas      = Hal.dom.createCanvas(width, height)
         ctx         = canvas.getContext("2d")
         criticals   = []
 
@@ -64,7 +64,7 @@ define ["Halal", "Vec2"],
         findCriticalPoint = () ->
             prev_degs       = 0
             degs            = 0
-            angle_treshold  = 1/3
+            angle_treshold  = 1/33
 
             if points.length < 2
                 return undefined
@@ -89,7 +89,7 @@ define ["Halal", "Vec2"],
                     degs = Vec2.dot(vecA, vecB)
                     degs_diff = Math.abs(degs - prev_degs)
                     if(degs_diff > angle_treshold)
-                        pt = Hal.m.point(points[q+2].x - Hal.m.epsilon, points[q+2].y - Hal.m.epsilon)
+                        pt = [points[q+2].x - Hal.math.epsilon, points[q+2].y - Hal.math.epsilon]
                         points.splice(0, q+2)
                         return pt
 
@@ -98,6 +98,7 @@ define ["Halal", "Vec2"],
         while (critical = findCriticalPoint())
             criticals.push(critical)
         
+        log.debug "num criticals: #{criticals.length}"
         return new downsampler(criticals)
 
     class BBoxSampler
@@ -137,35 +138,35 @@ define ["Halal", "Vec2"],
     
 
     class BBoxDownSampler
-        constructor: (@pts) ->
-            return @downsamplingFunc()
+        constructor: (pts) ->
+            return @downsamplingFunc(pts)
 
         downsamplingFunc: () ->
             return []
 
     class DouglasPecker extends BBoxDownSampler
-        downsamplingFunc: () ->
-            epsilon     = 7
-            start       = @pts[0]
-            end         = @pts[@pts.length - 1]
+        downsamplingFunc: (pts) ->
+            epsilon     = 3
+            start       = pts[0]
+            end         = pts[pts.length - 1]
             max_dist    = 0
             index       = 0
             res         = []
-            if @pts.length < 2
-                return @pts
-            for i in [1..(@pts.length - 2)]
-                dist = Hal.m.perpDistance(@pts[i], start, end)
+            if pts.length < 2
+                return pts
+            for i in [1..(pts.length - 2)]
+                dist = Hal.math.perpDistance(pts[i], start, end)
                 if(dist > max_dist)
                     index = i
                     max_dist = dist
             if (max_dist > epsilon)
-                res1 = @downsamplingFunc(@pts[0..index], epsilon)
-                res2 = @downsamplingFunc(@pts[index..@pts.length-1], epsilon)
+                res1 = @downsamplingFunc(pts[0..index])
+                res2 = @downsamplingFunc(pts[index..pts.length-1])
                 res1 = res1.slice(0, res1.length - 1)
                 res = res1.concat(res2)
             else 
-                res.push(@pts[0])
-                res.push(@pts[@pts.length - 1])
+                res.push(pts[0])
+                res.push(pts[pts.length - 1])
             return res
 
     return BBoxAlgos

@@ -58,12 +58,12 @@
 
       DOMEventManager.prototype.mouseDblClick = function(evt) {
         this.getMousePos(evt);
-        return Hal.trigger("MOUSE_DBL_CLICK", this.pos);
+        return Hal.trigger("LEFT_DBL_CLICK", this.pos);
       };
 
       DOMEventManager.prototype.mouseClick = function(evt) {
         this.getMousePos(evt);
-        Hal.trigger("MOUSE_CLICKED", this.pos);
+        Hal.trigger("MOUSE_CLICK", this.pos);
         evt.preventDefault();
         return evt.stopPropagation();
       };

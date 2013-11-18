@@ -35,6 +35,7 @@ define [],
         det = a00 * b01 + a01 * b11 + a02 * b21
 
         if det is 0
+            log.debug "oh god no"
             return null
 
         det = 1.0 / det
@@ -109,5 +110,6 @@ define [],
         out[8] = b20 * a02 + b21 * a12 + b22 * a22
         return out
 
+    window.Matrix3 = Matrix3
     return Matrix3
     

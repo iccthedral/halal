@@ -3,12 +3,12 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2", "DeferredCounter", "DOMEventManager"], function(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, DeferredCounter, DOMEventManager) {
+  define(["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2", "DeferredCounter", "DOMEventManager", "AssetManager"], function(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, DeferredCounter, DOMEventManager, AssetManager) {
     /*
         A shim (sort of) to support RAF execution
     */
 
-    var Halal, cur_fps_time, cur_time, delta, fps, fps_cap, fps_counter, fps_trigger_time, fstep, last_frame_id, prev_time, rafLoop, _draw_info;
+    var Halal, cur_fps_time, cur_time, delta, draw_info, fps, fps_cap, fps_counter, fps_trigger_time, fstep, last_frame_id, paused, prev_time, rafLoop;
     window.requestAnimFrame = (function() {
       return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function(callback) {
         return window.setTimeout(callback, 1);
@@ -32,14 +32,22 @@
     prev_time = 0;
     fps_cap = 30;
     fstep = 1 / fps_cap;
-    _draw_info = null;
+    draw_info = null;
+    paused = true;
     rafLoop = function() {
+      var sc, _i, _len, _ref;
       prev_time = cur_time;
       cur_time = performance.now();
       delta = (cur_time - prev_time) * 0.001;
       cur_fps_time += delta;
       delta = Math.min(delta, fstep);
       Hal.trigger("ENTER_FRAME", delta);
+      _ref = Hal.scenes;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        sc = _ref[_i];
+        sc.update(delta);
+        sc.draw(delta);
+      }
       if (cur_fps_time >= fps_trigger_time) {
         fps = fps_counter;
         cur_fps_time = 0;
@@ -58,7 +66,6 @@
         this.dom = new DOMManager(this);
         this.math = MathUtil;
         this.id = 0;
-        this.paused = true;
         this.debug_mode = false;
         this.pressed_keys = [];
         this.scenes = [];
@@ -87,6 +94,16 @@
       log.debug("Added scene: " + scene.name);
       return scene;
     };
+    Halal.prototype.pause = function() {
+      cancelAnimationFrame(last_frame_id);
+      paused = true;
+      return this.trigger("ENGINE_PAUSED");
+    };
+    Halal.prototype.resume = function() {
+      paused = false;
+      rafLoop();
+      return this.trigger("ENGINE_RESUMED");
+    };
     Halal.prototype.viewportBounds = function() {
       return [0, 0, this.dom.area.width, this.dom.area.height];
     };
@@ -94,26 +111,40 @@
       return this.trigger("SUPPORTS_" + feature);
     };
     Halal.prototype.init = function() {
-      this.glass = new Renderer(this.viewportBounds(), null, 11);
       this.evm = new DOMEventManager();
+      Hal.on("MOUSE_MOVE", function(pos) {
+        var sc, _i, _len, _ref, _results;
+        _ref = this.scenes;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          sc = _ref[_i];
+          sc.mpos = pos;
+          _results.push(sc.world_pos = sc.worldToLocal(pos));
+        }
+        return _results;
+      });
       return log.debug("Engine initialized");
     };
     Halal.prototype.start = function() {
       this.init();
-      this.paused = false;
+      paused = false;
       this.trigger("ENGINE_STARTED");
       log.debug("Engine started");
       return rafLoop();
     };
+    Halal.prototype.isPaused = function() {
+      return paused;
+    };
     Halal.prototype.debug = function(debug_mode) {
+      var _draw_info;
       this.debug_mode = debug_mode;
-      if (this.debug_mode && (_draw_info == null)) {
+      if (this.debug_mode && (draw_info == null)) {
         return Hal.on("EXIT_FRAME", _draw_info = function(delta) {
           return Hal.drawInfo();
         });
       } else if (!this.debug_mode) {
-        Hal.remove("EXIT_FRAME", _draw_info);
-        return _draw_info = null;
+        Hal.remove("EXIT_FRAME", draw_info);
+        return draw_info = null;
       }
     };
     Halal.prototype.ID = function() {
@@ -202,7 +233,10 @@
         i undefined ne bude undefined
     */
 
-    return (window.Hal = new Halal());
+    window.Hal = new Halal();
+    window.Hal.glass = new Renderer(Hal.viewportBounds(), null, 11);
+    window.Hal.asm = new AssetManager();
+    return window.Hal;
   });
 
 }).call(this);

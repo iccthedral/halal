@@ -323,6 +323,7 @@ define(
             }
         }
         */
+        window.Vec2 = Vec2;
         return Vec2;
     }
 );

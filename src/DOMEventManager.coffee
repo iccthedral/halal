@@ -47,12 +47,12 @@ define [],
 
         mouseDblClick: (evt) =>
             @getMousePos(evt)
-            Hal.trigger("MOUSE_DBL_CLICK", @pos)
+            Hal.trigger("LEFT_DBL_CLICK", @pos)
 
         mouseClick: (evt) =>
             #return if @under_dom
             @getMousePos(evt)
-            Hal.trigger("MOUSE_CLICKED", @pos)
+            Hal.trigger("MOUSE_CLICK", @pos)
             evt.preventDefault()
             evt.stopPropagation()
 

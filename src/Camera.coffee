@@ -23,9 +23,10 @@ define ["Vec2", "HalalEntity", "Renderer"],
             @cy = @bounds[3] * 0.5
             @w2 = @w * 0.5
             @h2 = @h * 0.5
-            @center_point = [@scene.bounds[2] / 2, @scene.bounds[3] / 2]
+            
+            # @center_point = [@scene.bounds[2] / 2, @scene.bounds[3] / 2]
 
-            @lerp_to = @center_point.slice()
+            # @lerp_to = @center_point.slice()
 
             @view_frustum = [0, 0, @scene.bounds[2], @scene.bounds[3]]
 

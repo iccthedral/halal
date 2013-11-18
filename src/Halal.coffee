@@ -1,8 +1,8 @@
 "use strict"
 
-define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2", "DeferredCounter", "DOMEventManager"],
+define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2", "DeferredCounter", "DOMEventManager", "AssetManager"],
 
-(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, DeferredCounter, DOMEventManager) ->
+(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, DeferredCounter, DOMEventManager, AssetManager) ->
 
     ###
         A shim (sort of) to support RAF execution
@@ -32,7 +32,8 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
 
     fps_cap             = 30
     fstep               = 1 / fps_cap
-    _draw_info          = null
+    draw_info          = null
+    paused          = true
 
     rafLoop = () ->
         prev_time = cur_time
@@ -42,6 +43,10 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
         delta = Math.min(delta, fstep)
 
         Hal.trigger "ENTER_FRAME", delta
+
+        for sc in Hal.scenes
+            sc.update(delta)
+            sc.draw(delta)
 
         if cur_fps_time >= fps_trigger_time
             fps = fps_counter
@@ -60,7 +65,6 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
             @dom            = new DOMManager(@)
             @math           = MathUtil
             @id             = 0
-            @paused         = true
             @debug_mode     = false
             @pressed_keys   = []
             @scenes         = []
@@ -87,6 +91,16 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
         log.debug "Added scene: #{scene.name}"
         return scene
 
+    Halal::pause = () ->
+      cancelAnimationFrame(last_frame_id)
+      paused = true
+      @trigger "ENGINE_PAUSED"
+
+    Halal::resume = () ->
+      paused = false
+      rafLoop()
+      @trigger("ENGINE_RESUMED")
+
     Halal::viewportBounds = () ->
         return [0, 0, @dom.area.width, @dom.area.height]
 
@@ -94,24 +108,32 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
         @trigger "SUPPORTS_#{feature}"
 
     Halal::init = () ->
-        @glass = new Renderer(@viewportBounds(), null, 11)
         @evm = new DOMEventManager()
+
+        Hal.on "MOUSE_MOVE", (pos) ->
+            for sc in @scenes
+                sc.mpos = pos
+                sc.world_pos = sc.worldToLocal(pos)
+                
         log.debug "Engine initialized"
         
     Halal::start = () ->
         @init()
-        @paused = false
+        paused = false
         @trigger "ENGINE_STARTED"
         log.debug "Engine started"
         rafLoop()
+        
+    Halal::isPaused = () ->
+        return paused
 
     Halal::debug = (@debug_mode) ->
-        if @debug_mode and not _draw_info?
+        if @debug_mode and not draw_info?
             Hal.on "EXIT_FRAME", _draw_info = (delta) ->
                 Hal.drawInfo()
         else if not @debug_mode
-            Hal.remove "EXIT_FRAME", _draw_info
-            _draw_info = null
+            Hal.remove "EXIT_FRAME", draw_info
+            draw_info = null
 
     Halal::ID = () ->
         return ++@id
@@ -189,4 +211,8 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
         i undefined ne bude undefined
     ###
     
-    return (window.Hal = new Halal())
+    window.Hal          = new Halal()
+    window.Hal.glass    = new Renderer(Hal.viewportBounds(), null, 11)
+    window.Hal.asm      = new AssetManager()
+
+    return window.Hal

@@ -31,6 +31,9 @@
     MathUtil.rectIntersectsRect = function(rectA, rectB) {
       return rectA[0] < (rectB[0] + rectB[2]) && (rectA[0] + rectA[2]) > rectB[0] && rectA[1] < (rectB[1] + rectB[3]) && (rectA[3] + rectA[1]) > rectB[1];
     };
+    MathUtil.createRectPolygon = function(x, y, w, h) {
+      return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+    };
     MathUtil.doLinesIntersect = function(x1, y1, x2, y2) {
       /*
           Due to numerical instability, epsilon hack is necessarry

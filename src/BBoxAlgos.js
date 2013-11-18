@@ -3,7 +3,7 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["Halal", "Vec2"], function(Halal, Vec2) {
+  define(["Vec2"], function(Vec2) {
     var BBoxAlgos, BBoxDownSampler, BBoxResolver, BBoxSampler, DouglasPecker, HorizontalSampler, _ref, _ref1;
     BBoxAlgos = {
       polyBBoxFromSprite: function(sprite, sampler, downsampler) {
@@ -11,7 +11,7 @@
           sampler = HorizontalSampler;
         }
         if (downsampler == null) {
-          downsampler = BBoxDownsamplers.DouglasPecker;
+          downsampler = DouglasPecker;
         }
         return BBoxResolver(sprite, sampler, downsampler);
       },
@@ -39,16 +39,16 @@
         return [rad];
       },
       rectIntersectsRect: function(rect) {
-        return Hal.m.rectIntersectsRect(rect, [this.pos[0], this.pos[1], this.bounds[2], this.bounds[3]]);
+        return Hal.math.rectIntersectsRect(rect, [this.pos[0], this.pos[1], this.bounds[2], this.bounds[3]]);
       },
       rectIntersectsCircle: function(rect) {
-        return Hal.m.rectIntersectsAndHullsCircle(rect, this.pos, this.bounds[0]);
+        return Hal.math.rectIntersectsAndHullsCircle(rect, this.pos, this.bounds[0]);
       },
       rectBoundCheck: function(pos) {
-        return Hal.m.isPointInRect(pos, [this.pos[0], this.pos[1], this.bounds[2], this.bounds[3]]);
+        return Hal.math.isPointInRect(pos, [this.pos[0], this.pos[1], this.bounds[2], this.bounds[3]]);
       },
       circularBoundCheck: function(pos) {
-        return Hal.m.isPointInCircle(pos, this.pos, this.bounds[0]);
+        return Hal.math.isPointInCircle(pos, this.pos, this.bounds[0]);
       }
     };
     BBoxResolver = function(sprite, sampler, downsampler) {
@@ -56,7 +56,7 @@
       points = [];
       width = sprite.w;
       height = sprite.h;
-      canvas = Halal.dom.createCanvas(width, height);
+      canvas = Hal.dom.createCanvas(width, height);
       ctx = canvas.getContext("2d");
       criticals = [];
       ctx.drawImage(sprite.img, 0, 0);
@@ -65,7 +65,7 @@
         var angle_treshold, degs, degs_diff, dot, first, next, p, prev_degs, pt, q, second, third, vecA, vecB, _i, _len;
         prev_degs = 0;
         degs = 0;
-        angle_treshold = 1 / 3;
+        angle_treshold = 1 / 33;
         if (points.length < 2) {
           return void 0;
         }
@@ -93,7 +93,7 @@
             degs = Vec2.dot(vecA, vecB);
             degs_diff = Math.abs(degs - prev_degs);
             if (degs_diff > angle_treshold) {
-              pt = Hal.m.point(points[q + 2].x - Hal.m.epsilon, points[q + 2].y - Hal.m.epsilon);
+              pt = [points[q + 2].x - Hal.math.epsilon, points[q + 2].y - Hal.math.epsilon];
               points.splice(0, q + 2);
               return pt;
             }
@@ -104,6 +104,7 @@
       while ((critical = findCriticalPoint())) {
         criticals.push(critical);
       }
+      log.debug("num criticals: " + criticals.length);
       return new downsampler(criticals);
     };
     BBoxSampler = (function() {
@@ -172,8 +173,7 @@
     })(BBoxSampler);
     BBoxDownSampler = (function() {
       function BBoxDownSampler(pts) {
-        this.pts = pts;
-        return this.downsamplingFunc();
+        return this.downsamplingFunc(pts);
       }
 
       BBoxDownSampler.prototype.downsamplingFunc = function() {
@@ -191,32 +191,32 @@
         return _ref1;
       }
 
-      DouglasPecker.prototype.downsamplingFunc = function() {
+      DouglasPecker.prototype.downsamplingFunc = function(pts) {
         var dist, end, epsilon, i, index, max_dist, res, res1, res2, start, _i, _ref2;
-        epsilon = 7;
-        start = this.pts[0];
-        end = this.pts[this.pts.length - 1];
+        epsilon = 3;
+        start = pts[0];
+        end = pts[pts.length - 1];
         max_dist = 0;
         index = 0;
         res = [];
-        if (this.pts.length < 2) {
-          return this.pts;
+        if (pts.length < 2) {
+          return pts;
         }
-        for (i = _i = 1, _ref2 = this.pts.length - 2; 1 <= _ref2 ? _i <= _ref2 : _i >= _ref2; i = 1 <= _ref2 ? ++_i : --_i) {
-          dist = Hal.m.perpDistance(this.pts[i], start, end);
+        for (i = _i = 1, _ref2 = pts.length - 2; 1 <= _ref2 ? _i <= _ref2 : _i >= _ref2; i = 1 <= _ref2 ? ++_i : --_i) {
+          dist = Hal.math.perpDistance(pts[i], start, end);
           if (dist > max_dist) {
             index = i;
             max_dist = dist;
           }
         }
         if (max_dist > epsilon) {
-          res1 = this.downsamplingFunc(this.pts.slice(0, +index + 1 || 9e9), epsilon);
-          res2 = this.downsamplingFunc(this.pts.slice(index, +(this.pts.length - 1) + 1 || 9e9), epsilon);
+          res1 = this.downsamplingFunc(pts.slice(0, +index + 1 || 9e9));
+          res2 = this.downsamplingFunc(pts.slice(index, +(pts.length - 1) + 1 || 9e9));
           res1 = res1.slice(0, res1.length - 1);
           res = res1.concat(res2);
         } else {
-          res.push(this.pts[0]);
-          res.push(this.pts[this.pts.length - 1]);
+          res.push(pts[0]);
+          res.push(pts[pts.length - 1]);
         }
         return res;
       };

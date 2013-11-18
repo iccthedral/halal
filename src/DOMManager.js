@@ -49,7 +49,9 @@
         });
         window.addEventListener("resize", function() {
           log.debug("Window resize happened");
-          return _this.area = _this.renderspace.getBoundingClientRect();
+          _this.area = _this.renderspace.getBoundingClientRect();
+          _this.screen_w = window.screen.availHeight;
+          return _this.screen_h = window.screen.availHeight;
         });
         document.addEventListener("fullscreenchange", function() {
           this.in_fullscreen = !this.in_fullscreen;

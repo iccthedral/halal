@@ -44,4 +44,7 @@ define [],
         @ctx.strokeStyle = style
         @ctx.strokeRect(pts[0], pts[1], pts[2], pts[3])
 
+    Renderer::drawSprite = (sprite) ->
+        @ctx.drawImage(sprite.img, -sprite.w2, -sprite.h2)
+
     return Renderer

@@ -33,6 +33,14 @@ define ["Vec2"],
     MathUtil.rectIntersectsRect = (rectA, rectB) ->
         return rectA[0] < (rectB[0] + rectB[2]) and (rectA[0] + rectA[2]) > rectB[0] and rectA[1] < (rectB[1] + rectB[3]) and (rectA[3] + rectA[1]) > rectB[1]
     
+    MathUtil.createRectPolygon = (x, y, w, h) ->
+        return [
+            [x, y],
+            [x + w, y],
+            [x + w, y + h],
+            [x, y + h]
+        ]
+        
     MathUtil.doLinesIntersect = (x1,y1,x2,y2) ->
         ###
             Due to numerical instability, epsilon hack is necessarry 

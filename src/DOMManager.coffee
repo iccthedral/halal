@@ -46,6 +46,10 @@ define [],
             window.addEventListener("resize", () =>
                 log.debug "Window resize happened"
                 @area = @renderspace.getBoundingClientRect()
+                # in case move happened between two monitors, or resolution 
+                # changed on the system
+                @screen_w = window.screen.availHeight
+                @screen_h = window.screen.availHeight
             )
 
             document.addEventListener("fullscreenchange", () ->

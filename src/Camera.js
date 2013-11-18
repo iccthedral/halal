@@ -33,8 +33,6 @@
         this.cy = this.bounds[3] * 0.5;
         this.w2 = this.w * 0.5;
         this.h2 = this.h * 0.5;
-        this.center_point = [this.scene.bounds[2] / 2, this.scene.bounds[3] / 2];
-        this.lerp_to = this.center_point.slice();
         this.view_frustum = [0, 0, this.scene.bounds[2], this.scene.bounds[3]];
         this.on("CHANGE", function(prop) {
           var _ref;

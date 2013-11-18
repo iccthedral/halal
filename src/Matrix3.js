@@ -33,6 +33,7 @@
       b21 = a21 * a10 - a11 * a20;
       det = a00 * b01 + a01 * b11 + a02 * b21;
       if (det === 0) {
+        log.debug("oh god no");
         return null;
       }
       det = 1.0 / det;
@@ -104,6 +105,7 @@
       out[8] = b20 * a02 + b21 * a12 + b22 * a22;
       return out;
     };
+    window.Matrix3 = Matrix3;
     return Matrix3;
   });
 

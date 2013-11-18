@@ -51,6 +51,9 @@
       this.ctx.strokeStyle = style;
       return this.ctx.strokeRect(pts[0], pts[1], pts[2], pts[3]);
     };
+    Renderer.prototype.drawSprite = function(sprite) {
+      return this.ctx.drawImage(sprite.img, -sprite.w2, -sprite.h2);
+    };
     return Renderer;
   });
 
