@@ -1,8 +1,8 @@
 "use strict"
 
-define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2", "DeferredCounter", "DOMEventManager", "AssetManager"],
+define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2", "Deferred", "DeferredCounter", "DOMEventManager", "AssetManager", "ImgUtils"],
 
-(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, DeferredCounter, DOMEventManager, AssetManager) ->
+(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils) ->
 
     ###
         A shim (sort of) to support RAF execution
@@ -153,7 +153,7 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
         @glass.ctx.fillText("FPS: #{@fps}", 0, 10)
 
     Halal::tween = (obj, property, t, from, to, repeat = 1) ->
-        defer = new DeferredCounter(repeat)
+        defer = new Deferred()
         t *= 0.001
         accul = 0
         speed = (to - from) / t
@@ -165,9 +165,9 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
             accul = Math.min(accul, t)
             if t is accul
                 repeat--
-                defer.release(obj)
                 obj.attr(property, to)
                 if repeat is 0
+                    defer.resolve(obj)
                     Hal.remove "ENTER_FRAME", $
                     return
                 else
@@ -225,9 +225,9 @@ define ["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2"
         @todo kontekst bi valjalo prosledjivati, mozda window ne bude window
         i undefined ne bude undefined
     ###
-    
     window.Hal          = new Halal()
     window.Hal.glass    = new Renderer(Hal.viewportBounds(), null, 11)
     window.Hal.asm      = new AssetManager()
+    window.Hal.im       = new ImgUtils()
 
     return window.Hal

@@ -3,7 +3,7 @@
 define ["Vec2"], 
 
 (Vec2) ->
-    capacity = 10
+    capacity = 12
 
     class QuadTree
         constructor: (@bounds) ->

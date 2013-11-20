@@ -14,6 +14,23 @@ html, body {
     /*background-color: #4D5C52;*/
 }
 
+ ::-webkit-scrollbar {
+      width: 8px;
+} 
+
+::-webkit-scrollbar-track {
+      background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+      background-color: white;
+
+}
+
+::-webkit-scrollbar-corner {
+      background-color: black;
+}
+
 .title-buttons .fa {
     float: right;
     padding: 5px;
@@ -26,12 +43,13 @@ html, body {
 }
 
 .selectable-box .fa-folder-open {
-    color: rgb(183, 223, 132);
+    /*color: rgb(183, 223, 132);*/
+    color: white;
     font-size: 46px;
 }
 
 .selectable-box .fa-folder-open:hover {
-    color: white;
+    color: #E3FF17;
 }
 
 .toolbox .fa-arrow-circle-left {
@@ -71,6 +89,7 @@ html, body {
 }
 
 .selectable .content {
+    overflow-y: scroll;
     color:white;
     padding:10px;
     font-family: "Gudea", sans-serif;
@@ -139,9 +158,12 @@ html, body {
 }
 
 .selectable .toolbox {
-    height: 30px;
-    width: inherit;
-    background-color: transparent;
+    float: left;
+    height: auto;
+    width: calc(100% - 5px);
+    background-color: rgba(0, 0, 0, 0.5);
+    overflow-x: auto;
+    padding-left: 5px;
 }
 
 .selectable-box { 
@@ -171,7 +193,7 @@ html, body {
 }
 
 .content {
-    height: 220px;
+    height: 210px;
 }
 
 .selectable-box > img { 
@@ -190,10 +212,15 @@ html, body {
 }
 
 .renderspace {
+    -webkit-transform: translateZ(0);
+    -ms-transform: translateZ(0);
+    -moz-transform: translateZ(0);
+    -o-transform: translateZ(0);
+    transform: translateZ(0);
     display: block;
     width: 100%;
     height: 100%;
-    margin: 0px auto;
+    margin: 0 auto;
     padding: 0;
     position: relative;
 }
@@ -235,6 +262,21 @@ html, body {
     background-color: gray;
 }
 
+.tileform-button {
+    bottom: 0px;
+    background: #1B1B20;
+    color: #FFF;
+    left: 50%;
+    margin-left: -35px;
+    font-weight: bold;
+    border: 1px solid #FFF;
+    padding: 0px;
+    font-size: 1.1em;
+    font-family: Gudea;
+    width: 70px;
+    position: absolute;
+}
+
 /* minigrid styles */
 .minigrid {
     position: relative;
@@ -260,4 +302,79 @@ html, body {
 
 .minigrid-active-cell {
     background-color: white;
+}
+
+.editing-bar {
+    width: 40px;
+    background-color: #060A0A;
+    height: 250px;
+    border-radius: 8px;
+    border: 1px solid #FFF;
+    right: 5px;
+    top: 50%;
+    margin-top: -125px;
+    position: absolute;
+    opacity: 0.9;
+}
+
+.editing-bar .fa {
+    padding: 7px;
+    color: white;
+    font-size: 1.9em;
+}
+
+.editing-bar .fa:hover {
+    /*color: #7BF699;*/
+    color: #E3FF17 !important;
+    font-size: 1.95em;
+}
+
+.editing-mode-active {
+    color: red !important;
+}
+
+.circle {
+    font-family: "Gudea", monospace;
+    margin-right: 5px;
+    width: 18px;
+    height: 18px;
+    background-color: white;
+    border-radius: 30%;
+    position: relative;
+    display: inline-block;
+    font-size: 18px;
+    cursor: pointer;
+    margin-top: 2.5px;
+}
+
+.circle:hover {
+    background-color: #E3FF17;
+}
+
+.circle-anim {
+    -webkit-animation: spinZ 600ms, changeOpacity 600ms;
+}
+
+.circle span {
+    font-weight: bold;
+    width: inherit;
+    height: inherit;
+    vertical-align: middle;
+    z-index: 1;
+    position: absolute;
+    color: black;
+    text-align: center;
+    font-size: inherit;
+    line-height: 100%;
+}
+
+@-webkit-keyframes spinZ {
+    from { -webkit-transform: rotateY(0deg) }
+    to { -webkit-transform: rotateY(360deg) } 
+}
+
+@-webkit-keyframes changeOpacity {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+    100% { opacity: 1; }
 }

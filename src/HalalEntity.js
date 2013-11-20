@@ -3,15 +3,62 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["EventDispatcher"], function(EventDispatcher) {
-    var HalalEntity;
+  define(["EventDispatcher", "Deferred"], function(EventDispatcher, Deferred) {
+    var HalalEntity, Tweener;
+    Tweener = (function() {
+      function Tweener(obj) {
+        this.obj = obj;
+        this.num_tweens = 0;
+        this.to_wait = 0;
+        this.tween_chain = [];
+      }
+
+      Tweener.prototype.tween = function(meta) {
+        var promise,
+          _this = this;
+        this.num_tweens++;
+        if (this.to_wait > 0) {
+          this.tween_chain.push(meta);
+          return this;
+        }
+        this.obj.attr("animating", true);
+        promise = Hal.tween(this.obj, meta.attr, meta.duration, meta.from, meta.to, meta.repeat);
+        promise.then(function() {
+          _this.num_tweens--;
+          if (_this.num_tweens === 0 && (_this.done_clb != null)) {
+            _this.done_clb.call(_this.obj);
+          }
+          if (_this.to_wait > 0) {
+            _this.to_wait--;
+            _this.tween(_this.tween_chain.pop());
+            _this.num_tweens--;
+          }
+          if (_this.num_tweens === 0 && _this.to_wait === 0) {
+            return _this.obj.attr("animating", false);
+          }
+        });
+        return this;
+      };
+
+      Tweener.prototype.wait = function(wait_clb) {
+        this.wait_clb = wait_clb;
+        this.to_wait++;
+        return this;
+      };
+
+      Tweener.prototype.done = function(done_clb) {
+        this.done_clb = done_clb;
+      };
+
+      return Tweener;
+
+    })();
     return HalalEntity = (function(_super) {
       __extends(HalalEntity, _super);
 
       function HalalEntity() {
-        this.anim_chain = [];
-        this.anim_done = true;
         HalalEntity.__super__.constructor.call(this);
+        this.animating = false;
       }
 
       HalalEntity.prototype.attr = function(key, val) {
@@ -43,20 +90,7 @@
       };
 
       HalalEntity.prototype.tween = function(meta) {
-        var _this = this;
-        if (this.anim_done) {
-          this.anim_done = false;
-          Hal.tween(this, meta.attr, meta.duration, meta.from, meta.to, meta.repeat).then(function() {
-            _this.anim_done = true;
-            meta = _this.anim_chain.pop();
-            if (meta != null) {
-              return _this.tween(meta);
-            }
-          });
-        } else {
-          this.anim_chain.unshift(meta);
-        }
-        return this;
+        return new Tweener(this).tween(meta);
       };
 
       return HalalEntity;

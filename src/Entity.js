@@ -25,6 +25,7 @@
         this.glow_amount = meta.glow_amount != null ? meta.glow_amount : 16;
         this.line_width = meta.line_width != null ? meta.line_width : 1.0;
         this.draw_shape = meta.draw_shape != null ? meta.draw_shape : true;
+        this.opacity = meta.opacity != null ? meta.opacity : 1;
         this.parent = null;
         this.world_pos = [0, 0];
         this.quadspace = null;
@@ -45,11 +46,13 @@
             this.needs_updating = true;
           }
           if (prop === "shape") {
-            this.bbox = BBoxAlgos.rectFromPolyShape(this.shape);
-            this.needs_updating = true;
+            if (this.sprite == null) {
+              this.bbox = BBoxAlgos.rectFromPolyShape(this.shape);
+              this.needs_updating = true;
+            }
           }
           if (prop === "x" || prop === "y") {
-            if (this.parent != null) {
+            if ((this.parent != null) && (this.quadspace != null)) {
               this.parent.trigger("ENTITY_MOVING", this);
               _ref = this.children;
               _results = [];
@@ -86,6 +89,11 @@
         });
         return this.on("LEFT_CLICK", function(attr) {
           this.selected = !this.selected;
+          if (this.selected) {
+            this.trigger("SELECTED");
+          } else {
+            this.trigger("DESELECTED");
+          }
           return log.debug("yay, i've been selected: " + this.id);
         });
       };
@@ -97,7 +105,7 @@
       };
 
       Entity.prototype.worldPos = function() {
-        return [this.x, this.y];
+        return this.localToWorld([this.x, this.y]);
       };
 
       Entity.prototype.localToWorld = function(pos) {
@@ -118,14 +126,25 @@
         return ent.attr("parent", this);
       };
 
+      Entity.prototype.addEntityToQuadspace = function(ent) {
+        this.children.push(ent);
+        this.scene.addEntityToQuadspace(ent);
+        this.trigger("CHILD_ENTITY_ADDED", ent);
+        ent.attr("scene", this.scene);
+        ent.attr("parent", this);
+        return ent;
+      };
+
       Entity.prototype.destroy = function(destroy_children) {
         if (destroy_children == null) {
           destroy_children = true;
         }
         this.removeAll();
+        this.scene.removeEntity(this);
         if (destroy_children) {
           this.destroyChildren();
         }
+        this.children = null;
         this.drawables = null;
         this.parent = null;
         if (this.quadspace == null) {
@@ -133,9 +152,9 @@
         } else {
           this.quadspace.remove(this);
         }
-        this.scene.removeEntity(this);
         this.quadspace = null;
-        return this.scene = null;
+        this.scene = null;
+        return this.trigger("ON_DESTROY");
       };
 
       Entity.prototype.destroyChildren = function() {
@@ -171,6 +190,7 @@
 
       Entity.prototype.draw = function(delta) {
         var s, _i, _j, _len, _len1, _ref, _ref1, _results;
+        this.scene.g.ctx.globalAlpha = this.opacity;
         if (this.draw_shape) {
           if (this.line_width > 1.0) {
             this.scene.g.ctx.lineWidth = this.line_width;

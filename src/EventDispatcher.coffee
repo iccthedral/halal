@@ -25,12 +25,16 @@ define  ()->
         if @listeners[type]? 
             ind = @listeners[type].indexOf(clb)
             @listeners[type].splice(ind, 1) if ind isnt -1
+            clb = null
 
     EventDispatcher::removeAll = (type) ->
         if type
             delete @listeners[type]
         else
-            @listeners = []
+            keys = Object.keys(@listeners)
+            for key in keys
+                for list in @listeners[key]
+                    @remove(key, list)
         
     EventDispatcher::trigger = (type, msg, target = @) ->
         # @list_arr = 

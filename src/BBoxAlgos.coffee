@@ -14,9 +14,9 @@ define ["Vec2"],
 
         rectBBoxFromSprite: (sprite) ->
             return [
-                0, 
-                0, 
-                sprite.w, 
+                -sprite.w*0.5, 
+                -sprite.h*0.5,
+                sprite.w,
                 sprite.h
             ]
 

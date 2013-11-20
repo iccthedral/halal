@@ -214,11 +214,11 @@
           name: "IsoMap",
           tilew: 128,
           tileh: 64,
-          rows: 50,
-          cols: 50,
+          rows: 6,
+          cols: 6,
           bg_color: "gray",
           draw_camera_center: true,
-          draw_quadspace: false
+          draw_quadspace: true
         });
         log.setLevel(log.levels.DEBUG);
         Hal.addScene(isomap);

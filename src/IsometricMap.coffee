@@ -1,18 +1,12 @@
 "use strict"
 
-define ["Scene", "SpriteEntity", "Entity"], 
+define ["Scene", "SpriteEntity", "Entity", "TileManager"], 
 
-(Scene, SpriteEntity, Entity) ->
-
-    class Tile extends SpriteEntity
-        constructor: (meta) ->
-            super(meta)
-            @row    = meta.row
-            @col    = meta.col
-            @name   = if meta.name? then meta.name else "#{@id}"
+(Scene, SpriteEntity, Entity, TileManager) ->
 
     class IsometricMap extends Scene
         constructor: (meta) ->
+            @tm             = new TileManager()
             @tilew          = meta.tilew
             @tileh          = meta.tileh
             @nrows          = meta.rows
@@ -24,6 +18,46 @@ define ["Scene", "SpriteEntity", "Entity"],
             @tileh2         = @tileh / 2
             @map            = []
             @total_rendered = 0
+
+            @translate_x    = 0
+            @max_rows       = @nrows - 1
+            @max_cols       = @ncols - 1
+
+            @selected_tile  = null
+            @old_camx       = 0
+
+            @supported_modes = 
+                "mode-default": () =>
+                    @processMouseClick()
+                    return
+                "mode-erase": () =>
+                    #treba tintovati sliku nad kojom hoverujemo
+                    # @tm.addTileLayerToHolder
+                    @processMouseClick()
+                    return if not @clicked_layer? or @clicked_layer.animating 
+                    @clicked_layer.tween(
+                        attr: "h"
+                        from: 0
+                        to: 100
+                        duration: 500
+                    ).tween(
+                        attr: "opacity"
+                        from: 1
+                        to: 0
+                        duration: 700
+                    ).done () -> @destroy()
+                    @clicked_layer = null
+                    
+                "mode-place": () =>
+                    @tm.addTileLayerToHolder(
+                        @tile_under_mouse, 
+                        @tm.newTileLayer(@selected_tile)
+                    )
+                    return
+
+            @camera_moved = false
+
+            @current_mode   = @supported_modes["mode-default"]
 
             meta.cam_bounds = [@tilew2, @tileh2, @ncols * @tilew2, (@nrows-0.5) * @tileh]
             super(meta)
@@ -70,7 +104,7 @@ define ["Scene", "SpriteEntity", "Entity"],
 
             @last_clicked_layer = null
             @tile_under_mouse   = null
-            @search_range       = 50
+            @search_range       = @bounds[2] * 0.5
 
         showRegion: (pos, range_row, range_col) ->
             c = @getTileAt(@worldToLocal(pos))
@@ -102,6 +136,10 @@ define ["Scene", "SpriteEntity", "Entity"],
                 ,
                 Hal.math.clamp(c_col - range_col, c_col, @ncols - 1)
             )
+
+            if not (t_left? and t_right? and b_left? and b_right?)
+                return
+
             shape = [
                 t_left.x - (t_right.x - t_left.x)
                 t_left.y - (b_right.y - t_left.y)
@@ -133,7 +171,23 @@ define ["Scene", "SpriteEntity", "Entity"],
                 @todo: Ovo posle treba ukloniti!
             ###
             @camera.on "CHANGE", () =>
-                @calcDrawingArea() 
+                @calcDrawingArea()
+
+            Hal.on "LEFT_CLICK", () =>
+                @current_mode()
+
+            ###map editor stuff###
+            Hal.on "EDITOR_MODE_CHANGED", (mode) =>
+                if @supported_modes[mode]
+                    @current_mode = @supported_modes[mode]
+                else
+                    log.warn "Mode #{mode} not supported"
+                log.debug mode
+
+            Hal.on "TILE_LAYER_SELECTED", (tile) =>
+                log.debug "Tile layer selected from editor"
+                log.debug tile
+                @selected_tile = tile     
 
             Hal.on "RIGHT_CLICK", (pos) =>
                 return if @paused
@@ -143,8 +197,8 @@ define ["Scene", "SpriteEntity", "Entity"],
                 ind = @map.indexOf(ent)
                 if ind is -1
                     log.debug "oh shit, no such entity #{ent.id}"
-                    return
-                @map[ind] = null
+                else
+                    @map[ind] = null
 
             # @camera.on "ZOOM", (zoom) =>
             #     cam_bounds = [@tilew2, @tileh2, (@ncols-1) * @tilew2*zoom, (@nrows-0.5) * @tileh*zoom]
@@ -178,6 +232,7 @@ define ["Scene", "SpriteEntity", "Entity"],
             @initMap()
 
         draw: (delta) ->
+            # return
             return if @paused
             super()
             @total_rendered = 0
@@ -187,11 +242,18 @@ define ["Scene", "SpriteEntity", "Entity"],
                     tile = @map[j + i*@ncols]
                     if not tile?
                         continue
+
                     # if not @camera.isVisible(tile) and not tile.layers[3]?
                     #     continue
                     tile.update(delta)
+                    #if @camera_moved
+                    #@g.ctx.translate(@camera.x + @old_camx, 0)
+                    #tile.attr("x", tile.attr("x") - @translate_x)
+                    #tile.attr("x")
                     tile.draw(delta)
                     @total_rendered++
+
+            @camera_moved = false
 
             @g.ctx.setTransform(
                 @local_matrix[0], 
@@ -208,15 +270,22 @@ define ["Scene", "SpriteEntity", "Entity"],
                 @drawQuadSpace(@quadspace)
                 @g.strokeRect(@camera.view_frustum, "green")
 
-            #@g.ctx.setTransform(1, 0, 0, 1, -@search_range*@camera.zoom, -@search_range*@camera.zoom)
-            #@g.strokeRect([
-            #    @mpos[0], 
-            #    @mpos[1], 
-            #    2*@search_range*@camera.zoom, 
-            #    2*@search_range*@camera.zoom  
-            #], "red")
+            @g.ctx.setTransform(1, 0, 0, 1, -@search_range*@camera.zoom, -@search_range*@camera.zoom)
+            @g.strokeRect([
+               @mpos[0], 
+               @mpos[1], 
+               2*@search_range*@camera.zoom, 
+               2*@search_range*@camera.zoom  
+            ], "red")
 
         calcDrawingArea: () ->
+            ### mozda da pomerim granicu, jel da? ###
+            #@translate_x = @camera.x / @tilew2
+            @old_camx = @camera.x
+            if (@camera.x % @tilew2) is 0
+                log.debug "oh jea"
+                @camera_moved = true
+
             top_left = @getTileAt(@worldToLocal([0, 0]))
             if not top_left?
                 sc = 0
@@ -227,16 +296,22 @@ define ["Scene", "SpriteEntity", "Entity"],
 
             @display = {
                 startc: sc
-                endr: Math.min(@nrows-1, Math.round((@bounds[3] / (@tileh * @camera.zoom)) + 4))
+                endr: @maxRows()
                 startr: sr
-                endc: Math.min(@ncols-1, Math.round((@bounds[2] / (@tilew2 * @camera.zoom)) + 4))
+                endc: @maxCols()
             }
 
+        maxRows: () ->
+            return Math.min(@nrows-1, Math.round((@bounds[3] / (@tileh * @camera.zoom)) + 4))
+
+        maxCols: () ->
+            return Math.min(@ncols-1, Math.round((@bounds[2] / (@tilew2 * @camera.zoom)) + 4))
+
         toOrtho: (pos) ->
-            coldiv  = ((pos[0] + @camera.view_frustum[0]) * @tilew2prop)
-            rowdiv  = ((pos[1] + @camera.view_frustum[1]) * @tileh2prop)
-            off_x   = ~~((pos[0] + @camera.view_frustum[0]) - ~~(coldiv * 0.5) * @tilew)
-            off_y   = ~~((pos[1] + @camera.view_frustum[1]) - ~~(rowdiv * 0.5) * @tileh)
+            coldiv  = ((pos[0] + @tilew2) * @tilew2prop)
+            rowdiv  = ((pos[1] + @tileh2) * @tileh2prop)
+            off_x   = ~~((pos[0] + @tilew2) - ~~(coldiv * 0.5) * @tilew)
+            off_y   = ~~((pos[1] + @tileh2) - ~~(rowdiv * 0.5) * @tileh)
             transp  = @mask_data[(off_x + @tilew * off_y) * 4 + 3]
             return [
                 coldiv - (transp ^ !(coldiv & 1)),
@@ -252,18 +327,27 @@ define ["Scene", "SpriteEntity", "Entity"],
                 return null
             return @map[Math.floor(coord[0]) + Math.floor(coord[1]) * @ncols]
 
-
         initMap: () ->
             @clicked_layer = null
-            # @world_dim = [0, 0, (@ncols + 1) * @tilew2, (@nrows + 1) * @tileh]
-            # 
 
-            for i in [0..@nrows-1]
-                for j in [0..@ncols-1]
+            log.debug "max rows: #{@maxRows()}"
+            log.debug "max cols: #{@maxCols()}"
+            log.debug "total at this resolution: #{@maxRows() * @maxCols()}"
+
+            @max_rows = @maxRows()
+            @max_cols = @maxCols()
+
+            @map = new Array(@nrows * @ncols)
+            #@map = new Array(@nrows * @ncols)
+            k = 0
+            t1 = performance.now()
+            for i in [0..@nrows-1] #@max_rows - 1] #@nrows-1]
+                for j in [0..@ncols - 1] #@ncols-1]
                     x = (j / 2) * @tilew
                     y = (i + ((j % 2) / 2)) * @tileh
-
-                    t = new Tile(
+                    #@map[k] = [x, y]
+                    # ++k
+                    t = @tm.newTileHolder(
                         "shape": @iso_shape
                         "draw_shape": false
                         "x": x
@@ -273,9 +357,101 @@ define ["Scene", "SpriteEntity", "Entity"],
                         "visible_sprite": true
                         "sprite": "test/grid_unit_128x64"
                     )
-                    @map.push(@addEntity(t))
+                    @map[k] = @addEntity(t)
+                    k++
+                        # row: i
+                        # col: j
+                        # x: x
+                        # y: y #@addEntity(t)
 
+            t2 = performance.now() - t1
+            log.debug "it took: #{t1}"
             @calcDrawingArea()
             @camera.trigger "CHANGE"
 
+        processMouseClick: () ->
+            if @clicked_layer?
+                @clicked_layer.trigger "DESELECTED"
+                @clicked_layer = null
+
+            t = performance.now()
+            ents = @quadspace.searchInRange(@world_pos, @search_range, @)
+            t1 = performance.now() - t
+            log.info t1
+            log.info ents.length
+
+            for tile in ents
+                if not tile.inShapeBounds(@world_pos)
+                    continue
+                log.debug tile
+                if not @clicked_layer?
+                    @clicked_layer = tile
+                else
+                    if (tile.parent.col == @clicked_layer.parent.col) and (tile.parent.row == @clicked_layer.parent.row)
+                        if tile.layer > @clicked_layer.layer
+                            @clicked_layer = tile
+                    else if (tile.parent.row == @clicked_layer.parent.row)
+                        if (tile.h + tile.y > @clicked_layer.h + @clicked_layer.y)
+                            @clicked_layer = tile
+                    else if (tile.parent.col == @clicked_layer.parent.col)
+                        if (tile.h + tile.y > @clicked_layer.h + @clicked_layer.y)
+                            @clicked_layer = tile
+                    else if (tile.parent.col != @clicked_layer.parent.col) and (tile.parent.row != @clicked_layer.parent.row)
+                        if (tile.h + tile.y > @clicked_layer.h + @clicked_layer.y)
+                            @clicked_layer = tile
+
+            if @clicked_layer?
+                log.debug "clicked layer"
+                log.debug @clicked_layer
+                @trigger "LAYER_SELECTED", @clicked_layer
+                @clicked_layer.trigger "LEFT_CLICK"
+
+        splitMap: () ->
+            map =
+                nw: null
+                ns: null
+                s: null
+                w: null
+                e: null
+                n: null
+                sw: null
+                se: null
+                c: null
+
+        loadRandomMap: (i, data) ->
+            for i in [0..@ncols-1]
+                for j in [0..@nrows-1]
+                    t = @getTile(i, j)
+                    k = 5
+                    while k > 0 and not t.isFull()
+                        @addRandomLayer(t)
+                        --k
+
+        addRandomLayer: (t) ->
+            tskeys = Object.keys(@tmngr.Tiles)
+            #log.debug tskeys
+            randts = ~~(Math.random() * tskeys.length)
+            #log.debug randts
+            index = tskeys[randts]
+            tiles = amj.tmngr.Tiles[index]
+            #log.debug tiles
+            tkeys = Object.keys(tiles)
+            randt = ~~(Math.random() * tkeys.length)
+            index = tkeys[randt]
+            tileLayer = tiles[index]
+            #log.debug tileLayer
+            #log.debug tileLayer
+            # hw = [0,0]
+            # spr = Hal.asm.getSprite(tileLayer.sprite)
+            # #log.debug spr
+            # @calcCenterAdjPos(hw, spr)
+            # #log.debug hw
+            # area = @getSpanArea(t, tileLayer.size)
+            # if @canBePlacedOn(area, @layers[tileLayer.level])
+            #     return t.addLayer(tileLayer.name, hw, true)
+        
+        genRandomMap: () ->
+
+            #split Map in 8 regions
+            
     return IsometricMap

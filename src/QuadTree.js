@@ -2,7 +2,7 @@
   "use strict";
   define(["Vec2"], function(Vec2) {
     var QuadTree, capacity;
-    capacity = 10;
+    capacity = 12;
     QuadTree = (function() {
       function QuadTree(bounds) {
         this.bounds = bounds;

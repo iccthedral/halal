@@ -14,17 +14,26 @@ config =
     pub_dir: "."
     src_dir: "src#{path.sep}"
     sprite_dir: "assets/sprites"
-    sprite_list: "assets/sprites/sprites.list"
+    sprite_list: "assets/sprites.list"
     cur_dir: process.cwd()
+    tiles: "assets/tiles.list"
+    maps: "assets/maps.list"
 
 is_win         = !!process.platform.match(/^win/)
 is_sprite      = is_spritesheet = /^.*\.[png|jpg]+$/
 is_json        = /^.*\.[json]+$/
 
+console.log "Is windows: #{is_win}"
+console.log "Platform #{process.platform}"
+
 io.sockets.on "connection", (sck) ->
+    console.log "Connection via socket.io established".green
+
     socket = sck
 
-    allSprites = getAllSprites()
+    allSprites  = getAllSprites()
+    allTiles    = getAllTiles()
+
     saveSprites(allSprites)
 
     socket.emit("LOAD_SPRITES", {
@@ -32,14 +41,34 @@ io.sockets.on "connection", (sck) ->
         url: "sprites/"
     })
 
+    # socket.emit("LOAD_TILES", JSON.stringify(allTiles))
+
+    socket.on "LOAD_MAPEDITOR_ASSETS", () ->
+        console.log allTiles.yellow
+        socket.emit("LOAD_TILES", JSON.parse(allTiles))
+
+    socket.on "NEW_TILE_SAVED", (tile) ->
+        tile = JSON.parse(tile)
+        console.log "New tile #{tile.name}".yellow
+        list = JSON.parse(fs.readFileSync(config.tiles))
+        list[tile.name] = tile
+        try
+            fs.writeFileSync(config.tiles, JSON.stringify(list))
+        catch err
+            console.log err
+        socket.emit "TILE_ADDED", tile
+
+getAllTiles = () ->
+    allTiles = fs.readFileSync(config.tiles)
+    return allTiles
+
 getAllSprites = () ->
     allSprites = wrench.readdirSyncRecursive(config.sprite_dir)
-    console.log "Is windows: #{is_win}"
-    console.log "Platform #{process.platform}"
 
     allSprites = allSprites.filter((x) -> return is_sprite.test(x))
     if is_win
         allSprites = allSprites.map (x) -> return x.replace(/\\/g,"\/")
+
     return allSprites
 
 saveSprites = (sprites) ->

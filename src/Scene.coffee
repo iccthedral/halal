@@ -26,8 +26,9 @@ define ["HalalEntity", "Renderer", "Camera", "Matrix3", "QuadTree", "Vec2"],
             @z                  = if meta.z? then meta.z else 1
             @g                  = new Renderer(@bounds, null, @z)
             @cam_bounds         = if meta.cam_bounds? then meta.cam_bounds else @bounds.slice()
+            
             log.debug @cam_bounds
-            @resetQuadSpace(@cam_bounds)
+            @resetQuadSpace([0, 0, @cam_bounds[2], @cam_bounds[3]])
 
         resetQuadSpace: (dim) ->
             log.debug "QuadSpace reset"
@@ -41,16 +42,18 @@ define ["HalalEntity", "Renderer", "Camera", "Matrix3", "QuadTree", "Vec2"],
             @camera.enableLerp()
             @camera.enableZoom()
 
+        addEntityToQuadspace: (ent) ->
+            ent = @addEntity(ent)
+            @quadspace.insert(ent)
+            return ent
+
         addEntity: (ent) ->
             @entities.push(ent)
             @ent_cache[ent.id] = ent
-            @quadspace.insert(ent)
-
             ent.attr("parent", @)
             ent.attr("scene", @)
             ent.attr("needs_updating", true)
             ent.trigger "ENTITY_ADDED"
-
             return ent
 
         rotationMatrix: () ->
@@ -112,15 +115,15 @@ define ["HalalEntity", "Renderer", "Camera", "Matrix3", "QuadTree", "Vec2"],
 
         removeEntity: (ent) ->
             if not @ent_cache[ent.id]
-                log.error "No such entity #{ent.id}"
+                log.error "No such entity #{ent.id} in cache"
                 return
             ind = @entities.indexOf(ent)
             if ind is -1
-                log.error "No such entity #{ent.id}"
+                log.error "No such entity #{ent.id} in entity list"
                 return
             delete @ent_cache[ent.id]
             @trigger "ENTITY_DESTROYED", ent
-            @entities[ind] = null
+            # @entities[ind] = null
             @entities.splice(ind, 1)
 
         getAllEntities: () ->
@@ -138,7 +141,7 @@ define ["HalalEntity", "Renderer", "Camera", "Matrix3", "QuadTree", "Vec2"],
             if ent?
                 ent.removeEntity(ent)
             else
-                log.error "No such entity #{entid}"
+                log.error "No such entity #{entid} in entity cache"
 
         update: () -> return
 
@@ -216,14 +219,14 @@ define ["HalalEntity", "Renderer", "Camera", "Matrix3", "QuadTree", "Vec2"],
                 #@g.strokeRect([0, 0, 100, 100], "green")
                 #@drawQuadSpace(@quadspace)
 
-            @click_listeners =
-            Hal.on ["LEFT_CLICK", "LEFT_DBL_CLICK"], () =>
-                return if @paused
-                ents = @quadspace.searchInRange(@world_pos, @search_range, @)
-                log.debug "Nasao entiteta: #{ents.length}"
-                for p in ents
-                    if Hal.math.isPointInRect(p.worldToLocal(@localToWorld(@world_pos)), p.bbox)
-                        p.trigger "LEFT_CLICK"
+            # @click_listeners =
+            # Hal.on ["LEFT_CLICK", "LEFT_DBL_CLICK"], () =>
+            #     return if @paused
+            #     ents = @quadspace.searchInRange(@world_pos, @search_range, @)
+            #     log.debug "Nasao entiteta: #{ents.length}"
+            #     for p in ents
+            #         if Hal.math.isPointInRect(p.worldToLocal(@localToWorld(@world_pos)), p.bbox)
+            #             p.trigger "LEFT_CLICK"
 
             @on "ENTITY_MOVING", (ent) ->
                 if not Hal.math.isPointInRect(ent.viewportPos(), ent.quadspace.bounds)

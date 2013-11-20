@@ -3,7 +3,7 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2", "DeferredCounter", "DOMEventManager", "AssetManager"], function(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, DeferredCounter, DOMEventManager, AssetManager) {
+  define(["EventDispatcher", "Scene", "DOMManager", "Renderer", "MathUtil", "Vec2", "Deferred", "DeferredCounter", "DOMEventManager", "AssetManager", "ImgUtils"], function(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils) {
     /*
         A shim (sort of) to support RAF execution
     */
@@ -160,7 +160,7 @@
       if (repeat == null) {
         repeat = 1;
       }
-      defer = new DeferredCounter(repeat);
+      defer = new Deferred();
       t *= 0.001;
       accul = 0;
       speed = (to - from) / t;
@@ -172,9 +172,9 @@
         accul = Math.min(accul, t);
         if (t === accul) {
           repeat--;
-          defer.release(obj);
           obj.attr(property, to);
           if (repeat === 0) {
+            defer.resolve(obj);
             Hal.remove("ENTER_FRAME", $);
           } else {
             accul = 0;
@@ -246,6 +246,7 @@
     window.Hal = new Halal();
     window.Hal.glass = new Renderer(Hal.viewportBounds(), null, 11);
     window.Hal.asm = new AssetManager();
+    window.Hal.im = new ImgUtils();
     return window.Hal;
   });
 

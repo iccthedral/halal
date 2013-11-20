@@ -1,14 +1,47 @@
 "use strict"
 
-define ["EventDispatcher"],
+define ["EventDispatcher", "Deferred"],
 
-(EventDispatcher) ->
+(EventDispatcher, Deferred) ->
     
+    class Tweener
+        constructor: (@obj) -> 
+            @num_tweens  = 0
+            @to_wait     = 0
+            @tween_chain = []
+
+        tween: (meta) ->
+            @num_tweens++
+
+            if @to_wait > 0
+                @tween_chain.push(meta)
+                return @
+
+            @obj.attr("animating", true)
+            promise = Hal.tween(@obj, meta.attr, meta.duration, meta.from, meta.to, meta.repeat)
+            promise.then () =>
+                @num_tweens--
+                @done_clb.call(@obj) if @num_tweens is 0 and @done_clb?
+                if @to_wait > 0
+                    @to_wait--
+                    @tween(@tween_chain.pop())
+                    @num_tweens--
+                if @num_tweens is 0 and @to_wait is 0
+                    @obj.attr("animating", false)
+            return @
+
+        wait: (@wait_clb) ->
+            @to_wait++
+            return @
+
+        done: (@done_clb) ->
+
+        # delay: () ->
+
     class HalalEntity extends EventDispatcher
         constructor: () ->
-            @anim_chain = []
-            @anim_done = true
             super()
+            @animating = false
 
         attr: (key, val) ->
             if arguments.length is 1
@@ -27,15 +60,20 @@ define ["EventDispatcher"],
             return @
 
         tween: (meta) ->
-            if @anim_done
-                @anim_done = false
-                Hal.tween(@, meta.attr, meta.duration, meta.from, meta.to, meta.repeat).then () =>
-                    @anim_done = true
-                    meta = @anim_chain.pop()
-                    @tween(meta) if meta?
-            else
-                @anim_chain.unshift(meta)
-            return @
+            return new Tweener(@).tween(meta)
 
-        #stopTweening: () ->
 
+        # t.tween(...).done () ->
+        #     log.debug "opa"
+
+        # t.tween().done () -> tween().done () -> 
+
+        # t.tween().tween().done () ->
+
+        # t.tween().delay(1000).tween().done () ->
+
+        # return {
+        #     tween
+        #     done
+        #     delay
+        # }

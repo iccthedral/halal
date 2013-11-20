@@ -2,7 +2,27 @@
 
 
 define ["jquery-ui", "handlebars"], ($) ->
-    # <i class="fa fa-times-circle"></i>
+    ### let's define some helpers ###
+    Handlebars.registerHelper "create_options", (values, options) ->
+        out = ""
+        values.forEach (elem) ->
+            out += "<option value='#{elem}'>#{elem}</option>" #$("<option/>")
+        return new Handlebars.SafeString(out)
+   
+    socket = io.connect('http://localhost:8080')
+    socket.emit "LOAD_MAPEDITOR_ASSETS"
+
+    socket.on "LOAD_TILES", (tiles) ->
+        log.debug tiles
+        for i, t of tiles
+            tw = createSpriteBoxFromSprite(Hal.asm.getSprite(t.sprite), true)
+            st = createTileFromSprite(t.sprite)
+            st.name = t.name
+            st.size = t.size
+            addTileToTilesDialog(st, tw)
+
+        Hal.trigger "TILE_MNGR_LOAD_TILES", tiles
+
 
     SelectableDragable = 
     """
@@ -14,7 +34,9 @@ define ["jquery-ui", "handlebars"], ($) ->
             </div>
         </div>
         <div class="holder">
-            <div class="toolbox"></div>
+            <div class="toolbox">
+                {{{tools}}}
+            </div>
             <div class="content">
         </div>
         </div>
@@ -31,21 +53,17 @@ define ["jquery-ui", "handlebars"], ($) ->
 
         <div>
             <label for="layer">Layer</label>
-            <select id="layer-cbox">
-                <option value="0">0</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
+            <select id="tile-layer">
+            {{create_options layers}}
             </select>
         </div>
 
         <div>
-            <label for="size">Size</label>
+            <label for="minigrid"> Size </label>
             {{{minigrid}}}
         </div>
     </div>
+    <button id="save-tile" type="button" class="tileform-button"> Save </button>
     """
 
     SelectableBox = 
@@ -73,13 +91,32 @@ define ["jquery-ui", "handlebars"], ($) ->
         """
     )
 
+    $EditingBar = 
+    $("""
+        <div class="editing-bar">
+            <i id="mode-place" class="fa fa-edit"></i>
+            <i id="mode-erase" class="fa fa-times"></i>
+            <i id="mode-default" class="fa fa-ban"></i>
+            <i id="map-save" class="fa fa-save"></i>
+            <i id="map-load" class="fa fa-refresh"></i>
+        </div>
+    """)
 
-    tpl_select_drag = Handlebars.compile(SelectableDragable)
-    tpl_title = Handlebars.compile(SelectableBoxTitle)
-    prev_sprite_folder = ""
-    current_sprite_folder = ""
-    all_folders = Hal.asm.getSpriteFolders()
+    tpl_select_drag         = Handlebars.compile(SelectableDragable)
+    tpl_title               = Handlebars.compile(SelectableBoxTitle)
+    prev_sprite_folder      = ""
+    current_sprite_folder   = ""
+    all_folders             = Hal.asm.getSpriteFolders()
+    selected_mode           = null
+    num_layers              = 6
+    selected_layer          = 0
 
+    ### Setup editing bar listeners ###
+    $EditingBar.click (ev) ->
+        $EditingBar.find(".editing-mode-active").each (k, v) -> $(v).removeClass "editing-mode-active"
+        if ev.target.nodeName is "I"
+            Hal.trigger "EDITOR_MODE_CHANGED", ev.target.id
+            $(ev.target).toggleClass("editing-mode-active")
     ###
         Sprite list dialog
     ###
@@ -90,7 +127,7 @@ define ["jquery-ui", "handlebars"], ($) ->
     $SpritesContainer.css("top", "20px")
     $SpritesContainer.css("right", "50px")
     $SpritesContainer.draggable()
-    $SpritesContainer.resizable()
+    # $SpritesContainer.resizable()
     $SpritesContainerContent = 
         $SpritesContainer.find(".content")
     $SpritesContainerTBox =
@@ -113,13 +150,16 @@ define ["jquery-ui", "handlebars"], ($) ->
     $TilesContainer.css("position", "absolute")
     $TilesContainer.css("right", "50px")
     $TilesContainer.draggable()
-    $TilesContainer.resizable()
+    # $TilesContainer.resizable()
     $TilesContainerHolder = 
         $TilesContainer.find(".holder")
     $TilesContainerContent = 
         $TilesContainer.find(".content")
     $TilesContainerTBox =
         $TilesContainer.find(".toolbox")
+    
+    # TilesContainerTBox.append(createLayerCircleBtns())
+
     $TilesContainer.find("#toggle-show").click () ->
         holder = $(@).parents(".selectable").last().find(".holder").first()
         holder.toggle("slide",
@@ -135,7 +175,7 @@ define ["jquery-ui", "handlebars"], ($) ->
         title: "#"
         id: "tile-container"
     }))
-    $CenterTileDialog.resizable()
+    # $CenterTileDialog.resizable()
     $CenterTileDialog.draggable()
     $CenterTileDialog.css(
         "left": "50%"
@@ -156,8 +196,15 @@ define ["jquery-ui", "handlebars"], ($) ->
 
     hud_zindex = +Hal.dom.hud.style["z-index"]
 
-    wrapImage = (img) ->
-        return
+    createSpriteBoxFromSprite = (spr, clone = false) ->
+        sprBox = $(SelectableBox)
+        sprBox.attr("id", "sprite")
+        sprBox.attr("sprite_path", spr.getName())
+        sprBox.append(if clone then $(spr.img).clone() else spr.img)
+        sprBox.append(tpl_title({
+            title: spr.name
+        }))
+        return sprBox
 
     displaySpritesAndFolders = (content, sprites, folders) ->
         content.empty()
@@ -172,20 +219,14 @@ define ["jquery-ui", "handlebars"], ($) ->
             content.append(sprBox)
 
         for i, s of sprites
-            sprBox = $(SelectableBox)
-            sprBox.attr("id", "sprite")
-            sprBox.attr("sprite_path", s.getName())
-            sprBox.append(s.img)
-            sprBox.append(tpl_title({
-                title: s.name
-            }))
-            sprBox.draggable(
+            sprbox = createSpriteBoxFromSprite(s)
+            content.append(sprbox)
+            sprbox.draggable(
                 revert: "invalid"
                 helper: "clone"
                 start: (ev, ui) -> 
                     $(ui.helper).css("z-index", hud_zindex+1)
             )
-            content.append(sprBox)
 
         content.find("li#folder").each (k, v) ->
             $(v).click () ->
@@ -200,78 +241,70 @@ define ["jquery-ui", "handlebars"], ($) ->
         sprites = Hal.asm.getSpritesFromFolder(current_sprite_folder)
         displaySpritesAndFolders($SpritesContainerContent, sprites, folders)
 
-    Hal.trigger "DOM_ADD", (domlayer) =>
-        $domlayer = $(domlayer)
-
-        $SpritesContainerTBox.append($BackIcon)
-        $BackIcon.hide()
-        $BackIcon.click () ->
-            if prev_sprite_folder is current_sprite_folder
-                prev_sprite_folder = ""
-            if prev_sprite_folder is ""
-                folders = all_folders
-            else
-                folders = Hal.asm.getSpriteFoldersFromFolder(prev_sprite_folder)
-            sprites = Hal.asm.getSpritesFromFolder(prev_sprite_folder)
-            displaySpritesAndFolders($SpritesContainerContent, sprites, folders)
-            current_sprite_folder = prev_sprite_folder
-            if current_sprite_folder is ""
-                $BackIcon.hide()
-        displaySpritesAndFolders($SpritesContainerContent, null, all_folders)
-        $domlayer.append($SpritesContainer)
-        $domlayer.append($CenterTileDialog)
-
-        $TilesContainerHolder.droppable(
-            accept: "#sprite"
-            activeClass: "border-active"
-            drop: (ev, ui) ->
-                t = createTileFromSprite(ui.draggable.clone())
-                showTilePropertyForm(t)
-        )
-        $domlayer.append($TilesContainer)
-
-    createTileFromSprite = (sprite) ->
+    createTileFromSprite = (spr_path) ->
         tile = 
             id: Hal.ID()
-            name: "#"
-            size: "1"
-            sprite: sprite.attr("sprite_path")
-            prefered_layer: 0
-        sprite.data("tile", tile)
-        return sprite
+            name: spr_path.replace(/\//g, "_")
+            size: "0"
+            sprite: spr_path
+            tile: 0
+        return tile
 
-    showTilePropertyForm = (tile_wrapper) ->
+    fillTilePropertyForm = (tile) ->
         $CenterTileDialogContent.empty()
-        tile_wrapper.addClass "border-active"
-        tile = tile_wrapper.data("tile")
         $CenterTileDialog.find("#title").text(tile.sprite)
         tpl_tile_form = Handlebars.compile(TileForm)
 
         $TileForm = $(tpl_tile_form({
             name: tile.name
             size: tile.size
-            prefered_layer: tile.prefered_layer
-            minigrid: createGrid(tile.sprite, tile.size)
+            layer: tile.layer
+            sprite: tile.sprite
+            minigrid: createMiniGrid(tile.sprite, tile.size)
+            layers: new Array(num_layers).join(0).split(0).map (_,i) -> i
         }))
-
         $CenterTileDialogContent.append($TileForm)
-        $TileForm.find("#layer-cbox option[value=#{tile.prefered_layer}]").attr("selected", "selected")
-        $CenterTileDialog.show("clip")
-        $TilesContainerContent.append(tile_wrapper)
 
-    createGrid = (sprname, encodednum, container = $CenterTileDialog) ->
-        toggleActiveCell = () ->
-          $(this).toggleClass("minigrid-active-cell")
+        $TileForm.find(".minigrid").first().click (ev) ->
+            # there's no need to check here explicitly 
+            # which target is clicked upon
+            # because the container itself is full-fileld 
+            # with same targets.
+            $(ev.target).toggleClass("minigrid-active-cell")
 
-        spr = Hal.asm.getSprite(sprname)
-        h = Math.pow(2, ~~(Math.log(spr.h-1)/Math.LN2) + 1)
-        factor = 16
-        size = 128
-        w = Math.max(h, spr.h) * 2
-        numrows = w / size
-        numcols = w / size
-        diagonal = (Math.sqrt(2*size*size) * numrows) / (size/factor)
-        diff = diagonal - (numcols*factor)
+        $TileForm.find("#tile-size option[value=#{tile.layer}]").attr("selected", "selected")
+
+        $CenterTileDialogSave = $CenterTileDialog.find("#save-tile").first()
+
+        ### Save Tile ###
+        $CenterTileDialogSave.click () ->
+            name    = $CenterTileDialogContent.find("#tile-name").val()
+            layer   = +$CenterTileDialogContent.find("#tile-layer").find("option:selected").text()
+            size    = parseMiniGridSize()
+            
+            t = 
+                name: name
+                layer: layer
+                size: size
+                sprite: tile.sprite
+
+            ### na ovo slusa tile manager ###
+            Hal.trigger "TILE_MNGR_NEW_TILE", t
+            socket.emit "NEW_TILE_SAVED", JSON.stringify(t)
+            $CenterTileDialog.hide "clip"
+            return t
+
+
+    createMiniGrid = (sprname, encodednum) ->
+        spr         = Hal.asm.getSprite(sprname)
+        h           = Math.pow(2, ~~(Math.log(spr.h-1)/Math.LN2) + 1)
+        factor      = 16
+        size        = 128
+        w           = Math.max(h, spr.h) * 2
+        numrows     = w / size
+        numcols     = w / size
+        diagonal    = (Math.sqrt(2*size*size) * numrows) / (size/factor)
+        diff        = diagonal - (numcols*factor)
         
         $wrapper = $("<div/>", 
           "width": (diagonal) + "px"
@@ -293,7 +326,8 @@ define ["jquery-ui", "handlebars"], ($) ->
 
         for i in [0...numrows]
           for j in [0...numcols]
-            $cell = $("<div/>", 
+            $cell = $("<div/>",
+              "id": "minigrid-cell"
               "css":
                 "float": "left"
               "width": factor - 1
@@ -303,10 +337,91 @@ define ["jquery-ui", "handlebars"], ($) ->
               $cell.addClass("minigrid-active-cell")
             k++
             $cell.appendTo($parent)
-            $cell.click(toggleActiveCell)
-
         $parent.appendTo($wrapper)
-        log.debug $parent.html()
-        log.debug $wrapper.html()
-        log.debug $wrapper[0].outerHTML
+
         return new Handlebars.SafeString($wrapper[0].outerHTML)
+
+    parseTileInfo = () ->
+        return
+
+    addTileToTilesDialog = (t, wrapper) ->
+        wrapper.click () ->
+            wrapper.toggleClass "border-active"
+            Hal.trigger "TILE_LAYER_SELECTED", wrapper.data("tile")
+
+        fillTilePropertyForm(t)
+        wrapper.data("tile", t)
+        $TilesContainerContent.append(wrapper)
+
+    parseMiniGridSize = () ->
+        out = []
+        $.each($CenterTileDialogContent.find(".minigrid").children(), 
+          (k, v) ->
+            out[k] = 0
+            if $(v).hasClass("minigrid-active-cell")
+              out[k] = 1
+        )
+        binaryString = out.toString().replace(/,/g,'')
+        log.debug binaryString
+        return binaryString
+
+    createLayerCircleBtns = () ->
+        out = ""
+        for i in [0...num_layers]
+            out +=
+            """
+                <div id="layer" layer='#{i}' class='circle'>
+                    <span id="layer-text">#{i}</span>
+                </div>
+            """
+        return out
+
+    Hal.trigger "DOM_ADD", (domlayer) =>
+        $domlayer = $(domlayer)
+        $SpritesContainerTBox.append($BackIcon)
+        $BackIcon.hide()
+        $BackIcon.click () ->
+            if prev_sprite_folder is current_sprite_folder
+                prev_sprite_folder = ""
+            if prev_sprite_folder is ""
+                folders = all_folders
+            else
+                folders = Hal.asm.getSpriteFoldersFromFolder(prev_sprite_folder)
+            sprites = Hal.asm.getSpritesFromFolder(prev_sprite_folder)
+            displaySpritesAndFolders($SpritesContainerContent, sprites, folders)
+            current_sprite_folder = prev_sprite_folder
+            if current_sprite_folder is ""
+                $BackIcon.hide()
+        displaySpritesAndFolders($SpritesContainerContent, null, all_folders)
+        $domlayer.append($SpritesContainer)
+        $domlayer.append($CenterTileDialog)
+
+        $TilesContainerTBox.append(
+            createLayerCircleBtns()
+        )
+
+        $TilesContainerTBox.click (ev) ->
+            ### 
+                gore u createLayerCircleBtns sam 
+                sam namestio kojeg je tipa
+            ###
+            if ev.target.id is "layer-text" 
+                ev.target = ev.target.parentElement
+            log.debug ev.target
+            $(ev.target).toggleClass "circle-anim"
+            selected_layer = ev.target.getAttribute("layer")
+            log.debug "selected layer: #{selected_layer}"
+
+        $TilesContainerHolder.droppable(
+            accept: "#sprite"
+            activeClass: "border-active"
+            drop: (ev, ui) ->
+                tile_spr_wrapper = ui.draggable.clone()
+                t = createTileFromSprite(tile_spr_wrapper.attr("sprite_path"))
+                tile_spr_wrapper.addClass "border-active"
+                addTileToTilesDialog(t, tile_spr_wrapper)
+                $CenterTileDialog.show("clip")
+        )
+
+        $domlayer.append($TilesContainer)
+        $domlayer.append($EditingBar)

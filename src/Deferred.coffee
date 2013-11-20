@@ -31,4 +31,6 @@ define () ->
         traverse_chain: (chain, target = @, args) ->
             clb.apply(target, args) for clb in @prom[chain]
 
+    ### @todo izbaciti ovo ###
+    window.Deferred = Deferred
     return Deferred

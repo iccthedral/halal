@@ -28,6 +28,34 @@ define ["Entity", "BBoxAlgos", "SpriteFactory"],
                 #     [@bbox[0] - @bbox[2] * 0.5, @bbox[3]*0.5]
                 # ])
 
+        init: () ->
+            super()
+
+            @on "SELECTED", () ->
+                @attr("glow", true)
+                @attr("glow_color", "red")
+                @attr("draw_shape", true)
+                @attr("stroke_color", "white")
+                Hal.tween(@,
+                    "line_width",
+                    300,
+                    1,
+                    19.5,
+                    5
+                )
+
+            @on "DESELECTED", () ->
+                @attr("line_width", 1)
+                @attr("glow", false)
+                @attr("draw_shape", false)
+
+        inShapeBounds: (pos) ->
+            pos = @worldToLocal(@scene.localToWorld(pos))
+            if Hal.math.isPointInRect(pos, @bbox)
+                if not Hal.im.isTransparent(@sprite.img, pos[0] + @bbox[2] * 0.5, pos[1] + @bbox[3] * 0.5)
+                    return true
+            return false
+
         calcShapeAndBBox: () ->
             @attr("bbox", BBoxAlgos.rectBBoxFromSprite(@sprite))
             #shape = BBoxAlgos.polyBBoxFromSprite(@sprite)

@@ -26,6 +26,32 @@
         };
       }
 
+      SpriteEntity.prototype.init = function() {
+        SpriteEntity.__super__.init.call(this);
+        this.on("SELECTED", function() {
+          this.attr("glow", true);
+          this.attr("glow_color", "red");
+          this.attr("draw_shape", true);
+          this.attr("stroke_color", "white");
+          return Hal.tween(this, "line_width", 300, 1, 19.5, 5);
+        });
+        return this.on("DESELECTED", function() {
+          this.attr("line_width", 1);
+          this.attr("glow", false);
+          return this.attr("draw_shape", false);
+        });
+      };
+
+      SpriteEntity.prototype.inShapeBounds = function(pos) {
+        pos = this.worldToLocal(this.scene.localToWorld(pos));
+        if (Hal.math.isPointInRect(pos, this.bbox)) {
+          if (!Hal.im.isTransparent(this.sprite.img, pos[0] + this.bbox[2] * 0.5, pos[1] + this.bbox[3] * 0.5)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
       SpriteEntity.prototype.calcShapeAndBBox = function() {
         return this.attr("bbox", BBoxAlgos.rectBBoxFromSprite(this.sprite));
       };

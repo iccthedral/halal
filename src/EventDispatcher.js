@@ -34,15 +34,32 @@
       if (this.listeners[type] != null) {
         ind = this.listeners[type].indexOf(clb);
         if (ind !== -1) {
-          return this.listeners[type].splice(ind, 1);
+          this.listeners[type].splice(ind, 1);
         }
+        return clb = null;
       }
     };
     EventDispatcher.prototype.removeAll = function(type) {
+      var key, keys, list, _i, _len, _results;
       if (type) {
         return delete this.listeners[type];
       } else {
-        return this.listeners = [];
+        keys = Object.keys(this.listeners);
+        _results = [];
+        for (_i = 0, _len = keys.length; _i < _len; _i++) {
+          key = keys[_i];
+          _results.push((function() {
+            var _j, _len1, _ref, _results1;
+            _ref = this.listeners[key];
+            _results1 = [];
+            for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+              list = _ref[_j];
+              _results1.push(this.remove(key, list));
+            }
+            return _results1;
+          }).call(this));
+        }
+        return _results;
       }
     };
     EventDispatcher.prototype.trigger = function(type, msg, target) {

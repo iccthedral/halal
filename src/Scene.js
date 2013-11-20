@@ -33,7 +33,7 @@
         this.g = new Renderer(this.bounds, null, this.z);
         this.cam_bounds = meta.cam_bounds != null ? meta.cam_bounds : this.bounds.slice();
         log.debug(this.cam_bounds);
-        this.resetQuadSpace(this.cam_bounds);
+        this.resetQuadSpace([0, 0, this.cam_bounds[2], this.cam_bounds[3]]);
       }
 
       Scene.prototype.resetQuadSpace = function(dim) {
@@ -50,10 +50,15 @@
         return this.camera.enableZoom();
       };
 
+      Scene.prototype.addEntityToQuadspace = function(ent) {
+        ent = this.addEntity(ent);
+        this.quadspace.insert(ent);
+        return ent;
+      };
+
       Scene.prototype.addEntity = function(ent) {
         this.entities.push(ent);
         this.ent_cache[ent.id] = ent;
-        this.quadspace.insert(ent);
         ent.attr("parent", this);
         ent.attr("scene", this);
         ent.attr("needs_updating", true);
@@ -121,17 +126,16 @@
       Scene.prototype.removeEntity = function(ent) {
         var ind;
         if (!this.ent_cache[ent.id]) {
-          log.error("No such entity " + ent.id);
+          log.error("No such entity " + ent.id + " in cache");
           return;
         }
         ind = this.entities.indexOf(ent);
         if (ind === -1) {
-          log.error("No such entity " + ent.id);
+          log.error("No such entity " + ent.id + " in entity list");
           return;
         }
         delete this.ent_cache[ent.id];
         this.trigger("ENTITY_DESTROYED", ent);
-        this.entities[ind] = null;
         return this.entities.splice(ind, 1);
       };
 
@@ -154,7 +158,7 @@
         if (ent != null) {
           return ent.removeEntity(ent);
         } else {
-          return log.error("No such entity " + entid);
+          return log.error("No such entity " + entid + " in entity cache");
         }
       };
 
@@ -241,24 +245,6 @@
           if (_this.draw_stat) {
             return _this.drawStat();
           }
-        });
-        this.click_listeners = Hal.on(["LEFT_CLICK", "LEFT_DBL_CLICK"], function() {
-          var ents, p, _i, _len, _results;
-          if (_this.paused) {
-            return;
-          }
-          ents = _this.quadspace.searchInRange(_this.world_pos, _this.search_range, _this);
-          log.debug("Nasao entiteta: " + ents.length);
-          _results = [];
-          for (_i = 0, _len = ents.length; _i < _len; _i++) {
-            p = ents[_i];
-            if (Hal.math.isPointInRect(p.worldToLocal(_this.localToWorld(_this.world_pos)), p.bbox)) {
-              _results.push(p.trigger("LEFT_CLICK"));
-            } else {
-              _results.push(void 0);
-            }
-          }
-          return _results;
         });
         return this.on("ENTITY_MOVING", function(ent) {
           if (!Hal.math.isPointInRect(ent.viewportPos(), ent.quadspace.bounds)) {

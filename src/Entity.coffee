@@ -19,9 +19,10 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
             @glow_amount    = if meta.glow_amount? then meta.glow_amount else 16
             @line_width     = if meta.line_width? then meta.line_width else 1.0
             @draw_shape     = if meta.draw_shape? then meta.draw_shape else true
+            @opacity        = if meta.opacity? then meta.opacity else 1
             @parent         = null
             @world_pos      = [0, 0]
-
+            
             # its part of quadspace
             @quadspace      = null
             
@@ -44,11 +45,12 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
                     @needs_updating = true
 
                 if prop is "shape"
-                    @bbox = BBoxAlgos.rectFromPolyShape(@shape)
-                    @needs_updating = true
+                    if not @sprite?
+                        @bbox = BBoxAlgos.rectFromPolyShape(@shape)
+                        @needs_updating = true
 
                 if prop in ["x", "y"]
-                    if @parent?
+                    if @parent? and @quadspace?
                         @parent.trigger "ENTITY_MOVING", @
                         for ch in @children
                             @parent.trigger "ENTITY_MOVING", ch
@@ -80,6 +82,12 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
                
             @on "LEFT_CLICK", (attr) ->
                 @selected = not @selected
+
+                if @selected
+                    @trigger "SELECTED"
+                else
+                    @trigger "DESELECTED"
+
                 log.debug "yay, i've been selected: #{@id}"
             
             # @scene.camera.on "CHANGE", () =>
@@ -91,7 +99,7 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
             return Vec2.transformMat3([], [0, 0], inv)
 
         worldPos: () ->
-            return [@x, @y]
+            return @localToWorld([@x, @y])
 
         localToWorld: (pos) ->
             inv = Matrix3.transpose([], @local_matrix)
@@ -107,23 +115,34 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
             ent.attr("scene", @scene)
             ent.attr("parent", @)
 
+        addEntityToQuadspace: (ent) ->
+            @children.push(ent)
+            @scene.addEntityToQuadspace(ent)
+            @trigger "CHILD_ENTITY_ADDED", ent
+            ent.attr("scene", @scene)
+            ent.attr("parent", @)
+            return ent
+
         destroy: (destroy_children = true) ->
             #remove all listeners
             @removeAll()
+            @scene.removeEntity(@)
             if destroy_children
                 @destroyChildren()
 
+            @children = null
+
             #isto tako i za drawables
             #i za shapes uostalom
-            @drawables  = null
-            @parent     = null
+            @drawables   = null
+            @parent      = null
             if not @quadspace?
                 log.warn "this entity had no quadspace"
             else 
                 @quadspace.remove(@)
-            @scene.removeEntity(@)
             @quadspace = null
             @scene = null
+            @trigger "ON_DESTROY"
 
         destroyChildren: () ->
             for c in @children
@@ -153,6 +172,8 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
             @shapes.push(shape)
 
         draw: (delta) ->
+            @scene.g.ctx.globalAlpha = @opacity
+
             if @draw_shape
                 @scene.g.ctx.lineWidth = @line_width if @line_width > 1.0
             
@@ -181,4 +202,5 @@ define ["HalalEntity", "Scene", "Matrix3", "BBoxAlgos", "Vec2"],
             for s in @shapes
                 @scene.g.strokePolygon(s, "blue")
 
+            # @scene.g.ctx.globalAlpha = 1.0
     return Entity

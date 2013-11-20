@@ -61,6 +61,9 @@
       return Deferred;
 
     })();
+    /* @todo izbaciti ovo*/
+
+    window.Deferred = Deferred;
     return Deferred;
   });
 

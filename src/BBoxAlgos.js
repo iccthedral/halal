@@ -16,7 +16,7 @@
         return BBoxResolver(sprite, sampler, downsampler);
       },
       rectBBoxFromSprite: function(sprite) {
-        return [0, 0, sprite.w, sprite.h];
+        return [-sprite.w * 0.5, -sprite.h * 0.5, sprite.w, sprite.h];
       },
       rectFromPolyShape: function(shape) {
         var maxX, maxY, minX, minY, pt, _i, _len;
