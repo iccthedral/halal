@@ -1,1 +1,46 @@
-(function(){define([],function(){var e;return e=function(){function e(e,t,n,r,i,s){var o;this.img=e,this.x=n,this.y=r,this.w=i,this.h=s,o=this.img.src.match(/\/assets\/sprites\/(.*\/)(.*)\.png/),this.name=o&&o[2]?o[2]:"",this.w2=this.w*.5,this.h2=this.h*.5,this.folder=o&&o[1]?o[1]:"",this.onLazyLoad=null}return e.prototype.changeSprite=function(e){this.img=e.img,this.name=e.name,this.x=e.x,this.y=e.y,this.w=e.w,this.h=e.h,this.folder=e.folder,this.w2=e.w2,this.h2=e.h2;if(this.onLazyLoad!=null)return this.onLazyLoad()},e.prototype.getName=function(){return this.folder+this.name},e}(),e})}).call(this);
+(function() {
+  "use strict";
+  define([], function() {
+    var Sprite;
+    Sprite = (function() {
+      function Sprite(img, name, x, y, w, h) {
+        var spl;
+        this.img = img;
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        spl = this.img.src.match(/\/assets\/sprites\/(.*\/)(.*)\.png/);
+        this.name = spl && spl[2] ? spl[2] : "";
+        this.w2 = this.w * 0.5;
+        this.h2 = this.h * 0.5;
+        this.folder = spl && spl[1] ? spl[1] : "";
+        this.onLazyLoad = null;
+      }
+
+      Sprite.prototype.changeSprite = function(other) {
+        this.img = other.img;
+        this.name = other.name;
+        this.x = other.x;
+        this.y = other.y;
+        this.w = other.w;
+        this.h = other.h;
+        this.folder = other.folder;
+        this.w2 = other.w2;
+        this.h2 = other.h2;
+        if (this.onLazyLoad != null) {
+          return this.onLazyLoad();
+        }
+      };
+
+      Sprite.prototype.getName = function() {
+        return this.folder + this.name;
+      };
+
+      return Sprite;
+
+    })();
+    return Sprite;
+  });
+
+}).call(this);

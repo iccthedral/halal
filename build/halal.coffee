@@ -18,7 +18,7 @@ define [
     "isometricmap"
 ],
 
-(log, EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils) ->
+(log, EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, Entity, SpriteEntity, IsometricMap) ->
     ###
         A shim (sort of) to support RAF execution
     ###

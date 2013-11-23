@@ -1,1 +1,90 @@
-(function(){define(["vec2"],function(e){var t,n;return n=12,t=function(){function e(e){this.bounds=e,this.pts=[],this.nw=null,this.sw=null,this.ne=null,this.se=null}return e.prototype.insert=function(e){return Hal.math.isPointInRect(e.worldPos(),this.bounds)?this.pts.length<n?(e.quadspace=this,this.pts.push(e),!0):(this.nw==null&&this.divide(),this.nw.insert(e)?!0:this.ne.insert(e)?!0:this.sw.insert(e)?!0:this.se.insert(e)?!0:!1):!1},e.prototype.remove=function(e){var t;return t=this.pts.indexOf(e),this.pts.splice(t,1)},e.prototype.searchInRange=function(e,t,n){var r,i,s,o,u,a,f;i=[],s=[e[0]-t,e[1]-t,2*t,2*t];if(!Hal.math.rectIntersectsRect(s,this.bounds))return i;f=this.pts;for(u=0,a=f.length;u<a;u++)o=f[u],r=o.worldToLocal(n.localToWorld(e)),Hal.math.rectIntersectsRect(o.bbox,[r[0]-t,r[1]-t,2*t,2*t])&&i.push(o);return this.nw==null?i:(i=i.concat(this.nw.searchInRange(e,t,n)),i=i.concat(this.ne.searchInRange(e,t,n)),i=i.concat(this.sw.searchInRange(e,t,n)),i=i.concat(this.se.searchInRange(e,t,n)),i)},e.prototype.divide=function(){var t,n;return n=this.bounds[2]*.5,t=this.bounds[3]*.5,this.nw=new e([this.bounds[0],this.bounds[1],n,t]),this.ne=new e([this.bounds[0]+n,this.bounds[1],n,t]),this.sw=new e([this.bounds[0],this.bounds[1]+t,n,t]),this.se=new e([this.bounds[0]+n,this.bounds[1]+t,n,t])},e}(),t})}).call(this);
+(function() {
+  "use strict";
+  define(["vec2"], function(Vec2) {
+    var QuadTree, capacity;
+    capacity = 12;
+    QuadTree = (function() {
+      function QuadTree(bounds) {
+        this.bounds = bounds;
+        this.pts = [];
+        this.nw = null;
+        this.sw = null;
+        this.ne = null;
+        this.se = null;
+      }
+
+      QuadTree.prototype.insert = function(ent) {
+        if (!Hal.math.isPointInRect(ent.worldPos(), this.bounds)) {
+          return false;
+        }
+        if (this.pts.length < capacity) {
+          ent.quadspace = this;
+          this.pts.push(ent);
+          return true;
+        }
+        if (this.nw == null) {
+          this.divide();
+        }
+        if (this.nw.insert(ent)) {
+          return true;
+        }
+        if (this.ne.insert(ent)) {
+          return true;
+        }
+        if (this.sw.insert(ent)) {
+          return true;
+        }
+        if (this.se.insert(ent)) {
+          return true;
+        }
+        return false;
+      };
+
+      QuadTree.prototype.remove = function(ent) {
+        var ind;
+        ind = this.pts.indexOf(ent);
+        return this.pts.splice(ind, 1);
+      };
+
+      QuadTree.prototype.searchInRange = function(pos, range, scene) {
+        var cp, entsInRange, lab, p, _i, _len, _ref;
+        entsInRange = [];
+        lab = [pos[0] - range, pos[1] - range, 2 * range, 2 * range];
+        if (!Hal.math.rectIntersectsRect(lab, this.bounds)) {
+          return entsInRange;
+        }
+        _ref = this.pts;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          p = _ref[_i];
+          cp = p.worldToLocal(scene.localToWorld(pos));
+          if (Hal.math.rectIntersectsRect(p.bbox, [cp[0] - range, cp[1] - range, 2 * range, 2 * range])) {
+            entsInRange.push(p);
+          }
+        }
+        if (this.nw == null) {
+          return entsInRange;
+        }
+        entsInRange = entsInRange.concat(this.nw.searchInRange(pos, range, scene));
+        entsInRange = entsInRange.concat(this.ne.searchInRange(pos, range, scene));
+        entsInRange = entsInRange.concat(this.sw.searchInRange(pos, range, scene));
+        entsInRange = entsInRange.concat(this.se.searchInRange(pos, range, scene));
+        return entsInRange;
+      };
+
+      QuadTree.prototype.divide = function() {
+        var h, w;
+        w = this.bounds[2] * 0.5;
+        h = this.bounds[3] * 0.5;
+        this.nw = new QuadTree([this.bounds[0], this.bounds[1], w, h]);
+        this.ne = new QuadTree([this.bounds[0] + w, this.bounds[1], w, h]);
+        this.sw = new QuadTree([this.bounds[0], this.bounds[1] + h, w, h]);
+        return this.se = new QuadTree([this.bounds[0] + w, this.bounds[1] + h, w, h]);
+      };
+
+      return QuadTree;
+
+    })();
+    return QuadTree;
+  });
+
+}).call(this);

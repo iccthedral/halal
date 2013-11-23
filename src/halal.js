@@ -3,7 +3,7 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["eventdispatcher", "scene", "dommanager", "renderer", "mathutil", "vec2", "deferred", "deferredcounter", "domeventmanager", "assetmanager", "imgutils", "entity", "spriteentity", "isometricmap"], function(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils) {
+  define(["loglevel", "eventdispatcher", "scene", "dommanager", "renderer", "mathutil", "vec2", "deferred", "deferredcounter", "domeventmanager", "assetmanager", "imgutils", "entity", "spriteentity", "isometricmap"], function(log, EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, Entity, SpriteEntity, IsometricMap) {
     /*
         A shim (sort of) to support RAF execution
     */
@@ -250,6 +250,7 @@
     window.Hal.glass = new Renderer(Hal.viewportBounds(), null, 11);
     window.Hal.asm = new AssetManager();
     window.Hal.im = new ImgUtils();
+    window.log = log;
     return window.Hal;
   });
 

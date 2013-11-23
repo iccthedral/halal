@@ -1,1 +1,30 @@
-(function(){define([],function(){var e;return e=function(){function e(e,t,n,r){var i;this.path=e,this.img=t,this.meta=n,this.sprites=r!=null?r:{},i=this.path.match(/.*\/(.*)\.json/),i&&i.length>0?this.name=i[1]:this.name=this.path}return e.prototype.addSprite=function(e){return this.sprites[e.name]=e},e}(),e})}).call(this);
+(function() {
+  "use strict";
+  define([], function() {
+    var SpriteSheet;
+    SpriteSheet = (function() {
+      function SpriteSheet(path, img, meta, sprites) {
+        var matches;
+        this.path = path;
+        this.img = img;
+        this.meta = meta;
+        this.sprites = sprites != null ? sprites : {};
+        matches = this.path.match(/.*\/(.*)\.json/);
+        if (matches && matches.length > 0) {
+          this.name = matches[1];
+        } else {
+          this.name = this.path;
+        }
+      }
+
+      SpriteSheet.prototype.addSprite = function(spr) {
+        return this.sprites[spr.name] = spr;
+      };
+
+      return SpriteSheet;
+
+    })();
+    return SpriteSheet;
+  });
+
+}).call(this);

@@ -1,1 +1,60 @@
-(function(){var e={}.hasOwnProperty,t=function(t,n){function i(){this.constructor=t}for(var r in n)e.call(n,r)&&(t[r]=n[r]);return i.prototype=n.prototype,t.prototype=new i,t.__super__=n.prototype,t};define(["entity","bboxalgos","spritefactory"],function(e,n,r){var i;return i=function(e){function i(e){var t=this;i.__super__.constructor.call(this,e),this.sprite=Hal.asm.getSprite(e.sprite),this.visible_sprite=e.visible_sprite!=null?e.visible_sprite:!0,this.h=e.height!=null?e.height:0,this.w=e.width!=null?e.width:0,this.sprite==null?(this.sprite=r.dummySprite(),Hal.asm.waitFor(this.sprite,e.sprite)):this.calcShapeAndBBox(),this.sprite.onLazyLoad=function(){return t.calcShapeAndBBox()}}return t(i,e),i.prototype.init=function(){return i.__super__.init.call(this)},i.prototype.inShapeBounds=function(e){return e=this.worldToLocal(this.scene.localToWorld(e)),Hal.math.isPointInRect(e,this.bbox)&&!Hal.im.isTransparent(this.sprite.img,e[0]+this.bbox[2]*.5,e[1]+this.bbox[3]*.5)?!0:!1},i.prototype.calcShapeAndBBox=function(){return this.attr("bbox",n.rectBBoxFromSprite(this.sprite))},i.prototype.draw=function(){i.__super__.draw.call(this);if(this.visible_sprite)return this.scene.g.drawSprite(this.sprite,this.w,this.h)},i}(e),i})}).call(this);
+(function() {
+  "use strict";
+  var __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  define(["entity", "bboxalgos", "spritefactory"], function(Entity, BBoxAlgos, SpriteFactory) {
+    var SpriteEntity;
+    SpriteEntity = (function(_super) {
+      __extends(SpriteEntity, _super);
+
+      function SpriteEntity(meta) {
+        var _this = this;
+        SpriteEntity.__super__.constructor.call(this, meta);
+        this.sprite = Hal.asm.getSprite(meta.sprite);
+        this.visible_sprite = meta.visible_sprite != null ? meta.visible_sprite : true;
+        this.h = meta.height != null ? meta.height : 0;
+        this.w = meta.width != null ? meta.width : 0;
+        if (this.sprite == null) {
+          this.sprite = SpriteFactory.dummySprite();
+          Hal.asm.waitFor(this.sprite, meta.sprite);
+        } else {
+          this.calcShapeAndBBox();
+        }
+        this.sprite.onLazyLoad = function() {
+          return _this.calcShapeAndBBox();
+        };
+      }
+
+      SpriteEntity.prototype.init = function() {
+        return SpriteEntity.__super__.init.call(this);
+      };
+
+      SpriteEntity.prototype.inShapeBounds = function(pos) {
+        pos = this.worldToLocal(this.scene.localToWorld(pos));
+        if (Hal.math.isPointInRect(pos, this.bbox)) {
+          if (!Hal.im.isTransparent(this.sprite.img, pos[0] + this.bbox[2] * 0.5, pos[1] + this.bbox[3] * 0.5)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      SpriteEntity.prototype.calcShapeAndBBox = function() {
+        return this.attr("bbox", BBoxAlgos.rectBBoxFromSprite(this.sprite));
+      };
+
+      SpriteEntity.prototype.draw = function() {
+        SpriteEntity.__super__.draw.call(this);
+        if (this.visible_sprite) {
+          return this.scene.g.drawSprite(this.sprite, this.w, this.h);
+        }
+      };
+
+      return SpriteEntity;
+
+    })(Entity);
+    return SpriteEntity;
+  });
+
+}).call(this);
