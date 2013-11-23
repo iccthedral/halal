@@ -3,8 +3,6 @@
     "version": "0.0.1",
     "dependencies": {
         "requirejs": null,
-        "loglevel": null,
-        "jquery": null,
-        "jquery-ui": null
+        "loglevel": null
     }
 }

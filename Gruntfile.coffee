@@ -118,3 +118,23 @@ module.exports = (grunt) ->
         grunt.config("coffee.glob_all.src", [filepath])
 
     grunt.registerTask "serve", ["connect:server", "watch"]
+
+    grunt.registerTask "compile", "Compiling Halal", () ->
+        spawn = require("child_process").spawn
+        proc = spawn "r.js", ["-o", "build.js"]
+
+        proc.stdout.setEncoding("utf8")
+        proc.stderr.setEncoding("utf8")
+
+        proc.stdout.on "data", (data) ->
+            console.log data.yellow
+        proc.stderr.on "data", (data) ->
+            console.log data.red
+
+        proc.on "exit", (retcode) ->
+            console.log retcode
+            console.log "Done compiling".green
+
+        proc.on "close", (retcode) ->
+            console.log retcode
+            console.log "Done compiling".green

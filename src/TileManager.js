@@ -74,6 +74,18 @@
         TileLayer.__super__.constructor.call(this, meta);
         this.name = meta.name != null ? meta.name : "" + this.id;
         this.layer = meta.layer != null ? meta.layer : 0;
+        this.on("SELECTED", function() {
+          this.attr("glow", true);
+          this.attr("glow_color", "blue");
+          this.attr("draw_shape", true);
+          this.attr("stroke_color", "white");
+          return Hal.tween(this, "line_width", 200, 1, 14.5, 5);
+        });
+        this.on("DESELECTED", function() {
+          this.attr("line_width", 1);
+          this.attr("glow", false);
+          return this.attr("draw_shape", false);
+        });
       }
 
       TileLayer.prototype.destroy = function(destroy_children) {
@@ -90,8 +102,10 @@
 
     })(SpriteEntity);
     return TileManager = (function() {
-      function TileManager(tileList) {
+      function TileManager(tilew, tileh, tileList) {
         var _this = this;
+        this.tilew = tilew;
+        this.tileh = tileh;
         if (tileList == null) {
           tileList = "";
         }
@@ -158,7 +172,6 @@
       };
 
       TileManager.prototype.addTileLayerToHolder = function(holder, tile, layer) {
-        tile.attr("draw_bbox", true);
         if ((holder == null) || (tile == null)) {
           log.debug("holder or tile is null");
           return;

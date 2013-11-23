@@ -11,11 +11,11 @@
       function IsometricMap(meta) {
         var hittest, i, j, _i, _len, _ref,
           _this = this;
-        this.tm = new TileManager();
         this.tilew = meta.tilew;
         this.tileh = meta.tileh;
         this.nrows = meta.rows;
         this.ncols = meta.cols;
+        this.tm = new TileManager(this.tilew, this.tileh);
         this.tilew2prop = 2 / this.tilew;
         this.tileh2prop = 2 / this.tileh;
         this.tilew2 = this.tilew / 2;
@@ -219,13 +219,7 @@
         }
         this.camera_moved = false;
         this.g.ctx.setTransform(this.local_matrix[0], this.local_matrix[3], this.local_matrix[1], this.local_matrix[4], this.local_matrix[2], this.local_matrix[5]);
-        this.showRegion(this.mpos, 3, 3);
-        if (this.draw_quadspace) {
-          this.drawQuadSpace(this.quadspace);
-          this.g.strokeRect(this.camera.view_frustum, "green");
-        }
-        this.g.ctx.setTransform(1, 0, 0, 1, -this.search_range * this.camera.zoom, -this.search_range * this.camera.zoom);
-        return this.g.strokeRect([this.mpos[0], this.mpos[1], 2 * this.search_range * this.camera.zoom, 2 * this.search_range * this.camera.zoom], "red");
+        return this.showRegion(this.mpos, 3, 3);
       };
 
       IsometricMap.prototype.calcDrawingArea = function() {

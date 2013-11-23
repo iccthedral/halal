@@ -11,6 +11,7 @@
         this.num_tweens = 0;
         this.to_wait = 0;
         this.tween_chain = [];
+        this.animating = false;
       }
 
       Tweener.prototype.tween = function(meta) {
@@ -21,7 +22,7 @@
           this.tween_chain.push(meta);
           return this;
         }
-        this.obj.attr("animating", true);
+        this.animating = true;
         promise = Hal.tween(this.obj, meta.attr, meta.duration, meta.from, meta.to, meta.repeat);
         promise.then(function() {
           _this.num_tweens--;
@@ -34,7 +35,7 @@
             _this.num_tweens--;
           }
           if (_this.num_tweens === 0 && _this.to_wait === 0) {
-            return _this.obj.attr("animating", false);
+            return _this.animating = false;
           }
         });
         return this;

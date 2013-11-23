@@ -26,20 +26,18 @@
     })();
     Ajax = new Object();
     Ajax.get = function() {
-      var ajaxreq, callbacks, result, url;
-      url = arguments[0], callbacks = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      var ajaxreq, callbacks, data, result, url;
+      url = arguments[0], data = arguments[1], callbacks = 3 <= arguments.length ? __slice.call(arguments, 2) : [];
       result = new Result(document.domain + '/' + url);
       ajaxreq = new XMLHttpRequest();
-      ajaxreq.open("GET", url);
+      ajaxreq.open("GET", "" + url + "?" + data);
       ajaxreq.send();
       ajaxreq.onreadystatechange = function() {
-        var data, type;
+        var type;
         if (ajaxreq.readyState === 4) {
           type = ajaxreq.getResponseHeader("Content-Type");
           if (ajaxreq.status === 200) {
             data = ajaxreq.responseText;
-            console.log(type);
-            console.log(url);
             if (type === "application/json" && url.indexOf("json") === -1) {
               data = JSON.parse(data);
             }
@@ -96,7 +94,7 @@
       };
       return result;
     };
-    return Ajax;
+    return (window.ajx = Ajax);
   });
 
 }).call(this);

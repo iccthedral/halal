@@ -27,19 +27,7 @@
       }
 
       SpriteEntity.prototype.init = function() {
-        SpriteEntity.__super__.init.call(this);
-        this.on("SELECTED", function() {
-          this.attr("glow", true);
-          this.attr("glow_color", "red");
-          this.attr("draw_shape", true);
-          this.attr("stroke_color", "white");
-          return Hal.tween(this, "line_width", 300, 1, 19.5, 5);
-        });
-        return this.on("DESELECTED", function() {
-          this.attr("line_width", 1);
-          this.attr("glow", false);
-          return this.attr("draw_shape", false);
-        });
+        return SpriteEntity.__super__.init.call(this);
       };
 
       SpriteEntity.prototype.inShapeBounds = function(pos) {

@@ -23,7 +23,7 @@
         this.prev_pos = [this.x, this.y];
         this.zoom = 1;
         this.zoom_step = 0.1;
-        this.camera_speed = 1.8;
+        this.camera_speed = 90;
         this.angle = 0;
         this.view_frustum = [];
         this.recalcCamera();
@@ -133,16 +133,16 @@
         var _this = this;
         return this.arrkeys = Hal.on("KEY_DOWN", function(ev) {
           if (ev.keyCode === Hal.Keys.LEFT) {
-            _this.lerpTo([_this.cx - _this.camera_speed * 55, _this.cy]);
+            _this.lerpTo([_this.cx - _this.camera_speed, _this.cy]);
           }
           if (ev.keyCode === Hal.Keys.RIGHT) {
-            _this.lerpTo([_this.cx + _this.camera_speed * 55, _this.cy]);
+            _this.lerpTo([_this.cx + _this.camera_speed, _this.cy]);
           }
           if (ev.keyCode === Hal.Keys.UP) {
-            _this.lerpTo([_this.cx, _this.cy - _this.camera_speed * 55]);
+            _this.lerpTo([_this.cx, _this.cy - _this.camera_speed]);
           }
           if (ev.keyCode === Hal.Keys.DOWN) {
-            return _this.lerpTo([_this.cx, _this.cy + _this.camera_speed * 55]);
+            return _this.lerpTo([_this.cx, _this.cy + _this.camera_speed]);
           }
         });
       };

@@ -1,7 +1,7 @@
 {
     "appDir": "./src",
     "baseUrl": ".",
-    "dir": "./tmp",
+    "dir": "./build",
     "modules": [
         {
             "name": "Halal"
