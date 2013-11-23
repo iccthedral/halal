@@ -35,6 +35,7 @@
         var data;
         this.hit_ctx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1);
         data = this.hit_ctx.getImageData(0, 0, 1, 1).data;
+        log.debug("is transparent: " + (data[3] === 255));
         return data[3] === 255;
       };
 

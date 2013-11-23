@@ -30,6 +30,7 @@ define [],
         isTransparent: (img, x, y) ->
             @hit_ctx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1)
             data = @hit_ctx.getImageData(0, 0, 1, 1).data
+            log.debug "is transparent: #{data[3] is 255}"
             return data[3] is 255
         
         getPixelAt: (img, x, y) ->
