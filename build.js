@@ -4,7 +4,7 @@
     "dir": "./build",
     "modules": [
         {
-            "name": "Halal"
+            "name": "halal"
         }
     ]
 }
