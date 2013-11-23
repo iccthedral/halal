@@ -4,7 +4,7 @@
   "description": "Halal - HTML5 2D engine",
   "dependencies": {},
   "license": "BSD",
-  "repository": 
+  "repository": "git@github.com:iccthedral/halal.git",
   "dependencies": {
   },
   "devDependencies": {
