@@ -1,7 +1,6 @@
 
 main.js
 ----------------
-loglevel.js
 eventdispatcher.js
 deferred.js
 halalentity.js

@@ -3,6 +3,13 @@
 require.config
     urlArgs: Math.random()
     baseUrl: "src"
+    
+    paths:
+        "loglevel" : "../vendor/loglevel/dist/loglevel"
+
+    shim:
+        "loglevel":
+            "exports": "log"
 
 require ["halal"], (halal) ->
     log.setLevel log.levels.DEBUG

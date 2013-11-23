@@ -2,6 +2,7 @@
     "name": "halal",
     "version": "0.0.1",
     "dependencies": {
-        "requirejs": null
+        "requirejs": null,
+        "loglevel": null
     }
 }

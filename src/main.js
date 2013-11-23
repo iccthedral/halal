@@ -8,13 +8,12 @@
     },
     shim: {
       "loglevel": {
-        exports: "log"
+        "exports": "log"
       }
     }
   });
 
-  require(["loglevel", "halal"], function(log, halal) {
-    window.log = log;
+  require(["halal"], function(halal) {
     log.setLevel(log.levels.DEBUG);
     return halal;
   });
