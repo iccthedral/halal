@@ -1,9 +1,10 @@
 {
-  "name": "Halal",
+  "name": "halal",
   "version": "0.0.1",
   "description": "Halal - HTML5 2D engine",
   "dependencies": {},
   "license": "BSD",
+  "repository": 
   "dependencies": {
   },
   "devDependencies": {
@@ -23,7 +24,7 @@
   },
   "author": {
     "name": "Aleksandar Milic",
-    "email": "javolimperl@gmail.com",
+    "email": "nullpotent@gmail.com",
     "url": "http://iccthedral.github.com/halal"
   }
 }
