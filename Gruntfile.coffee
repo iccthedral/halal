@@ -128,6 +128,7 @@ module.exports = (grunt) ->
 
         proc.stdout.on "data", (data) ->
             console.log data.yellow
+            
         proc.stderr.on "data", (data) ->
             console.log data.red
 

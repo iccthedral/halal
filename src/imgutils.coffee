@@ -33,9 +33,9 @@ define [],
             return data[3] is 255
         
         getPixelAt: (img, x, y) ->
-            ctx = @hit_canvas.getContext("2d")
-            ctx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1)
-            data = ctx.getImageData(0, 0, 1, 1).data
+            #ctx = @hit_canvas.getContext("2d")
+            @hit_ctx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1)
+            data = @hit_ctx.getImageData(0, 0, 1, 1).data
             pos = (x + y) * 4
             return [
                 data[pos], 

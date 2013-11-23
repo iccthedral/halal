@@ -39,10 +39,9 @@
       };
 
       ImageUtils.prototype.getPixelAt = function(img, x, y) {
-        var ctx, data, pos;
-        ctx = this.hit_canvas.getContext("2d");
-        ctx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1);
-        data = ctx.getImageData(0, 0, 1, 1).data;
+        var data, pos;
+        this.hit_ctx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1);
+        data = this.hit_ctx.getImageData(0, 0, 1, 1).data;
         pos = (x + y) * 4;
         return [data[pos], data[pos + 1], data[pos + 2], data[pos + 3]];
       };
