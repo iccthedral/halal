@@ -117,7 +117,7 @@ module.exports = (grunt) ->
         filepath = filepath.replace(grunt.config("coffee.glob_all.cwd"), "")
         grunt.config("coffee.glob_all.src", [filepath])
 
-    grunt.registerTask "serve", ["connect:server", "watch"]
+    grunt.registerTask "serve", ["watch"]
 
     grunt.registerTask "compile", "Compiling Halal", () ->
         spawn = require("child_process").spawn

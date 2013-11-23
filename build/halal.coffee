@@ -1,6 +1,7 @@
 "use strict"
 
 define [
+    "loglevel",
     "eventdispatcher", 
     "scene", 
     "dommanager", 
@@ -17,8 +18,7 @@ define [
     "isometricmap"
 ],
 
-(EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils) ->
-
+(log, EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils) ->
     ###
         A shim (sort of) to support RAF execution
     ###
@@ -247,5 +247,6 @@ define [
     window.Hal.glass    = new Renderer(Hal.viewportBounds(), null, 11)
     window.Hal.asm      = new AssetManager()
     window.Hal.im       = new ImgUtils()
+    window.log          = log
 
     return window.Hal

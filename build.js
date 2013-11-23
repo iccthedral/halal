@@ -1,10 +1,10 @@
 {
-    "appDir": "./src",
+    "appDir": "src",
     "baseUrl": ".",
-    "dir": "./build",
+    "dir": "build",
     "modules": [
         {
-            "name": "halal"
+            "name": "main"
         }
     ]
 }

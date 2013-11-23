@@ -86,7 +86,7 @@ returns:
 usage: 
     @getSpritesFrom("horses")
 ###
-define ["deferred", "deferredounter", "ajax", "spritefactory", "sprite", "spritesheet", "eventdispatcher"], 
+define ["deferred", "deferredcounter", "ajax", "spritefactory", "sprite", "spritesheet", "eventdispatcher"], 
 
 (Deferred, DeferredCounter, Ajax, SpriteFactory, Sprite, SpriteSheet, EventDispatcher) ->
   res_url = "/assets/"
