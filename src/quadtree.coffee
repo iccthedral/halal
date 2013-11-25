@@ -4,7 +4,8 @@ define ["vec2"],
 
 (Vec2) ->
     
-    capacity = 12
+    capacity = 1
+    total = 0
 
     class QuadTree
         constructor: (@bounds) ->
@@ -13,14 +14,20 @@ define ["vec2"],
             @sw = null
             @ne = null
             @se = null
+            @id = Hal.ID()
+
+        total: () ->
+            return total
 
         insert: (ent) ->
             if not Hal.math.isPointInRect(ent.worldPos(), @bounds)
+                # Hal.log.debug "Entity doesnt't interrsect #{@id}"
                 return false
 
             if @pts.length < capacity
                 ent.quadspace = @
                 @pts.push(ent)
+                total++
                 return true
 
             if not @nw?
@@ -39,18 +46,23 @@ define ["vec2"],
 
         remove: (ent) ->
             ind = @pts.indexOf(ent)
+            if ind is -1
+                # log.error "Entity #{ent.id} is not in quadspace"
+                return
             @pts.splice(ind, 1)
+            total--
 
         searchInRange: (pos, range, scene) ->
             entsInRange = []
             lab = [pos[0] - range, pos[1] - range, 2*range, 2*range]
             if not Hal.math.rectIntersectsRect(lab, @bounds)
+                # Hal.log.debug "Entity not in #{@id}"
                 return entsInRange
 
             for p in @pts
                 cp = p.worldToLocal(scene.localToWorld(pos))
-                if Hal.math.rectIntersectsRect(p.bbox, [cp[0] - range, cp[1] - range, 2*range, 2*range])
-                     entsInRange.push(p)
+                if Hal.math.rectIntersectsRect(p.bbox, [cp[0] - range*0.5, cp[1] - range*0.5, range, range])
+                    entsInRange.push(p)
 
             if not @nw?
                 return entsInRange

@@ -3,7 +3,7 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["vec2", "halalentity", "renderer"], function(Vec2, HalalEntity, Renderer) {
+  define(["vec2", "halalentity", "renderer", "matrix3"], function(Vec2, HalalEntity, Renderer, Matrix3) {
     var Camera;
     Camera = (function(_super) {
       __extends(Camera, _super);
@@ -23,7 +23,7 @@
         this.prev_pos = [this.x, this.y];
         this.zoom = 1;
         this.zoom_step = 0.1;
-        this.camera_speed = 90;
+        this.camera_speed = 1.8;
         this.angle = 0;
         this.view_frustum = [];
         this.recalcCamera();
@@ -99,6 +99,7 @@
           if (_this.dragging) {
             _this.x = (_this.prev_pos[0] + (pos[0] - _this.start_drag_point[0])) / _this.zoom;
             _this.y = (_this.prev_pos[1] + (pos[1] - _this.start_drag_point[1])) / _this.zoom;
+            _this.viewport = Hal.math.transformRect([_this.x, _this.y, _this.w, _this.h], Matrix3.mul(Matrix3.scale(_this.zoom, _this.zoom), Matrix3.translate(-_this.x, -_this.y)));
             return _this.trigger("CHANGE", _this.pos);
           }
         });
@@ -125,8 +126,8 @@
         this.view_frustum[1] = bnds[1];
         this.view_frustum[2] = bnds[2] - bnds[0];
         this.view_frustum[3] = bnds[3] - bnds[1];
-        log.debug("Camera view frustum setted");
-        return log.debug(this.view_frustum);
+        Hal.log.debug("Camera view frustum setted");
+        return Hal.log.debug(this.view_frustum);
       };
 
       Camera.prototype.enableArrowKeys = function() {

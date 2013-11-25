@@ -98,7 +98,7 @@ define ["vec2"],
         while (critical = findCriticalPoint())
             criticals.push(critical)
         
-        log.debug "num criticals: #{criticals.length}"
+        Hal.log.debug "num criticals: #{criticals.length}"
         return new downsampler(criticals)
 
     class BBoxSampler

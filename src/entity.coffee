@@ -22,32 +22,33 @@ define ["halalentity", "scene", "matrix3", "bboxalgos", "vec2"],
             @opacity        = if meta.opacity? then meta.opacity else 1
             @parent         = null
             @world_pos      = [0, 0]
-            
+            @group          = if meta.group? then meta.group else "default"
+
             # its part of quadspace
             @quadspace      = null
             
             @needs_updating = true
             @draw_origin    = false
             @local_matrix   = @localMatrix()
-            @bbox           = BBoxAlgos.rectFromPolyShape(@shape)
+            @calcShapeAndBox()
             
             @children       = []
             @shapes         = []
             @drawables      = []
+            @ent_groups     = {}
             @scene          = null
-
             @selected_color     = "white"
             @unselected_color   = @stroke_color
 
             @on "CHANGE", (attr) ->
                 prop = attr[0]
-                if prop in ["angle", "scale", "x", "y", "glow", "parent", "line_width", "h"]
+                if prop in ["angle", "scale", "h", "w", "x", "y", "glow", "parent", "line_width"]
+                    if @parent? 
+                        @parent.needs_updating = true
                     @needs_updating = true
 
                 if prop is "shape"
-                    if not @sprite?
-                        @bbox = BBoxAlgos.rectFromPolyShape(@shape)
-                        @needs_updating = true
+                    @calcShapeAndBox()
 
                 if prop in ["x", "y"]
                     if @parent? and @quadspace?
@@ -55,8 +56,28 @@ define ["halalentity", "scene", "matrix3", "bboxalgos", "vec2"],
                         for ch in @children
                             @parent.trigger "ENTITY_MOVING", ch
 
+                if prop is "group"
+                    @trigger "GROUP_CHANGE", @
+
+            @on "GROUP_CHANGE", (ent) ->
+                group = @ent_groups[ent.group]
+                if not group?
+                    group = @ent_groups[ent.group] = []
+
+                ind = group.indexOf(ent)
+                if ind isnt -1
+                    group.splice(ind, 1)
+                else
+                    group.push(ent)
+
+                if @parent?
+                    @parent.trigger "GROUP_CHANGE", ent
+
             @on "ENTITY_ADDED", () ->
                 @init()
+
+        calcShapeAndBox: () ->
+           @attr("bbox", BBoxAlgos.rectFromPolyShape(@shape))
 
         localMatrix: () ->
             return [
@@ -72,11 +93,14 @@ define ["halalentity", "scene", "matrix3", "bboxalgos", "vec2"],
                 0, 0, 1
             ]
 
-        init: () ->
-            if @parent instanceof Scene
-                @parent.camera.on "CHANGE", () => 
-                    @needs_updating = true
+        requestUpdate: () ->
+            @scene.needs_updating = true
 
+        group: (group) ->
+            return [] if not @ent_groups[group]?
+            return @ent_groups[group].slice()
+
+        init: () ->
             @on "EXIT_FRAME", () ->
                @scene.g.ctx.setTransform(1, 0, 0, 1, 0, 0)
                
@@ -88,22 +112,15 @@ define ["halalentity", "scene", "matrix3", "bboxalgos", "vec2"],
                 else
                     @trigger "DESELECTED"
 
-                log.debug "yay, i've been selected: #{@id}"
-            
-            # @scene.camera.on "CHANGE", () =>
-            #     log.debug "hello from #{@id}"
-            #     log.debug @
-
         viewportPos: () ->
             inv = Matrix3.transpose([], @local_matrix)
             return Vec2.transformMat3([], [0, 0], inv)
 
         worldPos: () ->
-            return @localToWorld([@x, @y])
+            return [@x, @y]
 
         localToWorld: (pos) ->
-            inv = Matrix3.transpose([], @local_matrix)
-            return Vec2.transformMat3([], pos, inv)
+            return Vec2.transformMat3([], pos, Matrix3.transpose([], @scene.local_matrix))
 
         worldToLocal: (pos) ->
             return Vec2.transformMat3([], pos, Matrix3.transpose([], Matrix3.invert([], @local_matrix)))
@@ -114,6 +131,8 @@ define ["halalentity", "scene", "matrix3", "bboxalgos", "vec2"],
             @trigger "CHILD_ENTITY_ADDED", ent
             ent.attr("scene", @scene)
             ent.attr("parent", @)
+            ent.attr("is_child", true)
+            @trigger "GROUP_CHANGE", ent.group
 
         addEntityToQuadspace: (ent) ->
             @children.push(ent)
@@ -121,14 +140,19 @@ define ["halalentity", "scene", "matrix3", "bboxalgos", "vec2"],
             @trigger "CHILD_ENTITY_ADDED", ent
             ent.attr("scene", @scene)
             ent.attr("parent", @)
+            ent.attr("is_child", true)
+            @trigger "GROUP_CHANGE", ent.group
             return ent
 
-        destroy: (destroy_children = true) ->
-            #remove all listeners
+        destroy: (destroy_children = false) ->
             @removeAll()
-            @scene.removeEntity(@)
-            if destroy_children
-                @destroyChildren()
+
+            if not @scene?
+                Hal.log.warn "this entity didn't belong to a scene"
+            else
+                @scene.removeEntity(@)
+
+            @destroyChildren(destroy_children)
 
             @children = null
 
@@ -137,33 +161,29 @@ define ["halalentity", "scene", "matrix3", "bboxalgos", "vec2"],
             @drawables   = null
             @parent      = null
             if not @quadspace?
-                log.warn "this entity had no quadspace"
+                Hal.log.warn "this entity had no quadspace"
             else 
                 @quadspace.remove(@)
             @quadspace = null
             @scene = null
-            @trigger "ON_DESTROY"
+            @trigger "DESTROY"
 
-        destroyChildren: () ->
+        destroyChildren: (destroy_children) ->
+            return if not destroy_children or not @children?
             for c in @children
-                c.destroy()
+                c.destroy(destroy_children)
 
         update: (delta) ->
-            @scene.g.ctx.setTransform(
-                @local_matrix[0], 
-                @local_matrix[3],
-                @local_matrix[1],
-                @local_matrix[4],
-                @local_matrix[2],
-                @local_matrix[5]
-            )
-
             if @needs_updating
-                @local_matrix = Matrix3.mul(@rotationMatrix(), @localMatrix())
-                @local_matrix = Matrix3.mul(@local_matrix, @parent.local_matrix)
-                @needs_updating = false
                 if not @glow
                     @scene.g.ctx.shadowBlur = 0
+                @calcLocalMatrix()
+                # for c in @children
+                #     c.update(delta)
+
+        calcLocalMatrix: () ->
+            @local_matrix = Matrix3.mul(@rotationMatrix(), @localMatrix())
+            @local_matrix = Matrix3.mul(@local_matrix, @parent.local_matrix)
 
         addDrawable: (drawableFunc) ->
             @drawables.push(drawableFunc)
@@ -172,6 +192,17 @@ define ["halalentity", "scene", "matrix3", "bboxalgos", "vec2"],
             @shapes.push(shape)
 
         draw: (delta) ->
+            if @needs_updating
+                @scene.g.ctx.setTransform(
+                    @local_matrix[0], 
+                    @local_matrix[3],
+                    @local_matrix[1],
+                    @local_matrix[4],
+                    @local_matrix[2],
+                    @local_matrix[5]
+                )
+                @needs_updating = false
+
             @scene.g.ctx.globalAlpha = @opacity
 
             if @draw_shape
@@ -196,11 +227,13 @@ define ["halalentity", "scene", "matrix3", "bboxalgos", "vec2"],
             if @draw_bbox
                 @scene.g.strokeRect(@bbox, "cyan")
 
+            # for c in @children
+            #     c.draw(delta)
+
             for s in @drawables
                 s.call(@, delta)
 
             for s in @shapes
                 @scene.g.strokePolygon(s, "blue")
 
-            # @scene.g.ctx.globalAlpha = 1.0
     return Entity

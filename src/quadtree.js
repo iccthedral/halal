@@ -1,8 +1,9 @@
 (function() {
   "use strict";
   define(["vec2"], function(Vec2) {
-    var QuadTree, capacity;
-    capacity = 12;
+    var QuadTree, capacity, total;
+    capacity = 1;
+    total = 0;
     QuadTree = (function() {
       function QuadTree(bounds) {
         this.bounds = bounds;
@@ -11,7 +12,12 @@
         this.sw = null;
         this.ne = null;
         this.se = null;
+        this.id = Hal.ID();
       }
+
+      QuadTree.prototype.total = function() {
+        return total;
+      };
 
       QuadTree.prototype.insert = function(ent) {
         if (!Hal.math.isPointInRect(ent.worldPos(), this.bounds)) {
@@ -20,6 +26,7 @@
         if (this.pts.length < capacity) {
           ent.quadspace = this;
           this.pts.push(ent);
+          total++;
           return true;
         }
         if (this.nw == null) {
@@ -43,7 +50,11 @@
       QuadTree.prototype.remove = function(ent) {
         var ind;
         ind = this.pts.indexOf(ent);
-        return this.pts.splice(ind, 1);
+        if (ind === -1) {
+          return;
+        }
+        this.pts.splice(ind, 1);
+        return total--;
       };
 
       QuadTree.prototype.searchInRange = function(pos, range, scene) {
@@ -57,7 +68,7 @@
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           p = _ref[_i];
           cp = p.worldToLocal(scene.localToWorld(pos));
-          if (Hal.math.rectIntersectsRect(p.bbox, [cp[0] - range, cp[1] - range, 2 * range, 2 * range])) {
+          if (Hal.math.rectIntersectsRect(p.bbox, [cp[0] - range * 0.5, cp[1] - range * 0.5, range, range])) {
             entsInRange.push(p);
           }
         }

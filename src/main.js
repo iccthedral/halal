@@ -5,17 +5,9 @@
     baseUrl: "src",
     paths: {
       "loglevel": "../vendor/loglevel/dist/loglevel"
-    },
-    shim: {
-      "loglevel": {
-        "exports": "log"
-      }
     }
   });
 
-  require(["halal"], function(halal) {
-    log.setLevel(log.levels.DEBUG);
-    return halal;
-  });
+  require(["halal"], function(halal) {});
 
 }).call(this);

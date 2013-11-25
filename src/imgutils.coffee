@@ -30,11 +30,10 @@ define [],
         isTransparent: (img, x, y) ->
             @hit_ctx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1)
             data = @hit_ctx.getImageData(0, 0, 1, 1).data
-            log.debug "is transparent: #{data[3] is 255}"
-            return data[3] is 255
+            @hit_ctx.clearRect(0, 0, 1, 1)
+            return data[3] < 255
         
         getPixelAt: (img, x, y) ->
-            #ctx = @hit_canvas.getContext("2d")
             @hit_ctx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1)
             data = @hit_ctx.getImageData(0, 0, 1, 1).data
             pos = (x + y) * 4
@@ -44,7 +43,7 @@ define [],
                 data[pos+2], 
                 data[pos+3]
             ]
-
+            @hit_ctx.clearRect(0, 0, 1, 1)
         tintImage: (img, color, opacity) ->
             tint_buff = @createCanvas(img.width, img.height)
             tint_ctx = tint_buff.getContext("2d")

@@ -15,18 +15,21 @@
         this.tileh = meta.tileh;
         this.nrows = meta.rows;
         this.ncols = meta.cols;
-        this.tm = new TileManager(this.tilew, this.tileh);
+        this.tm = new TileManager(this);
         this.tilew2prop = 2 / this.tilew;
         this.tileh2prop = 2 / this.tileh;
         this.tilew2 = this.tilew / 2;
         this.tileh2 = this.tileh / 2;
         this.map = [];
-        this.total_rendered = 0;
         this.translate_x = 0;
         this.max_rows = this.nrows - 1;
         this.max_cols = this.ncols - 1;
         this.selected_tile = null;
+        this.selected_tile_x = 0;
+        this.selected_tile_y = 0;
+        this.selected_tile_sprite = null;
         this.old_camx = 0;
+        this.on_exit_frame = null;
         this.supported_modes = {
           "mode-default": function() {
             _this.processMouseClick();
@@ -52,12 +55,15 @@
             return _this.clicked_layer = null;
           },
           "mode-place": function() {
-            _this.tm.addTileLayerToHolder(_this.tile_under_mouse, _this.tm.newTileLayer(_this.selected_tile));
+            var t;
+            t = _this.tm.addTileLayerToHolder(_this.tile_under_mouse, _this.tm.newTileLayer(_this.selected_tile), _this.selected_tile.layer, _this.selected_tile_x, _this.selected_tile_y);
           }
         };
         this.camera_moved = false;
-        this.current_mode = this.supported_modes["mode-default"];
+        this.current_mode = "mode-default";
+        this.current_mode_clb = this.supported_modes[this.current_mode];
         meta.cam_bounds = [this.tilew2, this.tileh2, this.ncols * this.tilew2, (this.nrows - 0.5) * this.tileh];
+        Hal.log.debug("camera bounds: " + meta.cam_bounds);
         IsometricMap.__super__.constructor.call(this, meta);
         this.iso_shape = [[-this.tilew2, 0], [0, this.tileh2], [this.tilew2, 0], [0, -this.tileh2]];
         this.display = {
@@ -71,12 +77,11 @@
           col: "col: ",
           tilename: "tile: ",
           start_row: "starting row: ",
-          start_col: "staring col: ",
+          start_col: "starting col: ",
           end_row: "end row: ",
           end_col: "end_col: ",
           tile_x: "tile_x: ",
           tile_y: "tile_y: ",
-          num_rendering: "no. rendereded entities: ",
           cam_mouse: "camera_mouse: "
         };
         this.mask = Hal.asm.getSprite("test/tilemask_128x64");
@@ -94,7 +99,6 @@
         };
         this.last_clicked_layer = null;
         this.tile_under_mouse = null;
-        this.search_range = this.bounds[2] * 0.5;
       }
 
       IsometricMap.prototype.showRegion = function(pos, range_row, range_col) {
@@ -122,17 +126,16 @@
       IsometricMap.prototype.drawStat = function() {
         IsometricMap.__super__.drawStat.call(this);
         if (this.tile_under_mouse != null) {
-          this.g.ctx.fillText(this.info.row + this.tile_under_mouse.row, 0, 195);
-          this.g.ctx.fillText(this.info.col + this.tile_under_mouse.col, 0, 210);
-          this.g.ctx.fillText(this.info.tile_x + this.tile_under_mouse.x, 0, 225);
-          this.g.ctx.fillText(this.info.tile_y + this.tile_under_mouse.y, 0, 240);
+          Hal.glass.ctx.fillText(this.info.row + this.tile_under_mouse.row, 0, 195);
+          Hal.glass.ctx.fillText(this.info.col + this.tile_under_mouse.col, 0, 210);
+          Hal.glass.ctx.fillText(this.info.tile_x + this.tile_under_mouse.x, 0, 225);
+          Hal.glass.ctx.fillText(this.info.tile_y + this.tile_under_mouse.y, 0, 240);
         }
-        this.g.ctx.fillText(this.info.start_row + this.display.startr, 0, 115);
-        this.g.ctx.fillText(this.info.start_col + this.display.startc, 0, 130);
-        this.g.ctx.fillText(this.info.end_row + this.display.endr, 0, 145);
-        this.g.ctx.fillText(this.info.end_col + this.display.endc, 0, 160);
-        this.g.ctx.fillText(this.info.num_rendering + this.total_rendered, 0, 175);
-        return this.g.ctx.fillText(this.info.cam_mouse + ("" + (-this.camera.x + this.mpos[0]) + ", " + (-this.camera.y + this.mpos[1])), 0, 255);
+        Hal.glass.ctx.fillText(this.info.start_row + this.display.startr, 0, 115);
+        Hal.glass.ctx.fillText(this.info.start_col + this.display.startc, 0, 130);
+        Hal.glass.ctx.fillText(this.info.end_row + this.display.endr, 0, 145);
+        Hal.glass.ctx.fillText(this.info.end_col + this.display.endc, 0, 160);
+        return Hal.glass.ctx.fillText(this.info.cam_mouse + ("" + ((-this.camera.x + this.mpos[0]).toFixed(2)) + ", " + ((-this.camera.y + this.mpos[1]).toFixed(2))), 0, 255);
       };
 
       IsometricMap.prototype.init = function() {
@@ -146,37 +149,32 @@
           return _this.calcDrawingArea();
         });
         Hal.on("LEFT_CLICK", function() {
-          return _this.current_mode();
+          return _this.current_mode_clb();
         });
         /*map editor stuff*/
 
-        Hal.on("EDITOR_MODE_CHANGED", function(mode) {
-          if (_this.supported_modes[mode]) {
-            _this.current_mode = _this.supported_modes[mode];
+        Hal.on("EDITOR_MODE_CHANGED", function(current_mode) {
+          _this.current_mode = current_mode;
+          if (_this.supported_modes[_this.current_mode]) {
+            _this.current_mode_clb = _this.supported_modes[_this.current_mode];
           } else {
-            log.warn("Mode " + mode + " not supported");
+            Hal.log.warn("Mode " + mode + " not supported");
           }
-          return log.debug(mode);
+          return Hal.log.debug(_this.current_mode);
         });
         Hal.on("TILE_LAYER_SELECTED", function(tile) {
-          log.debug("Tile layer selected from editor");
-          log.debug(tile);
-          return _this.selected_tile = tile;
+          Hal.log.debug("Tile layer selected from editor");
+          Hal.log.debug(tile);
+          _this.selected_tile = tile;
+          _this.selected_tile_sprite = Hal.asm.getSprite(_this.selected_tile.sprite);
+          _this.selected_tile_x = _this.selected_tile_sprite.w2 - _this.tilew2;
+          return _this.selected_tile_y = _this.selected_tile_sprite.h2 - _this.tileh2;
         });
         Hal.on("RIGHT_CLICK", function(pos) {
           if (_this.paused) {
             return;
           }
           return _this.camera.lerpTo(_this.localToWorld(_this.world_pos));
-        });
-        this.on("ENTITY_DESTROYED", function(ent) {
-          var ind;
-          ind = _this.map.indexOf(ent);
-          if (ind === -1) {
-            return log.debug("oh shit, no such entity " + ent.id);
-          } else {
-            return _this.map[ind] = null;
-          }
         });
         Hal.on("MOUSE_MOVE", function(pos) {
           var t;
@@ -199,36 +197,13 @@
         return this.initMap();
       };
 
-      IsometricMap.prototype.draw = function(delta) {
-        var i, j, tile, _i, _j, _ref, _ref1, _ref2, _ref3;
-        if (this.paused) {
-          return;
-        }
-        IsometricMap.__super__.draw.call(this);
-        this.total_rendered = 0;
-        for (i = _i = _ref = this.display.startr, _ref1 = this.display.startr + this.display.endr; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; i = _ref <= _ref1 ? ++_i : --_i) {
-          for (j = _j = _ref2 = this.display.startc, _ref3 = this.display.endc + this.display.startc; _ref2 <= _ref3 ? _j <= _ref3 : _j >= _ref3; j = _ref2 <= _ref3 ? ++_j : --_j) {
-            tile = this.map[j + i * this.ncols];
-            if (tile == null) {
-              continue;
-            }
-            tile.update(delta);
-            tile.draw(delta);
-            this.total_rendered++;
-          }
-        }
-        this.camera_moved = false;
-        this.g.ctx.setTransform(this.local_matrix[0], this.local_matrix[3], this.local_matrix[1], this.local_matrix[4], this.local_matrix[2], this.local_matrix[5]);
-        return this.showRegion(this.mpos, 3, 3);
-      };
-
       IsometricMap.prototype.calcDrawingArea = function() {
         /* mozda da pomerim granicu, jel da?*/
 
         var sc, sr, top_left;
         this.old_camx = this.camera.x;
         if ((this.camera.x % this.tilew2) === 0) {
-          log.debug("oh jea");
+          Hal.log.debug("oh jea");
           this.camera_moved = true;
         }
         top_left = this.getTileAt(this.worldToLocal([0, 0]));
@@ -284,9 +259,9 @@
       IsometricMap.prototype.initMap = function() {
         var i, j, k, t, t1, t2, x, y, _i, _j, _ref, _ref1;
         this.clicked_layer = null;
-        log.debug("max rows: " + (this.maxRows()));
-        log.debug("max cols: " + (this.maxCols()));
-        log.debug("total at this resolution: " + (this.maxRows() * this.maxCols()));
+        Hal.log.debug("max rows: " + (this.maxRows()));
+        Hal.log.debug("max cols: " + (this.maxCols()));
+        Hal.log.debug("total at this resolution: " + (this.maxRows() * this.maxCols()));
         this.max_rows = this.maxRows();
         this.max_cols = this.maxCols();
         this.map = new Array(this.nrows * this.ncols);
@@ -306,33 +281,29 @@
               "visible_sprite": true,
               "sprite": "test/grid_unit_128x64"
             });
-            this.map[k] = this.addEntity(t);
+            this.map[k] = this.addEntityToQuadspace(t);
             k++;
           }
         }
         t2 = performance.now() - t1;
-        log.debug("it took: " + t1);
+        Hal.log.debug("it took: " + t1);
         this.calcDrawingArea();
         return this.camera.trigger("CHANGE");
       };
 
       IsometricMap.prototype.processMouseClick = function() {
-        var ents, t, t1, tile, _i, _len;
+        var tile, _i, _len, _ref;
         if (this.clicked_layer != null) {
           this.clicked_layer.trigger("DESELECTED");
           this.clicked_layer = null;
         }
-        t = performance.now();
-        ents = this.quadspace.searchInRange(this.world_pos, this.search_range, this);
-        t1 = performance.now() - t;
-        log.info(t1);
-        log.info(ents.length);
-        for (_i = 0, _len = ents.length; _i < _len; _i++) {
-          tile = ents[_i];
+        _ref = this.quadspace.searchInRange(this.world_pos, this.search_range, this);
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          tile = _ref[_i];
           if (!tile.inShapeBounds(this.world_pos)) {
             continue;
           }
-          log.debug(tile);
+          Hal.log.debug(tile);
           if (this.clicked_layer == null) {
             this.clicked_layer = tile;
           } else {
@@ -356,8 +327,8 @@
           }
         }
         if (this.clicked_layer != null) {
-          log.debug("clicked layer");
-          log.debug(this.clicked_layer);
+          Hal.log.debug("clicked layer");
+          Hal.log.debug(this.clicked_layer);
           this.trigger("LAYER_SELECTED", this.clicked_layer);
           return this.clicked_layer.trigger("LEFT_CLICK");
         }

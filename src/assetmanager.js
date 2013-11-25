@@ -200,7 +200,7 @@ usage:
         sprite = SpriteFactory.fromSingleImage(img, url);
         name = sprite.getName();
         if (_this.wait_queue[name]) {
-          log.debug(_this.wait_queue[name]);
+          Hal.log.debug(_this.wait_queue[name]);
           _this.wait_queue[name].changeSprite(sprite);
           delete _this.wait_queue[url];
         }
@@ -256,12 +256,12 @@ usage:
     AssetManager.prototype.loadViaSocketIO = function() {
       var _this = this;
       if (typeof io === "undefined" || io === null) {
-        log.error("Couldn't find socket.io library");
+        Hal.log.error("Couldn't find socket.io library");
         return;
       }
       this.socket = io.connect(ws_url);
       this.socket.on("connect", function() {
-        return log.debug("connected");
+        return Hal.log.debug("connected");
       });
       this.socket.on("LOAD_SPRITES", function(data) {
         var g, i, length, list, _i, _len, _results;
@@ -302,39 +302,39 @@ usage:
         return _results;
       });
       this.socket.on("SPRITE_ADDED", function(data) {
-        log.debug("sprite added");
-        log.debug(data);
+        Hal.log.debug("sprite added");
+        Hal.log.debug(data);
         return _this.addSprite(data.url);
       });
       this.socket.on("SPRITESHEET_ADDED", function(data) {
-        return log.debug(data);
+        return Hal.log.debug(data);
       });
       this.socket.on("SPRITE_DELETED", function(data) {
-        log.debug("sprite deleted");
-        log.debug(data);
+        Hal.log.debug("sprite deleted");
+        Hal.log.debug(data);
         return _this.deleteFromStorage(data.url);
       });
       this.socket.on("SPRITE_FOLDER_DELETED", function(data) {
         var key, storage, _ref;
-        log.debug("sprite folder deleted");
-        log.debug(data);
+        Hal.log.debug("sprite folder deleted");
+        Hal.log.debug(data);
         _ref = _this.resolveFolderPath(data.url), storage = _ref[0], key = _ref[1];
         delete storage[key];
         return _this.trigger("SPRITES_LOADED");
       });
       this.socket.on("SPRITE_FOLDER_ADDED", function(data) {
         var file, i, length, _i, _len, _ref, _results;
-        log.debug("sprite folder added");
-        log.debug(data);
+        Hal.log.debug("sprite folder added");
+        Hal.log.debug(data);
         length = data.files.length;
         _this.trigger("SPRITES_LOADING");
         _ref = data.files;
         _results = [];
         for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
           file = _ref[i];
-          log.debug("file: " + file);
+          Hal.log.debug("file: " + file);
           _results.push((function(file, i) {
-            log.debug(data.url + file);
+            Hal.log.debug(data.url + file);
             return _this.addSprite(data.url + file).then(function() {
               _this.trigger("SPRITE_LOADED", file);
               if (i >= (length - 1)) {
@@ -346,7 +346,7 @@ usage:
         return _results;
       });
       return this.socket.on("SPRITESHEET_DELETED", function(data) {
-        return log.debug(data);
+        return Hal.log.debug(data);
       });
     };
     AssetManager.prototype.loadSpritesFromFileList = function(list) {

@@ -1,8 +1,8 @@
 "use strict"
 
-define ["vec2", "halalentity", "renderer"],
+define ["vec2", "halalentity", "renderer", "matrix3"],
 
-(Vec2, HalalEntity, Renderer) ->
+(Vec2, HalalEntity, Renderer, Matrix3) ->
 
     class Camera extends HalalEntity
         constructor: (@ctx, cam_bounds, @scene) ->
@@ -17,7 +17,7 @@ define ["vec2", "halalentity", "renderer"],
 
             @zoom               = 1
             @zoom_step          = 0.1
-            @camera_speed       = 90
+            @camera_speed       = 1.8
             @angle              = 0
             @view_frustum       = []
 
@@ -32,6 +32,7 @@ define ["vec2", "halalentity", "renderer"],
                 return if not prop?
                 if prop[0] in ["w2", "w", "h2", "h"]
                     @clipViewport()
+            
                 ###
                     @todo izmeniti da ovo radi samo pri zumu
                 ###
@@ -82,7 +83,8 @@ define ["vec2", "halalentity", "renderer"],
                 return if @scene.paused
                 if @dragging
                     @x = (@prev_pos[0] + (pos[0] - @start_drag_point[0])) / @zoom 
-                    @y = (@prev_pos[1] + (pos[1] - @start_drag_point[1])) / @zoom 
+                    @y = (@prev_pos[1] + (pos[1] - @start_drag_point[1])) / @zoom
+                    @viewport = Hal.math.transformRect([@x, @y, @w, @h], Matrix3.mul(Matrix3.scale(@zoom, @zoom), Matrix3.translate(-@x, -@y)))
                     @trigger "CHANGE", @pos
 
         enableZoom: () ->
@@ -103,8 +105,8 @@ define ["vec2", "halalentity", "renderer"],
             @view_frustum[1] = bnds[1]
             @view_frustum[2] = bnds[2] - bnds[0]
             @view_frustum[3] = bnds[3] - bnds[1]
-            log.debug "Camera view frustum setted"
-            log.debug @view_frustum
+            Hal.log.debug "Camera view frustum setted"
+            Hal.log.debug @view_frustum
 
         enableArrowKeys: () ->
             @arrkeys = 

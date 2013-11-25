@@ -34,13 +34,14 @@ define ["eventdispatcher", "deferred"],
             return @
 
         done: (@done_clb) ->
-
-        # delay: () ->
+            return
 
     class HalalEntity extends EventDispatcher
         constructor: () ->
             super()
-            @animating = false
+
+        requestUpdate: () ->
+            return
 
         attr: (key, val) ->
             if arguments.length is 1
@@ -63,7 +64,7 @@ define ["eventdispatcher", "deferred"],
 
 
         # t.tween(...).done () ->
-        #     log.debug "opa"
+        #     Hal.log.debug "opa"
 
         # t.tween().done () -> tween().done () -> 
 

@@ -15,7 +15,7 @@ define ["spriteentity"],
             layer_present = @layers[layer]?
             
             if layer_present and @layers[layer].name is tile.name
-                log.debug "You're trying to add the same layer"
+                Hal.log.debug "You're trying to add the same layer"
                 return
 
             if layer_present
@@ -25,32 +25,24 @@ define ["spriteentity"],
             ent = @addEntityToQuadspace(tile)
             ent.attr("shape", @shape)
             ent.attr("draw_shape", false)
+            return ent
 
-            # @on "ENTITY_DESTROYED", (layer) ->
-            #     @parent.layers[layer] = null
+        init: () ->
+            super()
+            @on "LAYER_DESTROYED", (layer) ->
+                Hal.log.debug "layer destroyed #{layer}"
+                @layers[layer] = null
 
-        update: (delta) ->
-            super(delta)
-            for layer in @layers
-                layer.update(delta) if layer?
-
-        draw: (delta) ->
-            super(delta)
-            for layer in @layers
-                layer.draw(delta) if layer?
+        destroy: (destroy_children = false) ->
+            @parent.trigger "ENTITY_DESTROYED", @
+            super(destroy_children)
 
     class TileLayer extends SpriteEntity
         constructor: (meta) ->
-            # @layer_renderers = [
-            #     new Renderer(@bounds, null, @z)
-            #     new Renderer(@bounds, null, @z)
-            #     new Renderer(@bounds, null, @z)
-            #     new Renderer(@bounds, null, @z)
-            # ]
             super(meta)
             @name   = if meta.name? then meta.name else "#{@id}"
             @layer = if meta.layer? then meta.layer else 0
-            
+
             @on "SELECTED", () ->
                 @attr("glow", true)
                 @attr("glow_color", "blue")
@@ -70,15 +62,16 @@ define ["spriteentity"],
                 @attr("draw_shape", false)
 
         destroy: (destroy_children = true) ->
-            log.debug "destroying myself"
-            log.debug @
-            @parent.layers[@layer] = null
+            Hal.log.debug "destroying myself"
+            Hal.log.debug @
+            if @parent?
+                @parent.trigger "LAYER_DESTROYED", @layer
             super(destroy_children)
 
     class TileManager
-        constructor: (@tilew, @tileh, tileList = "") ->
-            @TilesByID = {}
-            @TilesByName = {}
+        constructor: (@map, tileList = "") ->
+            @tile_layer_map = {}
+            @tile_name_map = {}
             @_id = 0
 
             Hal.on "TILE_MNGR_NEW_TILE", (tile) =>
@@ -88,41 +81,59 @@ define ["spriteentity"],
 
         loadFromList: (list = "assets/TilesList.list") ->
             Ajax.get "assets/amjad/TilesList.json", (tiles) =>
-            log.debug "TileManager loaded tiles."
+            Hal.log.debug "TileManager loaded tiles."
             tiles = JSON.parse(tiles)
             for k, t of tiles
                 @add(t)
 
         load: (tiles) ->
-            log.debug "Loading tiles..."
-            log.debug tiles
+            Hal.log.debug "Loading tiles..."
+            Hal.log.debug tiles
             for i, t of tiles
                 @add(t)
 
         add: (tile) ->
             tile.id = ++@_id
-            @TilesByName[tile.name] = tile
-            @TilesByID[tile.id] = tile
+            @tile_name_map[tile.name] = tile
+            if not @tile_layer_map[tile.layer]?
+                @tile_layer_map[tile.layer] = {}
+
+            @tile_layer_map[tile.layer][tile.name] = tile
 
         removeByName: (name) ->
-            t = @TilesByName[name]
-            delete @TilesByID[t.id]
-            delete @TilesByName[t.name]
+            t = @tile_name_map[name]
+            delete @tile_layer_map[t.layer][t.name]
+            delete @tile_name_map[t.name]
             t = null
 
         newTileLayer: (meta) ->
             return new TileLayer(meta)
 
         newTileHolder: (meta) ->
+            meta.parent = @map
             return new Tile(meta)
 
-        addTileLayerToHolder: (holder, tile, layer) ->
-            # tile.attr("draw_bbox", true)
+        addTileLayerToHolder: (holder, tile, layer = tile.layer, x_offset = 0, y_offset = 0) ->
             if not holder? or not tile?
-                log.debug "holder or tile is null"
+                Hal.log.debug "holder or tile is null"
                 return
-            holder.addTileLayer(tile, layer)
 
+            if tile.attr("group") is "default" 
+                tile.attr("group", "layer_#{layer}")
 
+            Hal.log.debug "x_offset: #{x_offset}"
+            Hal.log.debug "y_offset: #{y_offset}"
 
+            tile = holder.addTileLayer(tile, layer)
+            return if not tile?
 
+            # pos = holder.worldToLocal(@map.localToWorld([x_offset - @map.tilew2, y_offset - @map.tileh2]))
+            # Hal.log.debug pos
+
+            Hal.log.debug x_offset
+            Hal.log.debug y_offset
+            
+            tile.attr("w", x_offset)
+            tile.attr("h", y_offset)
+
+            return tile

@@ -37,6 +37,27 @@
       this.ctx.closePath();
       return this.ctx.stroke();
     };
+    Renderer.prototype.strokePolygonO = function(points, ox, oy, style) {
+      var p, _i, _len, _ref;
+      if (ox == null) {
+        ox = 0;
+      }
+      if (oy == null) {
+        oy = 0;
+      }
+      this.ctx.strokeStyle = style;
+      this.ctx.translate(ox, oy);
+      this.ctx.beginPath();
+      this.ctx.moveTo(points[0][0] - ox, points[0][1] - oy);
+      _ref = points.slice(1);
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        p = _ref[_i];
+        this.ctx.lineTo(p[0] - ox, p[1] - oy);
+      }
+      this.ctx.closePath();
+      this.ctx.stroke();
+      return this.ctx.translate(-ox, -oy);
+    };
     Renderer.prototype.drawLine = function(x0, y0, x1, y1, style) {
       this.ctx.strokeStyle = style;
       this.ctx.beginPath();
@@ -48,6 +69,10 @@
     Renderer.prototype.strokeRect = function(pts, style) {
       this.ctx.strokeStyle = style;
       return this.ctx.strokeRect(pts[0], pts[1], pts[2], pts[3]);
+    };
+    Renderer.prototype.strokeRectO = function(pts, style) {
+      this.ctx.strokeStyle = style;
+      return this.ctx.strokeRect(pts[0] - pts[2] * 0.5, pts[1] - pts[3] * 0.5, pts[2], pts[3]);
     };
     Renderer.prototype.drawSprite = function(sprite, x, y) {
       if (x == null) {

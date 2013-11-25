@@ -177,7 +177,7 @@ define ["deferred", "deferredcounter", "ajax", "spritefactory", "sprite", "sprit
         #ako je ovaj spraj u waiting redu
         #supeeer, nakaci ga
         if @wait_queue[name]
-          log.debug @wait_queue[name]
+          Hal.log.debug @wait_queue[name]
           @wait_queue[name].changeSprite(sprite)
           delete @wait_queue[url]
 
@@ -221,12 +221,12 @@ define ["deferred", "deferredcounter", "ajax", "spritefactory", "sprite", "sprit
 
   AssetManager::loadViaSocketIO = () ->
     if not io?
-      log.error "Couldn't find socket.io library"
+      Hal.log.error "Couldn't find socket.io library"
       return
     @socket = io.connect(ws_url)
     
     @socket.on "connect", =>
-      log.debug "connected"
+      Hal.log.debug "connected"
 
     @socket.on "LOAD_SPRITES", (data) =>
       list = JSON.parse(data.files)
@@ -254,34 +254,34 @@ define ["deferred", "deferredcounter", "ajax", "spritefactory", "sprite", "sprit
 
 
     @socket.on "SPRITE_ADDED", (data) =>
-      log.debug "sprite added"
-      log.debug data
+      Hal.log.debug "sprite added"
+      Hal.log.debug data
       @addSprite(data.url)
 
     @socket.on "SPRITESHEET_ADDED", (data) =>
-      log.debug data
+      Hal.log.debug data
 
     @socket.on "SPRITE_DELETED", (data) =>
-      log.debug "sprite deleted"
-      log.debug data
+      Hal.log.debug "sprite deleted"
+      Hal.log.debug data
       @deleteFromStorage(data.url)
 
     @socket.on "SPRITE_FOLDER_DELETED", (data) =>
-      log.debug "sprite folder deleted"
-      log.debug data
+      Hal.log.debug "sprite folder deleted"
+      Hal.log.debug data
       [storage, key] = @resolveFolderPath(data.url)
       delete storage[key]
       @trigger "SPRITES_LOADED"
 
     @socket.on "SPRITE_FOLDER_ADDED", (data) =>
-      log.debug "sprite folder added"
-      log.debug data
+      Hal.log.debug "sprite folder added"
+      Hal.log.debug data
       length = data.files.length
       @trigger "SPRITES_LOADING"
       for file, i in data.files
-        log.debug "file: #{file}"
+        Hal.log.debug "file: #{file}"
         do (file, i) =>
-          log.debug data.url + file
+          Hal.log.debug data.url + file
           @addSprite(data.url + file)
           .then () =>
             @trigger "SPRITE_LOADED", file
@@ -289,7 +289,7 @@ define ["deferred", "deferredcounter", "ajax", "spritefactory", "sprite", "sprit
               @trigger "SPRITES_LOADED"
 
     @socket.on "SPRITESHEET_DELETED", (data) =>
-      log.debug data
+      Hal.log.debug data
 
   AssetManager::loadSpritesFromFileList = (list) ->
     Ajax.get(list, (data) =>
@@ -344,7 +344,6 @@ define ["deferred", "deferredcounter", "ajax", "spritefactory", "sprite", "sprit
     return out
     
   AssetManager::getSpriteFolders = () ->
-    # log.info Object.keys(@assets.sprites)
     return @assets.sprites
 
   AssetManager::waitFor = (spr_instance, sprurl) ->

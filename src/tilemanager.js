@@ -20,7 +20,7 @@
         layer = layer || tile.layer;
         layer_present = this.layers[layer] != null;
         if (layer_present && this.layers[layer].name === tile.name) {
-          log.debug("You're trying to add the same layer");
+          Hal.log.debug("You're trying to add the same layer");
           return;
         }
         if (layer_present) {
@@ -29,39 +29,24 @@
         this.layers[layer] = tile;
         ent = this.addEntityToQuadspace(tile);
         ent.attr("shape", this.shape);
-        return ent.attr("draw_shape", false);
+        ent.attr("draw_shape", false);
+        return ent;
       };
 
-      Tile.prototype.update = function(delta) {
-        var layer, _i, _len, _ref, _results;
-        Tile.__super__.update.call(this, delta);
-        _ref = this.layers;
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          layer = _ref[_i];
-          if (layer != null) {
-            _results.push(layer.update(delta));
-          } else {
-            _results.push(void 0);
-          }
-        }
-        return _results;
+      Tile.prototype.init = function() {
+        Tile.__super__.init.call(this);
+        return this.on("LAYER_DESTROYED", function(layer) {
+          Hal.log.debug("layer destroyed " + layer);
+          return this.layers[layer] = null;
+        });
       };
 
-      Tile.prototype.draw = function(delta) {
-        var layer, _i, _len, _ref, _results;
-        Tile.__super__.draw.call(this, delta);
-        _ref = this.layers;
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          layer = _ref[_i];
-          if (layer != null) {
-            _results.push(layer.draw(delta));
-          } else {
-            _results.push(void 0);
-          }
+      Tile.prototype.destroy = function(destroy_children) {
+        if (destroy_children == null) {
+          destroy_children = false;
         }
-        return _results;
+        this.parent.trigger("ENTITY_DESTROYED", this);
+        return Tile.__super__.destroy.call(this, destroy_children);
       };
 
       return Tile;
@@ -92,9 +77,11 @@
         if (destroy_children == null) {
           destroy_children = true;
         }
-        log.debug("destroying myself");
-        log.debug(this);
-        this.parent.layers[this.layer] = null;
+        Hal.log.debug("destroying myself");
+        Hal.log.debug(this);
+        if (this.parent != null) {
+          this.parent.trigger("LAYER_DESTROYED", this.layer);
+        }
         return TileLayer.__super__.destroy.call(this, destroy_children);
       };
 
@@ -102,15 +89,14 @@
 
     })(SpriteEntity);
     return TileManager = (function() {
-      function TileManager(tilew, tileh, tileList) {
+      function TileManager(map, tileList) {
         var _this = this;
-        this.tilew = tilew;
-        this.tileh = tileh;
+        this.map = map;
         if (tileList == null) {
           tileList = "";
         }
-        this.TilesByID = {};
-        this.TilesByName = {};
+        this.tile_layer_map = {};
+        this.tile_name_map = {};
         this._id = 0;
         Hal.on("TILE_MNGR_NEW_TILE", function(tile) {
           return _this.add(tile);
@@ -127,7 +113,7 @@
           list = "assets/TilesList.list";
         }
         Ajax.get("assets/amjad/TilesList.json", function(tiles) {});
-        log.debug("TileManager loaded tiles.");
+        Hal.log.debug("TileManager loaded tiles.");
         tiles = JSON.parse(tiles);
         _results = [];
         for (k in tiles) {
@@ -139,8 +125,8 @@
 
       TileManager.prototype.load = function(tiles) {
         var i, t, _results;
-        log.debug("Loading tiles...");
-        log.debug(tiles);
+        Hal.log.debug("Loading tiles...");
+        Hal.log.debug(tiles);
         _results = [];
         for (i in tiles) {
           t = tiles[i];
@@ -151,15 +137,18 @@
 
       TileManager.prototype.add = function(tile) {
         tile.id = ++this._id;
-        this.TilesByName[tile.name] = tile;
-        return this.TilesByID[tile.id] = tile;
+        this.tile_name_map[tile.name] = tile;
+        if (this.tile_layer_map[tile.layer] == null) {
+          this.tile_layer_map[tile.layer] = {};
+        }
+        return this.tile_layer_map[tile.layer][tile.name] = tile;
       };
 
       TileManager.prototype.removeByName = function(name) {
         var t;
-        t = this.TilesByName[name];
-        delete this.TilesByID[t.id];
-        delete this.TilesByName[t.name];
+        t = this.tile_name_map[name];
+        delete this.tile_layer_map[t.layer][t.name];
+        delete this.tile_name_map[t.name];
         return t = null;
       };
 
@@ -168,15 +157,38 @@
       };
 
       TileManager.prototype.newTileHolder = function(meta) {
+        meta.parent = this.map;
         return new Tile(meta);
       };
 
-      TileManager.prototype.addTileLayerToHolder = function(holder, tile, layer) {
+      TileManager.prototype.addTileLayerToHolder = function(holder, tile, layer, x_offset, y_offset) {
+        if (layer == null) {
+          layer = tile.layer;
+        }
+        if (x_offset == null) {
+          x_offset = 0;
+        }
+        if (y_offset == null) {
+          y_offset = 0;
+        }
         if ((holder == null) || (tile == null)) {
-          log.debug("holder or tile is null");
+          Hal.log.debug("holder or tile is null");
           return;
         }
-        return holder.addTileLayer(tile, layer);
+        if (tile.attr("group") === "default") {
+          tile.attr("group", "layer_" + layer);
+        }
+        Hal.log.debug("x_offset: " + x_offset);
+        Hal.log.debug("y_offset: " + y_offset);
+        tile = holder.addTileLayer(tile, layer);
+        if (tile == null) {
+          return;
+        }
+        Hal.log.debug(x_offset);
+        Hal.log.debug(y_offset);
+        tile.attr("w", x_offset);
+        tile.attr("h", y_offset);
+        return tile;
       };
 
       return TileManager;

@@ -3,7 +3,7 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["loglevel", "eventdispatcher", "scene", "dommanager", "renderer", "mathutil", "vec2", "deferred", "deferredcounter", "domeventmanager", "assetmanager", "imgutils", "entity", "spriteentity", "isometricmap"], function(log, EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, Entity, SpriteEntity, IsometricMap) {
+  define(["loglevel", "eventdispatcher", "scene", "dommanager", "renderer", "mathutil", "vec2", "deferred", "deferredcounter", "domeventmanager", "assetmanager", "imgutils", "entity", "spriteentity", "isometricmap", "ajax"], function(loglevel, EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, Entity, SpriteEntity, IsometricMap, Ajax) {
     /*
         A shim (sort of) to support RAF execution
     */
@@ -44,8 +44,8 @@
       _ref = Hal.scenes;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         sc = _ref[_i];
-        sc.update(delta);
-        sc.draw(delta);
+        sc.update_(delta);
+        sc.draw_(delta);
       }
       if (cur_fps_time >= fps_trigger_time) {
         Hal.fps = fps_counter;
@@ -63,13 +63,12 @@
       function Halal() {
         Halal.__super__.constructor.call(this);
         this.dom = new DOMManager(this);
-        this.math = MathUtil;
         this.id = 0;
         this.debug_mode = false;
         this.pressed_keys = [];
         this.scenes = [];
         this.fps = 0;
-        log.debug("Engine constructed");
+        this.log.debug("Engine constructed");
       }
 
       return Halal;
@@ -77,21 +76,21 @@
     })(EventDispatcher);
     Halal.prototype.addScene = function(scene) {
       if (!(scene instanceof Scene)) {
-        log.error("Not a Scene instance");
+        this.log.error("Not a Scene instance");
         return null;
       }
       if (!scene.bounds) {
-        log.error("Bounds not set on scene " + scene.name);
+        this.log.error("Bounds not set on scene " + scene.name);
         return null;
       }
       if (!scene.name) {
-        log.warn("Name for scene wasn't provided");
+        this.log.warn("Name for scene wasn't provided");
         scene.name = "#scene" + "_" + scene.id;
       }
       scene.init();
       Hal.trigger("SCENE_ADDED_" + scene.name.toUpperCase(), scene);
       this.scenes.unshift(scene);
-      log.debug("Added scene: " + scene.name);
+      this.log.debug("Added scene: " + scene.name);
       return scene;
     };
     Halal.prototype.pause = function() {
@@ -112,6 +111,7 @@
     };
     Halal.prototype.init = function() {
       this.evm = new DOMEventManager();
+      this.glass = new Renderer(this.viewportBounds(), null, 11);
       this.on("MOUSE_MOVE", function(pos) {
         var sc, _i, _len, _ref, _results;
         _ref = this.scenes;
@@ -132,13 +132,13 @@
         this.scenes[ind] = null;
         return this.scenes.splice(ind, 1);
       });
-      return log.debug("Engine initialized");
+      return this.log.debug("Engine initialized");
     };
     Halal.prototype.start = function() {
       this.init();
       paused = false;
       this.trigger("ENGINE_STARTED");
-      log.debug("Engine started");
+      Hal.log.debug("Engine started");
       return rafLoop();
     };
     Halal.prototype.isPaused = function() {
@@ -146,6 +146,7 @@
     };
     Halal.prototype.debug = function(debug_mode) {
       this.debug_mode = debug_mode;
+      return Hal.trigger("DEBUG_MODE", this.debug_mode);
     };
     Halal.prototype.ID = function() {
       return ++this.id;
@@ -169,10 +170,12 @@
         accul += delta;
         val += speed * delta;
         obj.attr(property, val);
+        obj.requestUpdate();
         accul = Math.min(accul, t);
         if (t === accul) {
           repeat--;
           obj.attr(property, to);
+          obj.requestUpdate();
           if (repeat === 0) {
             defer.resolve(obj);
             Hal.remove("ENTER_FRAME", $);
@@ -246,12 +249,17 @@
         i undefined ne bude undefined
     */
 
-    window.Hal = new Halal();
-    window.Hal.glass = new Renderer(Hal.viewportBounds(), null, 11);
-    window.Hal.asm = new AssetManager();
-    window.Hal.im = new ImgUtils();
-    window.log = log;
-    return window.Hal;
+    Halal.prototype.math = MathUtil;
+    Halal.prototype.asm = new AssetManager();
+    Halal.prototype.im = new ImgUtils();
+    Halal.prototype.log = loglevel;
+    /* classes*/
+
+    Halal.prototype.Scene = Scene;
+    Halal.prototype.Entity = Entity;
+    Halal.prototype.SpriteEntity = SpriteEntity;
+    Halal.prototype.Ajax = Ajax;
+    return (window.Hal = new Halal());
   });
 
 }).call(this);

@@ -11,21 +11,27 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
             @nrows          = meta.rows
             @ncols          = meta.cols
 
-            @tm             = new TileManager(@tilew, @tileh)
+            @tm             = new TileManager(@)
 
             @tilew2prop     = 2 / @tilew
             @tileh2prop     = 2 / @tileh
             @tilew2         = @tilew / 2
             @tileh2         = @tileh / 2
             @map            = []
-            @total_rendered = 0
 
             @translate_x    = 0
             @max_rows       = @nrows - 1
             @max_cols       = @ncols - 1
 
-            @selected_tile  = null
+            @selected_tile          = null
+            @selected_tile_x        = 0
+            @selected_tile_y        = 0
+            @selected_tile_sprite   = null
+
             @old_camx       = 0
+
+            @on_exit_frame  = null
+
 
             @supported_modes = 
                 "mode-default": () =>
@@ -50,17 +56,19 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
                     @clicked_layer = null
                     
                 "mode-place": () =>
-                    @tm.addTileLayerToHolder(
-                        @tile_under_mouse, 
-                        @tm.newTileLayer(@selected_tile)
+                    t = @tm.addTileLayerToHolder(
+                        @tile_under_mouse,
+                        @tm.newTileLayer(@selected_tile),
+                        @selected_tile.layer,
+                        @selected_tile_x, @selected_tile_y
                     )
                     return
 
-            @camera_moved = false
-
-            @current_mode   = @supported_modes["mode-default"]
-
-            meta.cam_bounds = [@tilew2, @tileh2, @ncols * @tilew2, (@nrows-0.5) * @tileh]
+            @camera_moved       = false
+            @current_mode       = "mode-default"
+            @current_mode_clb   = @supported_modes[@current_mode]
+            meta.cam_bounds     = [@tilew2, @tileh2, @ncols * @tilew2, (@nrows-0.5) * @tileh]
+            Hal.log.debug "camera bounds: #{meta.cam_bounds}"
             super(meta)
 
             @iso_shape = [
@@ -82,12 +90,11 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
                 col: "col: "
                 tilename: "tile: "
                 start_row: "starting row: "
-                start_col: "staring col: "
+                start_col: "starting col: "
                 end_row: "end row: "
                 end_col: "end_col: "
                 tile_x: "tile_x: "
                 tile_y: "tile_y: "
-                num_rendering: "no. rendereded entities: "
                 cam_mouse: "camera_mouse: "
             }
 
@@ -105,7 +112,7 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
 
             @last_clicked_layer = null
             @tile_under_mouse   = null
-            @search_range       = @bounds[2] * 0.5
+            # @search_range       = @bounds[2] * 0.5
 
         showRegion: (pos, range_row, range_col) ->
             c = @getTileAt(@worldToLocal(pos))
@@ -153,17 +160,16 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
         drawStat: () ->
             super()
             if @tile_under_mouse?
-                @g.ctx.fillText(@info.row + @tile_under_mouse.row, 0, 195)
-                @g.ctx.fillText(@info.col + @tile_under_mouse.col, 0, 210)
-                @g.ctx.fillText(@info.tile_x + @tile_under_mouse.x, 0, 225)
-                @g.ctx.fillText(@info.tile_y + @tile_under_mouse.y, 0, 240)
+                Hal.glass.ctx.fillText(@info.row + @tile_under_mouse.row, 0, 195)
+                Hal.glass.ctx.fillText(@info.col + @tile_under_mouse.col, 0, 210)
+                Hal.glass.ctx.fillText(@info.tile_x + @tile_under_mouse.x, 0, 225)
+                Hal.glass.ctx.fillText(@info.tile_y + @tile_under_mouse.y, 0, 240)
 
-            @g.ctx.fillText(@info.start_row + @display.startr, 0, 115)
-            @g.ctx.fillText(@info.start_col + @display.startc, 0, 130)
-            @g.ctx.fillText(@info.end_row + @display.endr, 0, 145)
-            @g.ctx.fillText(@info.end_col + @display.endc, 0, 160)
-            @g.ctx.fillText(@info.num_rendering + @total_rendered, 0, 175)
-            @g.ctx.fillText(@info.cam_mouse + "#{-@camera.x + @mpos[0]}, #{-@camera.y + @mpos[1]}", 0, 255)
+            Hal.glass.ctx.fillText(@info.start_row + @display.startr, 0, 115)
+            Hal.glass.ctx.fillText(@info.start_col + @display.startc, 0, 130)
+            Hal.glass.ctx.fillText(@info.end_row + @display.endr, 0, 145)
+            Hal.glass.ctx.fillText(@info.end_col + @display.endc, 0, 160)
+            Hal.glass.ctx.fillText(@info.cam_mouse + "#{(-@camera.x + @mpos[0]).toFixed(2)}, #{(-@camera.y + @mpos[1]).toFixed(2)}", 0, 255)
 
         init: () ->
             super()
@@ -175,31 +181,39 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
                 @calcDrawingArea()
 
             Hal.on "LEFT_CLICK", () =>
-                @current_mode()
+                @current_mode_clb()
 
             ###map editor stuff###
-            Hal.on "EDITOR_MODE_CHANGED", (mode) =>
-                if @supported_modes[mode]
-                    @current_mode = @supported_modes[mode]
+            Hal.on "EDITOR_MODE_CHANGED", (@current_mode) =>
+                if @supported_modes[@current_mode]
+                    @current_mode_clb = @supported_modes[@current_mode]
                 else
-                    log.warn "Mode #{mode} not supported"
-                log.debug mode
+                    Hal.log.warn "Mode #{mode} not supported"
+                Hal.log.debug @current_mode
 
             Hal.on "TILE_LAYER_SELECTED", (tile) =>
-                log.debug "Tile layer selected from editor"
-                log.debug tile
-                @selected_tile = tile     
+                Hal.log.debug "Tile layer selected from editor"
+                Hal.log.debug tile
+                @selected_tile = tile
+                @selected_tile_sprite = Hal.asm.getSprite(@selected_tile.sprite)
+                @selected_tile_x = @selected_tile_sprite.w2 - @tilew2
+                @selected_tile_y = @selected_tile_sprite.h2 - @tileh2
 
             Hal.on "RIGHT_CLICK", (pos) =>
                 return if @paused
                 @camera.lerpTo(@localToWorld(@world_pos))
 
-            @on "ENTITY_DESTROYED", (ent) =>
-                ind = @map.indexOf(ent)
-                if ind is -1
-                    log.debug "oh shit, no such entity #{ent.id}"
-                else
-                    @map[ind] = null
+            # @on "ENTITY_DESTROYED", (ent) =>
+            #     ind = @map.indexOf(ent)
+            #     if ind is -1
+            #         Hal.log.debug "oh shit, no such entity #{ent.id}"
+            #     else
+            #         @map[ind] = null
+
+            # @on_exit_frame =
+            # Hal.on "EXIT_FRAME", (delta) =>
+            #     if @current_mode is "mode-place"
+            #         @g.drawSprite(Hal.asm.getSprite(@selected_tile.sprite), @mpos[0], @mpos[1])
 
             # @camera.on "ZOOM", (zoom) =>
             #     cam_bounds = [@tilew2, @tileh2, (@ncols-1) * @tilew2*zoom, (@nrows-0.5) * @tileh*zoom]
@@ -223,68 +237,60 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
                             1,
                             3.5,
                             1
-                        )#.then () ->
-                        #    @attr("line_width", 1)
-                        #    @attr("glow", false)
-                        #    @attr("draw_shape", false)
-                #else
+                        )
 
+            #@draw = (delta) ->
+            # #     return
+            #     # super(delta)
+            #     # @total_rendered = 0
+
+            #     # # for i in [@display.startr..@display.startr + @display.endr]
+            #     # #     for j in [@display.startc..@display.endc + @display.startc]
+            #     # #         tile = @map[j + i*@ncols]
+            #     # #         if not tile?
+            #     # #             continue
+            #     # #         tile.update(delta)
+            #     # #         tile.draw(delta)
+            #     # #         @total_rendered++
+
+            #     # @camera_moved = false
+
+            #     @g.ctx.setTransform(
+            #         @local_matrix[0], 
+            #         @local_matrix[3],
+            #         @local_matrix[1],
+            #         @local_matrix[4],
+            #         @local_matrix[2],
+            #         @local_matrix[5]
+            #     )
+
+            #     # ### @todo draw_region property ###
+            #     # @showRegion(@mpos, 3, 3)
+
+            #     # if @current_mode is "mode-place"
+            #     #     return if not @selected_tile?
+            #     #     @g.drawSprite(@selected_tile_sprite, -@world_pos[0] + @selected_tile_x, -@world_pos[1] + @selected_tile_y)
+
+            #     if @draw_quadspace
+            #         @drawQuadSpace(@quadspace)
+            #         @g.strokeRect(@camera.view_frustum, "green")
+
+            #     @g.ctx.setTransform(1, 0, 0, 1, -@search_range*@camera.zoom, -@search_range*@camera.zoom)
+            #     @g.strokeRect([
+            #        @mpos[0], 
+            #        @mpos[1], 
+            #        2*@search_range*@camera.zoom, 
+            #        2*@search_range*@camera.zoom  
+            #     ], "red")
 
             @initMap()
-
-        draw: (delta) ->
-            # return
-            return if @paused
-            super()
-            @total_rendered = 0
-
-            for i in [@display.startr..@display.startr + @display.endr]
-                for j in [@display.startc..@display.endc + @display.startc]
-                    tile = @map[j + i*@ncols]
-                    if not tile?
-                        continue
-
-                    # if not @camera.isVisible(tile) and not tile.layers[3]?
-                    #     continue
-                    tile.update(delta)
-                    #if @camera_moved
-                    #@g.ctx.translate(@camera.x + @old_camx, 0)
-                    #tile.attr("x", tile.attr("x") - @translate_x)
-                    #tile.attr("x")
-                    tile.draw(delta)
-                    @total_rendered++
-
-            @camera_moved = false
-
-            @g.ctx.setTransform(
-                @local_matrix[0], 
-                @local_matrix[3],
-                @local_matrix[1],
-                @local_matrix[4],
-                @local_matrix[2],
-                @local_matrix[5]
-            )
-
-            @showRegion(@mpos, 3, 3)
-
-            # if @draw_quadspace
-            #     @drawQuadSpace(@quadspace)
-            #     @g.strokeRect(@camera.view_frustum, "green")
-
-            # @g.ctx.setTransform(1, 0, 0, 1, -@search_range*@camera.zoom, -@search_range*@camera.zoom)
-            # @g.strokeRect([
-            #    @mpos[0], 
-            #    @mpos[1], 
-            #    2*@search_range*@camera.zoom, 
-            #    2*@search_range*@camera.zoom  
-            # ], "red")
 
         calcDrawingArea: () ->
             ### mozda da pomerim granicu, jel da? ###
             #@translate_x = @camera.x / @tilew2
             @old_camx = @camera.x
             if (@camera.x % @tilew2) is 0
-                log.debug "oh jea"
+                Hal.log.debug "oh jea"
                 @camera_moved = true
 
             top_left = @getTileAt(@worldToLocal([0, 0]))
@@ -331,9 +337,9 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
         initMap: () ->
             @clicked_layer = null
 
-            log.debug "max rows: #{@maxRows()}"
-            log.debug "max cols: #{@maxCols()}"
-            log.debug "total at this resolution: #{@maxRows() * @maxCols()}"
+            Hal.log.debug "max rows: #{@maxRows()}"
+            Hal.log.debug "max cols: #{@maxCols()}"
+            Hal.log.debug "total at this resolution: #{@maxRows() * @maxCols()}"
 
             @max_rows = @maxRows()
             @max_cols = @maxCols()
@@ -358,7 +364,7 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
                         "visible_sprite": true
                         "sprite": "test/grid_unit_128x64"
                     )
-                    @map[k] = @addEntity(t)
+                    @map[k] = @addEntityToQuadspace(t)
                     k++
                         # row: i
                         # col: j
@@ -366,7 +372,7 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
                         # y: y #@addEntity(t)
 
             t2 = performance.now() - t1
-            log.debug "it took: #{t1}"
+            Hal.log.debug "it took: #{t1}"
             @calcDrawingArea()
             @camera.trigger "CHANGE"
 
@@ -375,16 +381,22 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
                 @clicked_layer.trigger "DESELECTED"
                 @clicked_layer = null
 
-            t = performance.now()
-            ents = @quadspace.searchInRange(@world_pos, @search_range, @)
-            t1 = performance.now() - t
-            log.info t1
-            log.info ents.length
+            for tile in @quadspace.searchInRange(@world_pos, @search_range, @)
+                # tile.tween(
+                #     attr: "h"
+                #     from: 0
+                #     to: 100
+                #     duration: 500
+                # ).tween(
+                #     attr: "opacity"
+                #     from: 1
+                #     to: 0
+                #     duration: 700
+                # )
 
-            for tile in ents
                 if not tile.inShapeBounds(@world_pos)
                     continue
-                log.debug tile
+                Hal.log.debug tile
                 if not @clicked_layer?
                     @clicked_layer = tile
                 else
@@ -402,8 +414,8 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
                             @clicked_layer = tile
 
             if @clicked_layer?
-                log.debug "clicked layer"
-                log.debug @clicked_layer
+                Hal.log.debug "clicked layer"
+                Hal.log.debug @clicked_layer
                 @trigger "LAYER_SELECTED", @clicked_layer
                 @clicked_layer.trigger "LEFT_CLICK"
 
@@ -430,23 +442,23 @@ define ["scene", "spriteentity", "entity", "tilemanager"],
 
         addRandomLayer: (t) ->
             tskeys = Object.keys(@tmngr.Tiles)
-            #log.debug tskeys
+            #Hal.log.debug tskeys
             randts = ~~(Math.random() * tskeys.length)
-            #log.debug randts
+            #Hal.log.debug randts
             index = tskeys[randts]
             tiles = amj.tmngr.Tiles[index]
-            #log.debug tiles
+            #Hal.log.debug tiles
             tkeys = Object.keys(tiles)
             randt = ~~(Math.random() * tkeys.length)
             index = tkeys[randt]
             tileLayer = tiles[index]
-            #log.debug tileLayer
-            #log.debug tileLayer
+            #Hal.log.debug tileLayer
+            #Hal.log.debug tileLayer
             # hw = [0,0]
             # spr = Hal.asm.getSprite(tileLayer.sprite)
-            # #log.debug spr
+            # #Hal.log.debug spr
             # @calcCenterAdjPos(hw, spr)
-            # #log.debug hw
+            # #Hal.log.debug hw
             # area = @getSpanArea(t, tileLayer.size)
             # if @canBePlacedOn(area, @layers[tileLayer.level])
             #     return t.addLayer(tileLayer.name, hw, true)

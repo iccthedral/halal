@@ -35,8 +35,8 @@
         var data;
         this.hit_ctx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1);
         data = this.hit_ctx.getImageData(0, 0, 1, 1).data;
-        log.debug("is transparent: " + (data[3] === 255));
-        return data[3] === 255;
+        this.hit_ctx.clearRect(0, 0, 1, 1);
+        return data[3] < 255;
       };
 
       ImageUtils.prototype.getPixelAt = function(img, x, y) {
@@ -45,6 +45,7 @@
         data = this.hit_ctx.getImageData(0, 0, 1, 1).data;
         pos = (x + y) * 4;
         return [data[pos], data[pos + 1], data[pos + 2], data[pos + 3]];
+        return this.hit_ctx.clearRect(0, 0, 1, 1);
       };
 
       ImageUtils.prototype.tintImage = function(img, color, opacity) {

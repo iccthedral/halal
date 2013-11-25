@@ -1,8 +1,8 @@
 "use strict"
 
-define ["vec2"], 
+define ["vec2", "matrix3"], 
 
-(Vec2) ->
+(Vec2, Matrix3) ->
     
     MathUtil = {
         MAT_ARRAY: if (typeof Float32Array != 'undefined') then Float32Array else Array;
@@ -38,7 +38,7 @@ define ["vec2"],
         return rectA[0] >= rectB[0] and rectA[1] >= rectB[1] and (rectA[0] + rectA[2]) <= (rectB[0] + rectB[2]) and (rectA[1] + rectA[3]) <= (rectB[1] + rectB[3])
 
     MathUtil.rectIntersectsRect = (rectA, rectB) ->
-        return rectA[0] < (rectB[0] + rectB[2]) and (rectA[0] + rectA[2]) > rectB[0] and rectA[1] < (rectB[1] + rectB[3]) and (rectA[3] + rectA[1]) > rectB[1]
+        return rectA[0] <= (rectB[0] + rectB[2]) and (rectA[0] + rectA[2]) >= rectB[0] and rectA[1] <= (rectB[1] + rectB[3]) and (rectA[3] + rectA[1]) >= rectB[1]
     
     MathUtil.createRectPolygon = (x, y, w, h) ->
         return [
@@ -48,6 +48,50 @@ define ["vec2"],
             [x, y + h]
         ]
         
+    MathUtil.polyCentroid = (poly) ->
+        cx = 0
+        cy = 0
+        len = poly.length
+        area = @polyArea(poly) * 6
+        for i in [0...len]
+            p1 = poly[i]
+            p2 = poly[(i+1) % len]
+            fact = (p1[0]*p2[1] - p2[0]*p1[1])
+            cx += (p1[0] + p2[0]) * fact
+            cy += (p1[1] + p2[1]) * fact
+        return [cx / area, cy / area]
+
+    MathUtil.polyArea = (poly) ->
+        ###
+            This will come in handy as it signifies the orientation
+            of polygon vertices
+        ###
+        len = poly.length
+        area = 0
+        for i in [0...len]
+            p1 = poly[i]
+            p2 = poly[(i+1) % len]
+            area += (p1[0]*p2[1] - p2[0]*p1[1])
+        return area * 0.5
+
+    MathUtil.transformRect = (rect, matrix) ->
+        transp = Matrix3.transpose([], matrix)
+        a = [rect[0], rect[1]]
+        a = Vec2.transformMat3([], a, transp)
+        b = [rect[2], rect[3]]
+        b = Vec2.transformMat3([], b, transp)
+        return [a[0], a[1], rect[0] + b[0], rect[1] + b[1]]
+
+    MathUtil.transformPoly = (poly, matrix) ->
+        out = []
+        transp = Matrix3.transpose([], matrix)
+        for p in poly
+            out.push Vec2.transformMat3([], p, transp)
+        return out
+
+    MathUtil.rectIntersectsOrContainsRect = (rectA, rectB) ->
+        return MathUtil.rectIntersectsRect(rectA, rectB) or MathUtil.isRectInRect(rectA, rectB)
+
     MathUtil.doLinesIntersect = (x1,y1,x2,y2) ->
         ###
             Due to numerical instability, epsilon hack is necessarry 

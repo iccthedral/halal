@@ -36,7 +36,7 @@ define [],
         det = a00 * b01 + a01 * b11 + a02 * b21
 
         if det is 0
-            log.debug "oh god no"
+            Hal.log.debug "oh god no"
             return null
 
         det = 1.0 / det
@@ -51,6 +51,45 @@ define [],
         out[7] = (-a21 * a00 + a01 * a20) * det
         out[8] = (a11 * a00 - a01 * a10) * det
 
+        return out
+
+    Matrix3.translate = (x, y) ->
+        out = []
+        out[0] = 1
+        out[1] = 0
+        out[2] = x
+        out[3] = 0
+        out[4] = 1
+        out[5] = y
+        out[6] = 0
+        out[7] = 0
+        out[8] = 1
+        return out
+
+    Matrix3.scale = (scaleX = 1, scaleY = 1) ->
+        out = []
+        out[0] = scaleX
+        out[1] = 0
+        out[2] = 0
+        out[3] = 0
+        out[4] = scaleY
+        out[5] = 0
+        out[6] = 0
+        out[7] = 0
+        out[8] = 1
+        return out 
+
+    Matrix3.rotate = (angle, orx = 0, ory = 0) ->
+        out = []
+        out[0] = Math.cos(angle)
+        out[1] = -Math.sin(angle)
+        out[2] = orx
+        out[3] = Math.sin(angle)
+        out[4] = Math.cos(angle)
+        out[5] = ory
+        out[6] = 0
+        out[7] = 0
+        out[8] = 1
         return out
 
     Matrix3.transpose = (out, a) ->

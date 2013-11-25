@@ -1,6 +1,6 @@
 (function() {
   "use strict";
-  define(["vec2"], function(Vec2) {
+  define(["vec2", "matrix3"], function(Vec2, Matrix3) {
     var MathUtil, pointComparison;
     MathUtil = {
       MAT_ARRAY: typeof Float32Array !== 'undefined' ? Float32Array : Array,
@@ -38,10 +38,63 @@
       return rectA[0] >= rectB[0] && rectA[1] >= rectB[1] && (rectA[0] + rectA[2]) <= (rectB[0] + rectB[2]) && (rectA[1] + rectA[3]) <= (rectB[1] + rectB[3]);
     };
     MathUtil.rectIntersectsRect = function(rectA, rectB) {
-      return rectA[0] < (rectB[0] + rectB[2]) && (rectA[0] + rectA[2]) > rectB[0] && rectA[1] < (rectB[1] + rectB[3]) && (rectA[3] + rectA[1]) > rectB[1];
+      return rectA[0] <= (rectB[0] + rectB[2]) && (rectA[0] + rectA[2]) >= rectB[0] && rectA[1] <= (rectB[1] + rectB[3]) && (rectA[3] + rectA[1]) >= rectB[1];
     };
     MathUtil.createRectPolygon = function(x, y, w, h) {
       return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+    };
+    MathUtil.polyCentroid = function(poly) {
+      var area, cx, cy, fact, i, len, p1, p2, _i;
+      cx = 0;
+      cy = 0;
+      len = poly.length;
+      area = this.polyArea(poly) * 6;
+      for (i = _i = 0; 0 <= len ? _i < len : _i > len; i = 0 <= len ? ++_i : --_i) {
+        p1 = poly[i];
+        p2 = poly[(i + 1) % len];
+        fact = p1[0] * p2[1] - p2[0] * p1[1];
+        cx += (p1[0] + p2[0]) * fact;
+        cy += (p1[1] + p2[1]) * fact;
+      }
+      return [cx / area, cy / area];
+    };
+    MathUtil.polyArea = function(poly) {
+      /*
+          This will come in handy as it signifies the orientation
+          of polygon vertices
+      */
+
+      var area, i, len, p1, p2, _i;
+      len = poly.length;
+      area = 0;
+      for (i = _i = 0; 0 <= len ? _i < len : _i > len; i = 0 <= len ? ++_i : --_i) {
+        p1 = poly[i];
+        p2 = poly[(i + 1) % len];
+        area += p1[0] * p2[1] - p2[0] * p1[1];
+      }
+      return area * 0.5;
+    };
+    MathUtil.transformRect = function(rect, matrix) {
+      var a, b, transp;
+      transp = Matrix3.transpose([], matrix);
+      a = [rect[0], rect[1]];
+      a = Vec2.transformMat3([], a, transp);
+      b = [rect[2], rect[3]];
+      b = Vec2.transformMat3([], b, transp);
+      return [a[0], a[1], rect[0] + b[0], rect[1] + b[1]];
+    };
+    MathUtil.transformPoly = function(poly, matrix) {
+      var out, p, transp, _i, _len;
+      out = [];
+      transp = Matrix3.transpose([], matrix);
+      for (_i = 0, _len = poly.length; _i < _len; _i++) {
+        p = poly[_i];
+        out.push(Vec2.transformMat3([], p, transp));
+      }
+      return out;
+    };
+    MathUtil.rectIntersectsOrContainsRect = function(rectA, rectB) {
+      return MathUtil.rectIntersectsRect(rectA, rectB) || MathUtil.isRectInRect(rectA, rectB);
     };
     MathUtil.doLinesIntersect = function(x1, y1, x2, y2) {
       /*

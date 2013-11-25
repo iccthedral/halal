@@ -1,1 +1,0 @@
-(function(){define(["sprite","imgutils"],function(e,t){var n;return n={},n.clipFromSpriteSheet=function(n,r,i){return new e(t.clipImage(n,i),r,0,0,i.w,i.h)},n.fromSingleImage=function(t,n){return new e(t,n,0,0,t.width,t.height)},n.dummySprite=function(){var t;return t=new Image,t.src="",new e(t,"n/a",0,0,t.width,t.height)},n})}).call(this);

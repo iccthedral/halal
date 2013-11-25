@@ -116,7 +116,7 @@ module.exports = (grunt) ->
         log filepath.red
         filepath = filepath.replace(grunt.config("coffee.glob_all.cwd"), "")
         grunt.config("coffee.glob_all.src", [filepath])
-
+        
     grunt.registerTask "serve", ["watch"]
 
     grunt.registerTask "compile", "Compiling Halal", () ->

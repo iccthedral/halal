@@ -15,10 +15,11 @@ define [
     "imgutils",
     "entity", 
     "spriteentity", 
-    "isometricmap"
+    "isometricmap",
+    "ajax"
 ],
 
-(log, EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, Entity, SpriteEntity, IsometricMap) ->
+(loglevel, EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, Entity, SpriteEntity, IsometricMap, Ajax) ->
     ###
         A shim (sort of) to support RAF execution
     ###
@@ -60,8 +61,8 @@ define [
         Hal.trigger "ENTER_FRAME", delta
 
         for sc in Hal.scenes
-            sc.update(delta)
-            sc.draw(delta)
+            sc.update_(delta)
+            sc.draw_(delta)
 
         if cur_fps_time >= fps_trigger_time
             Hal.fps = fps_counter
@@ -78,25 +79,24 @@ define [
         constructor: () ->
             super()
             @dom            = new DOMManager(@)
-            @math           = MathUtil
             @id             = 0
             @debug_mode     = false
             @pressed_keys   = []
             @scenes         = []
             @fps            = 0
-            log.debug "Engine constructed"
+            @log.debug "Engine constructed"
 
     Halal::addScene = (scene) ->
         if not (scene instanceof Scene)
-            log.error "Not a Scene instance"
+            @log.error "Not a Scene instance"
             return null
 
         if not scene.bounds
-            log.error "Bounds not set on scene #{scene.name}"
+            @log.error "Bounds not set on scene #{scene.name}"
             return null
 
         if not scene.name
-            log.warn "Name for scene wasn't provided"
+            @log.warn "Name for scene wasn't provided"
             scene.name = "#scene" + "_" + scene.id
 
         scene.init()
@@ -104,7 +104,7 @@ define [
         
         @scenes.unshift(scene)
 
-        log.debug "Added scene: #{scene.name}"
+        @log.debug "Added scene: #{scene.name}"
         return scene
 
     Halal::pause = () ->
@@ -124,7 +124,8 @@ define [
         @trigger "SUPPORTS_#{feature}"
 
     Halal::init = () ->
-        @evm = new DOMEventManager()
+        @evm    = new DOMEventManager()
+        @glass  = new Renderer(@viewportBounds(), null, 11)
 
         @on "MOUSE_MOVE", (pos) ->
             for sc in @scenes
@@ -138,25 +139,20 @@ define [
             @scenes[ind] = null
             @scenes.splice(ind, 1)
 
-        log.debug "Engine initialized"
+        @log.debug "Engine initialized"
         
     Halal::start = () ->
         @init()
         paused = false
         @trigger "ENGINE_STARTED"
-        log.debug "Engine started"
+        Hal.log.debug "Engine started"
         rafLoop()
         
     Halal::isPaused = () ->
         return paused
 
     Halal::debug = (@debug_mode) ->
-        # if @debug_mode and not draw_info?
-        #     Hal.on "EXIT_FRAME", draw_info = (delta) ->
-        #         Hal.drawInfo()
-        # else if not @debug_mode
-        #     Hal.remove "EXIT_FRAME", draw_info
-        #     draw_info = null
+        Hal.trigger "DEBUG_MODE", @debug_mode
 
     Halal::ID = () ->
         return ++@id
@@ -177,10 +173,12 @@ define [
             accul += delta
             val += speed * delta
             obj.attr(property, val)
+            obj.requestUpdate()
             accul = Math.min(accul, t)
             if t is accul
                 repeat--
                 obj.attr(property, to)
+                obj.requestUpdate()
                 if repeat is 0
                     defer.resolve(obj)
                     Hal.remove "ENTER_FRAME", $
@@ -243,10 +241,15 @@ define [
         @todo kontekst bi valjalo prosledjivati, mozda window ne bude window
         i undefined ne bude undefined
     ###
-    window.Hal          = new Halal()
-    window.Hal.glass    = new Renderer(Hal.viewportBounds(), null, 11)
-    window.Hal.asm      = new AssetManager()
-    window.Hal.im       = new ImgUtils()
-    window.log          = log
+    Halal::math     = MathUtil
+    Halal::asm      = new AssetManager()
+    Halal::im       = new ImgUtils()
+    Halal::log      = loglevel
 
-    return window.Hal
+    ### classes ###
+    Halal::Scene        = Scene
+    Halal::Entity       = Entity
+    Halal::SpriteEntity = SpriteEntity
+    Halal::Ajax         = Ajax
+
+    return (window.Hal = new Halal())

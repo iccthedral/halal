@@ -59,8 +59,9 @@
 
       function HalalEntity() {
         HalalEntity.__super__.constructor.call(this);
-        this.animating = false;
       }
+
+      HalalEntity.prototype.requestUpdate = function() {};
 
       HalalEntity.prototype.attr = function(key, val) {
         if (arguments.length === 1) {
