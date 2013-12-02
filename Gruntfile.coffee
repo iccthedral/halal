@@ -1,6 +1,5 @@
 fs      = require "fs"
 io      = require("socket.io").listen(8080, {log: false})
-# rjs     = require "r.js"
 path    = require "path"
 wrench  = require "wrench"
 
@@ -12,7 +11,8 @@ socket  = null
 ###
 config =
     pub_dir: "."
-    src_dir: "src#{path.sep}"
+    js_dir: "js#{path.sep}"
+    coffee_dir: "coffee#{path.sep}"
     sprite_dir: "assets/sprites"
     sprite_list: "assets/sprites.list"
     cur_dir: process.cwd()
@@ -41,7 +41,7 @@ io.sockets.on "connection", (sck) ->
         url: "sprites/"
     })
 
-    # socket.emit("LOAD_TILES", JSON.stringify(allTiles))
+    socket.emit("LOAD_TILES", JSON.stringify(allTiles))
 
     socket.on "LOAD_MAPEDITOR_ASSETS", () ->
         console.log allTiles.yellow
@@ -89,23 +89,31 @@ module.exports = (grunt) ->
         coffee:
             glob_all:
                 expand: true
-                cwd: "#{config.src_dir}"
-                # src: ["**/*.coffee"]
-                dest: "#{config.src_dir}"
+                cwd: "#{config.coffee_dir}"
+                src: ["**/*.coffee"]
+                dest: "#{config.js_dir}"
                 ext: ".js"
 
-        connect:
-            server:
-                options:
-                    keepalive: false
-                    port: 9000
-                    base: config.pub_dir
-                    debug: false
+            all: 
+                expand: true,
+                flatten: false,
+                cwd: "#{config.coffee_dir}",
+                src: ['**/*.coffee'],
+                dest: "#{config.js_dir}",
+                ext: ".js"
+
+        # connect:
+        #     server:
+        #         options:
+        #             keepalive: false
+        #             port: 9000
+        #             base: config.pub_dir
+        #             debug: false
 
         watch:
             coffee:
                 files: [
-                    "#{config.src_dir}/**/*.coffee"
+                    "#{config.coffee_dir}/**/*.coffee"
                 ]
                 tasks: ["coffee:glob_all"]
                 options:
@@ -122,6 +130,7 @@ module.exports = (grunt) ->
     grunt.registerTask "compile", "Compiling Halal", () ->
         spawn = require("child_process").spawn
         proc = spawn "r.js", ["-o", "build.js"]
+        console.log "wtf".yellow
 
         proc.stdout.setEncoding("utf8")
         proc.stderr.setEncoding("utf8")

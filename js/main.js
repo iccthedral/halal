@@ -2,8 +2,9 @@
   "use strict";
   require.config({
     urlArgs: Math.random(),
-    baseUrl: "src",
+    baseUrl: "js",
     paths: {
+      "requireLib": "../vendor/requirejs/require",
       "loglevel": "../vendor/loglevel/dist/loglevel"
     }
   });

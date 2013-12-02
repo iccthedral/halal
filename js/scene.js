@@ -246,39 +246,8 @@
       };
 
       Scene.prototype.updateSceneGraph = function(quadspace) {
-        var bbox, corner, ent, rect, _i, _len, _ref, _results;
         if (this.paused) {
-          return;
-        }
-        if (quadspace.nw != null) {
-          this.updateSceneGraph(quadspace.nw);
-        }
-        if (quadspace.ne != null) {
-          this.updateSceneGraph(quadspace.ne);
-        }
-        if (quadspace.sw != null) {
-          this.updateSceneGraph(quadspace.sw);
-        }
-        if (quadspace.se != null) {
-          this.updateSceneGraph(quadspace.se);
-        }
-        corner = this.worldToLocal([0, 0]);
-        rect = [corner[0], corner[1], this.camera.w / this.camera.zoom, this.camera.h / this.camera.zoom];
-        if (Hal.math.rectIntersectsOrContainsRect(rect, quadspace.bounds)) {
-          _ref = quadspace.pts;
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            ent = _ref[_i];
-            bbox = [ent.x + ent.bbox[0], ent.y + ent.bbox[1], ent.bbox[2] - ent.bbox[0], ent.bbox[3] - ent.bbox[1]];
-            if (Hal.math.rectIntersectsOrContainsRect(rect, bbox)) {
-              this.visible_ents.push(ent);
-              ent.needs_updating = true;
-              _results.push(ent.update(this.delta));
-            } else {
-              _results.push(void 0);
-            }
-          }
-          return _results;
+
         }
       };
 

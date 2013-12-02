@@ -132,11 +132,11 @@
       };
 
       Entity.prototype.worldPos = function() {
-        return [this.x, this.y];
+        return this.localToWorld([this.x, this.y]);
       };
 
       Entity.prototype.localToWorld = function(pos) {
-        return Vec2.transformMat3([], pos, Matrix3.transpose([], this.scene.local_matrix));
+        return Vec2.transformMat3([], pos, this.scene.local_matrix);
       };
 
       Entity.prototype.worldToLocal = function(pos) {
