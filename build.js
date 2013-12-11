@@ -1,18 +1,8 @@
 {
-    // "appDir": "js",
-    // "baseUrl": ".",
-    // "dir": "build",
-    //"mainConfigFile": "js/main.js",
-    // "modules": [
-    //     {
-    //         "name": "halal"
-    //     }
-    // ]
     "baseUrl": "js",
     
     "paths": {
-        "requireLib" : "../vendor/requirejs/require",
-        "loglevel" : "../vendor/loglevel/dist/loglevel"
+        "requireLib" : "../vendor/requirejs/require"
     },
 
     "removeCombined": true,

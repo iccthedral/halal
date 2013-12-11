@@ -15,14 +15,14 @@
         this.keyUp = __bind(this.keyUp, this);
         this.keyDown = __bind(this.keyDown, this);
         this.wheelMoved = __bind(this.wheelMoved, this);
-        this.viewport = null;
         this.mouse_leftbtn_down = false;
         this.mouse_rightbtn_down = false;
         this.can_drag = true;
         this.pos = [0, 0];
-        this.viewport = Hal.dom.hud;
+        this.viewport = Hal.dom.renderspace;
+        this.hud = Hal.dom.hud;
         this.dragging = false;
-        this.under_dom = false;
+        this.under_hud = false;
         /* @todo ovo izbaciti iz engina posle*/
 
         /* end @todo*/
@@ -50,10 +50,16 @@
       };
 
       DOMEventManager.prototype.keyDown = function(evt) {
+        if (this.under_hud) {
+          return;
+        }
         return Hal.trigger("KEY_DOWN", evt);
       };
 
       DOMEventManager.prototype.keyUp = function(evt) {
+        if (this.under_hud) {
+          return;
+        }
         return Hal.trigger("KEY_UP", evt);
       };
 
@@ -63,7 +69,7 @@
       };
 
       DOMEventManager.prototype.mouseClick = function(evt) {
-        if (this.under_dom) {
+        if (this.under_hud) {
           return;
         }
         this.getMousePos(evt);
@@ -71,8 +77,8 @@
       };
 
       DOMEventManager.prototype.mouseMove = function(evt) {
-        this.under_dom = this.viewport.querySelectorAll(':hover').length > 0;
-        if (this.under_dom) {
+        this.under_hud = this.hud.querySelectorAll(':hover').length > 0;
+        if (this.under_hud) {
           return;
         }
         this.getMousePos(evt);
@@ -85,7 +91,7 @@
       };
 
       DOMEventManager.prototype.mouseUp = function(evt) {
-        if (this.under_dom) {
+        if (this.under_hud) {
           this.mouse_leftbtn_down = false;
           return;
         }
@@ -105,7 +111,7 @@
       };
 
       DOMEventManager.prototype.mouseDown = function(evt) {
-        if (this.under_dom) {
+        if (this.under_hud) {
           this.mouse_leftbtn_down = false;
           return;
         }

@@ -41,23 +41,6 @@ io.sockets.on "connection", (sck) ->
         url: "sprites/"
     })
 
-    socket.emit("LOAD_TILES", JSON.stringify(allTiles))
-
-    socket.on "LOAD_MAPEDITOR_ASSETS", () ->
-        console.log allTiles.yellow
-        socket.emit("LOAD_TILES", JSON.parse(allTiles))
-
-    socket.on "NEW_TILE_SAVED", (tile) ->
-        tile = JSON.parse(tile)
-        console.log "New tile #{tile.name}".yellow
-        list = JSON.parse(fs.readFileSync(config.tiles))
-        list[tile.name] = tile
-        try
-            fs.writeFileSync(config.tiles, JSON.stringify(list))
-        catch err
-            console.log err
-        socket.emit "TILE_ADDED", tile
-
 getAllTiles = () ->
     allTiles = fs.readFileSync(config.tiles)
     return allTiles
@@ -102,14 +85,6 @@ module.exports = (grunt) ->
                 dest: "#{config.js_dir}",
                 ext: ".js"
 
-        # connect:
-        #     server:
-        #         options:
-        #             keepalive: false
-        #             port: 9000
-        #             base: config.pub_dir
-        #             debug: false
-
         watch:
             coffee:
                 files: [
@@ -130,6 +105,7 @@ module.exports = (grunt) ->
     grunt.registerTask "compile", "Compiling Halal", () ->
         spawn = require("child_process").spawn
         proc = spawn "r.js", ["-o", "build.js"]
+        
         console.log "wtf".yellow
 
         proc.stdout.setEncoding("utf8")

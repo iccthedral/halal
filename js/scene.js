@@ -1,12 +1,18 @@
 (function() {
   "use strict";
   var __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
-  define(["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2"], function(HalalEntity, Renderer, Camera, Matrix3, QuadTree, Vec2) {
-    var Scene;
+  define(["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geometry", "transformable", "groupy"], function(HalalEntity, Renderer, Camera, Matrix3, QuadTree, Vec2, Geometry, Transformable, Groupy) {
+    var Scene, reactives;
+    reactives = ["angle", "scale", "position", "origin"];
     Scene = (function(_super) {
       __extends(Scene, _super);
+
+      Scene.include(Transformable);
+
+      Scene.include(Groupy);
 
       function Scene(meta) {
         if (meta == null) {
@@ -18,269 +24,111 @@
         this.paused = true;
         this.bg_color = meta.bg_color != null ? meta.bg_color : "white";
         this.entities = [];
-        this.identity_matrix = Matrix3.create();
         this.mpos = [0, 0];
-        this.viewport_pos = [0, 0];
-        this.world_pos = [0, 0];
-        this.quadspace = null;
-        this.ent_cache = {};
-        this.ent_groups = {};
-        this.draw_camera_center = meta.draw_camera_center != null;
-        this.draw_stat = meta.draw_stat == null;
-        this.draw_quadspace = meta.draw_quadspace != null ? meta.draw_quadspace : false;
-        this.local_matrix = Matrix3.create();
-        this.z = meta.z != null ? meta.z : 1;
+        this.z = 1;
         this.g = new Renderer(this.bounds, null, this.z);
-        this.cam_bounds = meta.cam_bounds != null ? meta.cam_bounds : this.bounds.slice();
-        this.draw_bbox = meta.draw_bbox != null;
-        this.draw = meta.draw != null ? meta.draw : function() {};
-        this.update = meta.update != null ? meta.update : function() {};
-        this.needs_updating = true;
-        this.center = [this.bounds[2] * 0.5, this.bounds[3] * 0.5];
-        this.search_range = this.bounds[2];
-        this.visible_ents = [];
-        this.world_center_pos = this.worldToLocal(this.center);
-        this.total_rendered = 0;
-        this.left_click_listener = null;
-        this.left_dbl_click_listener = null;
-        this.resetQuadSpace([0, 0, this.cam_bounds[2], this.cam_bounds[3]]);
-        this.on("GROUP_CHANGE", function(ent) {
-          var group, ind;
-          group = this.ent_groups[ent.group];
-          if (group == null) {
-            group = this.ent_groups[ent.group] = [];
-          }
-          ind = group.indexOf(ent);
-          if (ind !== -1) {
-            return group.splice(ind, 1);
-          } else {
-            return group.push(ent);
-          }
-        });
+        this.draw_stat = true;
+        this.update_ents = true;
+        this.cam_move = Vec2.acquire();
+        this.dragging = false;
+        this.start_drag_point = [0, 0];
+        this.drag = null;
+        this.drag_started = null;
+        this.drag_ended = null;
+        this.zoom = null;
+        this.lerp_anim = null;
+        this.zoom_step = 0.1;
+        this.camera_speed = 2;
+        this._update_zoom = false;
+        this.prev_pos = [this.position[0], this.position[1]];
+        this.center = Vec2.from(this.bounds[2] * 0.5, this.bounds[3] * 0.5);
+        this._update_transform = true;
+        this.view_matrix = Matrix3.create();
+        this.view_matrix[2] = this.center[0];
+        this.view_matrix[5] = this.center[1];
+        this.setPosition(0, 0);
+        return this;
       }
-
-      Scene.prototype.resetQuadSpace = function(dim) {
-        Hal.log.debug("QuadSpace reset");
-        this.quadspace = null;
-        this.quadspace = new QuadTree(dim);
-        this.quadspace.divide();
-        return this.addCamera();
-      };
-
-      Scene.prototype.addCamera = function() {
-        this.camera = new Camera(this.g.ctx, this.cam_bounds, this);
-        this.camera.enableDrag();
-        this.camera.enableLerp();
-        return this.camera.enableZoom();
-      };
-
-      Scene.prototype.addEntityToQuadspace = function(ent) {
-        ent = this.addEntity(ent);
-        if (!this.quadspace.insert(ent)) {
-          Hal.log.warn("Couldn't add entity " + ent.id + " to quadspace");
-        }
-        return ent;
-      };
 
       Scene.prototype.addEntity = function(ent) {
         this.entities.push(ent);
-        this.ent_cache[ent.id] = ent;
-        ent.attr("parent", this);
         ent.attr("scene", this);
-        ent.attr("needs_updating", true);
-        ent.trigger("ENTITY_ADDED");
-        this.trigger("GROUP_CHANGE", ent);
+        this.trigger("ENTITY_ADDED", ent);
         return ent;
       };
 
-      Scene.prototype.rotationMatrix = function() {
-        return [Math.cos(this.camera.angle), -Math.sin(this.camera.angle), this.camera.cx, Math.sin(this.camera.angle), Math.cos(this.camera.angle), this.camera.cy, 0, 0, 1];
-      };
-
-      Scene.prototype.localMatrix = function() {
-        /*
-            @camera.zoom * (@camera.x / @camera.zoom - @camera.cx)
-            #(@camera.x / @camera.zoom)# affects how camera.x is
-            #scaled on zoom, higher the ratio, harder the camera moves
-            All of this is done so that the zoom is applied on the center
-            of camera
-        */
-
-        return [this.camera.zoom, 0, this.camera.zoom * (this.camera.x - this.camera.cx), 0, this.camera.zoom, this.camera.zoom * (this.camera.y - this.camera.cy), 0, 0, 1];
-      };
-
-      Scene.prototype.worldToLocal = function(pos) {
-        return Vec2.transformMat3([], pos, Matrix3.transpose([], Matrix3.invert([], this.local_matrix)));
-      };
-
-      Scene.prototype.localToWorld = function(pos) {
-        var inv;
-        inv = Matrix3.transpose(Matrix3.create(), this.local_matrix);
-        return Vec2.transformMat3([], pos, inv);
-      };
-
-      Scene.prototype.destroy = function() {
-        this.removeAllEntities();
-        this.camera.remove("CHANGE", this.cam_change);
-        Hal.remove("EXIT_FRAME", this.exit_frame);
-        Hal.remove("ENTER_FRAME", this.enter_frame);
-        Hal.remove("LEFT_CLICK", this.left_click_listener);
-        Hal.remove("LEFT_DBL_CLICK", this.left_dbl_click_listener);
-        Hal.remove("RESIZE", this.resize_event);
-        Hal.trigger("DESTROY_SCENE", this);
-        this.quadspace = null;
-        this.camera = null;
-        this.renderer = null;
-        return this.removeAll();
-      };
-
       Scene.prototype.drawStat = function() {
-        if (this.paused) {
-          return;
-        }
         Hal.glass.ctx.setTransform(1, 0, 0, 1, 0, 0);
         Hal.glass.ctx.clearRect(0, 0, 400, 300);
-        Hal.glass.ctx.font = "10pt monospace";
         Hal.glass.ctx.fillStyle = "black";
         Hal.glass.ctx.fillText("FPS: " + Hal.fps, 0, 10);
         Hal.glass.ctx.fillText("Num of entities: " + this.entities.length, 0, 25);
-        Hal.glass.ctx.fillText("Zoom: " + this.camera.zoom, 0, 40);
-        Hal.glass.ctx.fillText("Mouse: " + this.mpos[0] + ", " + this.mpos[1], 0, 55);
-        Hal.glass.ctx.fillText("Camera pos: " + (this.camera.x.toFixed(2)) + ", " + (this.camera.y.toFixed(2)), 0, 70);
-        Hal.glass.ctx.fillText("World pos: " + (this.world_pos[0].toFixed(2)) + ", " + (this.world_pos[1].toFixed(2)), 0, 85);
-        Hal.glass.ctx.fillText("Center relative pos: " + (this.mpos[0] - this.camera.cx - this.bounds[0]) + ", " + (this.mpos[1] - this.camera.cy - this.bounds[1]), 0, 100);
-        return Hal.glass.ctx.fillText("Rendered total: " + this.total_rendered, 0, 175);
-      };
-
-      Scene.prototype.removeEntity = function(ent) {
-        var group, ind;
-        if (!this.ent_cache[ent.id]) {
-          log.error("No such entity " + ent.id + " in cache");
-          return;
-        }
-        ind = this.entities.indexOf(ent);
-        if (ind === -1) {
-          log.error("No such entity " + ent.id + " in entity list");
-          return;
-        }
-        group = this.ent_groups[ent.group];
-        if (group != null) {
-          ind = group.indexOf(ent);
-          group.splice(ind, 1);
-        }
-        delete this.ent_cache[ent.id];
-        this.trigger("ENTITY_DESTROYED", ent);
-        return this.entities.splice(ind, 1);
+        Hal.glass.ctx.fillText("Camera position: " + (this.position[0].toFixed(2)) + ", " + (this.position[1].toFixed(2)), 0, 40);
+        Hal.glass.ctx.fillText("Camera origin: " + (this.origin[0].toFixed(2)) + ", " + (this.origin[1].toFixed(2)), 0, 55);
+        Hal.glass.ctx.fillText("Camera zoom: " + (this.scale[0].toFixed(2)) + ", " + (this.scale[1].toFixed(2)), 0, 70);
+        Hal.glass.ctx.fillText("Mouse: " + this.mpos[0] + ", " + this.mpos[1], 0, 85);
+        Hal.glass.ctx.fillText("Num of free pool vectors: " + Vec2.free, 0, 100);
+        Hal.glass.ctx.fillText("View origin: " + (this.view_matrix[2].toFixed(2)) + ", " + (this.view_matrix[5].toFixed(2)), 0, 115);
+        return Hal.glass.ctx.fillText("View scale: " + (this.view_matrix[0].toFixed(2)) + ", " + (this.view_matrix[4].toFixed(2)), 0, 130);
       };
 
       Scene.prototype.getAllEntities = function() {
         return this.entities.slice();
       };
 
-      Scene.prototype.removeAllEntities = function(destroy_children) {
-        var ent, _i, _len, _ref;
-        if (destroy_children == null) {
-          destroy_children = false;
+      Scene.prototype.update = function(delta) {
+        var en, _i, _len, _ref, _results;
+        this.g.ctx.fillStyle = this.bg_color;
+        this.g.ctx.fillRect(0, 0, this.bounds[2], this.bounds[3]);
+        if (this._update_transform) {
+          this.combineTransform(this.view_matrix);
+          this.update_ents = true;
         }
-        _ref = this.getAllEntities();
+        _ref = this.entities;
+        _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          ent = _ref[_i];
-          ent.destroy(destroy_children);
+          en = _ref[_i];
+          _results.push(en.update(this.g.ctx, delta));
         }
+        return _results;
       };
 
-      Scene.prototype.removeEntityByID = function(entid) {
-        var ent;
-        ent = this.ent_cache[entid];
-        if (ent != null) {
-          return ent.removeEntity(ent);
-        } else {
-          return log.error("No such entity " + entid + " in entity cache");
-        }
-      };
-
-      Scene.prototype.update_ = function(delta) {
-        this.delta = delta;
-        this.total_rendered = 0;
-        if (this.needs_updating) {
-          this.applyIdentity();
-          this.g.ctx.fillStyle = this.bg_color;
-          this.g.ctx.fillRect(0, 0, this.bounds[2], this.bounds[3]);
-          this.calcLocalMatrix();
-          this.updateSceneGraph(this.quadspace);
-        }
-        return this.update(delta);
-      };
-
-      Scene.prototype.draw_ = function(delta) {
-        var ent, _i, _len, _ref;
-        this.delta = delta;
-        if (this.paused) {
-          return;
-        }
-        this.applyLocal();
-        if (this.draw_quadspace) {
-          this.drawQuadSpace(this.quadspace);
-          this.g.ctx.textAlign = "start";
-          this.g.strokeRect(this.camera.view_frustum, "green");
-        }
-        if (this.needs_updating) {
-          _ref = this.visible_ents;
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            ent = _ref[_i];
-            ent.draw(this.delta);
-            this.total_rendered++;
+      Scene.prototype.checkForCollisions = function(ent) {
+        var check, en, _i, _len, _ref, _results;
+        _ref = this.entities;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          en = _ref[_i];
+          if (en === ent) {
+            continue;
           }
-          this.visible_ents = [];
-          this.needs_updating = false;
+          check = Geometry.polygonIntersectsOrContainsPolygon(en._mesh, ent._mesh, ent.inverseTransform(), en.transform());
+          if (check && !ent.in_collision && !en.in_collision) {
+            ent.trigger("COLLISION_STARTED", en);
+            _results.push(en.trigger("COLLISION_STARTED", ent));
+          } else if (ent.in_collision && en.in_collision && !check) {
+            ent.trigger("COLLISION_ENDED", en);
+            _results.push(en.trigger("COLLISION_ENDED", ent));
+          } else {
+            _results.push(void 0);
+          }
         }
-        return this.draw(delta);
+        return _results;
       };
 
-      Scene.prototype.applyLocal = function() {
-        return this.g.ctx.setTransform(this.local_matrix[0], this.local_matrix[3], this.local_matrix[1], this.local_matrix[4], this.local_matrix[2], this.local_matrix[5]);
-      };
-
-      Scene.prototype.applyIdentity = function() {
-        return this.g.ctx.setTransform(this.identity_matrix[0], this.identity_matrix[3], this.identity_matrix[1], this.identity_matrix[4], this.identity_matrix[2], this.identity_matrix[5]);
-      };
-
-      Scene.prototype.updateSceneGraph = function(quadspace) {
-        if (this.paused) {
-
+      Scene.prototype.draw = function(delta) {
+        var en, _i, _len, _ref;
+        if (this.draw_stat) {
+          this.drawStat();
         }
-      };
-
-      Scene.prototype.drawQuadSpace = function(quadspace) {
-        if (this.paused) {
-          return;
+        _ref = this.entities;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          en = _ref[_i];
+          en.draw(this.g.ctx, delta);
         }
-        this.g.ctx.textAlign = "center";
-        this.g.ctx.fillStyle = "white";
-        if (quadspace.nw != null) {
-          this.drawQuadSpace(quadspace.nw);
-          this.g.ctx.strokeRect(quadspace.nw.bounds[0], quadspace.nw.bounds[1], quadspace.nw.bounds[2], quadspace.nw.bounds[3]);
-          this.g.ctx.fillText("" + quadspace.nw.id, quadspace.nw.bounds[0] + quadspace.nw.bounds[2] * 0.5, quadspace.nw.bounds[1] + quadspace.nw.bounds[3] * 0.5);
-        }
-        if (quadspace.ne != null) {
-          this.drawQuadSpace(quadspace.ne);
-          this.g.ctx.strokeRect(quadspace.ne.bounds[0], quadspace.ne.bounds[1], quadspace.ne.bounds[2], quadspace.ne.bounds[3]);
-          this.g.ctx.fillText("" + quadspace.ne.id, quadspace.ne.bounds[0] + quadspace.ne.bounds[2] * 0.5, quadspace.ne.bounds[1] + quadspace.ne.bounds[3] * 0.5);
-        }
-        if (quadspace.sw != null) {
-          this.drawQuadSpace(quadspace.sw);
-          this.g.ctx.strokeRect(quadspace.sw.bounds[0], quadspace.sw.bounds[1], quadspace.sw.bounds[2], quadspace.sw.bounds[3]);
-          this.g.ctx.fillText("" + quadspace.sw.id, quadspace.sw.bounds[0] + quadspace.sw.bounds[2] * 0.5, quadspace.sw.bounds[1] + quadspace.sw.bounds[3] * 0.5);
-        }
-        if (quadspace.se != null) {
-          this.drawQuadSpace(quadspace.se);
-          this.g.ctx.strokeRect(quadspace.se.bounds[0], quadspace.se.bounds[1], quadspace.se.bounds[2], quadspace.se.bounds[3]);
-          return this.g.ctx.fillText("" + quadspace.se.id, quadspace.se.bounds[0] + quadspace.se.bounds[2] * 0.5, quadspace.se.bounds[1] + quadspace.se.bounds[3] * 0.5);
-        }
-      };
-
-      Scene.prototype.calcLocalMatrix = function() {
-        return this.local_matrix = Matrix3.mul(this.localMatrix(), this.rotationMatrix());
+        this.update_ents = false;
+        this.g.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        return this.g.ctx.strokeRect(this.center[0] - 1, this.center[1] - 1, 2, 2);
       };
 
       Scene.prototype.pause = function() {
@@ -291,73 +139,82 @@
         return this.attr("paused", false);
       };
 
-      Scene.prototype.group = function(group) {
-        if (this.ent_groups[group] == null) {
-          return [];
-        }
-        return this.ent_groups[group].slice();
-      };
-
       Scene.prototype.init = function() {
         var _this = this;
         this.paused = false;
-        this.attr("draw_bbox", this.draw_bbox != null);
-        this.on("CHANGE", function(prop) {
-          var _this = this;
-          if (prop) {
-            if (prop[0] === "draw_quadspace") {
-
-            } else if (prop[0] === "draw_bbox") {
-              return this.entities.forEach(function(v) {
-                return v.attr("draw_bbox", _this.draw_bbox);
-              });
-            }
+        this.on("CHANGE", function(key, val) {
+          if (__indexOf.call(reactives, key) >= 0) {
+            this._update_transform = true;
+            return this._update_inverse = true;
           }
         });
-        this.cam_change = this.camera.on("CHANGE", function() {
-          if (_this.paused) {
-            return;
-          }
-          return _this.needs_updating = true;
-        });
-        this.resize_event = Hal.on("RESIZE", function(area) {
+        Hal.on("RESIZE", function(area) {
           _this.g.resize(area.width, area.height);
           _this.bounds[2] = area.width;
-          _this.bounds[3] = area.height;
-          return _this.camera.resize(area.width, area.height);
+          return _this.bounds[3] = area.height;
         });
-        this.exit_frame = Hal.on("EXIT_FRAME", function() {
+        Hal.on("RIGHT_CLICK", function(pos) {
           if (_this.paused) {
             return;
           }
-          if (_this.draw_camera_center) {
-            _this.g.ctx.setTransform(1, 0, 0, 1, 0, 0);
-            _this.g.ctx.translate(_this.camera.cx, _this.camera.cy);
-            _this.g.strokeRectO([0, 0, 6, 6], "white");
-            _this.g.ctx.lineWidth = 5;
-            _this.g.strokeRectO([0, 0, _this.camera.w, _this.camera.h], "white");
-            _this.g.ctx.translate(-_this.camera.cx, -_this.camera.cy);
-            _this.g.ctx.lineWidth = 1;
+          Vec2.set(_this.cam_move, (_this.center[0] - pos[0]) + _this.position[0], (_this.center[1] - pos[1]) + _this.position[1]);
+          if (_this.lerp_anim) {
+            Hal.remove("EXIT_FRAME", _this.lerp_anim);
+            _this.lerp_anim = null;
           }
-          if (_this.draw_stat) {
-            return _this.drawStat();
+          return _this.lerp_anim = Hal.on("EXIT_FRAME", function(delta) {
+            Vec2.lerp(_this.position, _this.position, _this.cam_move, delta * 2);
+            if ((~~Math.abs(_this.position[0] - _this.cam_move[0]) + ~~Math.abs(-_this.position[1] + _this.cam_move[1])) < 2) {
+              Hal.remove("EXIT_FRAME", _this.lerp_anim);
+              _this.lerp_anim = null;
+            }
+            return _this._update_transform = true;
+          });
+        });
+        this.drag_started = Hal.on("DRAG_STARTED", function(pos) {
+          if (_this.paused) {
+            return;
+          }
+          _this.dragging = true;
+          _this.start_drag_point[0] = pos[0];
+          _this.start_drag_point[1] = pos[1];
+          _this.prev_pos = [_this.position[0], _this.position[1]];
+          _this._update_transform = true;
+          _this._update_inverse = true;
+          if (_this.lerp_anim) {
+            Hal.remove("EXIT_FRAME", _this.lerp_anim);
+            return _this.lerp_anim = null;
           }
         });
-        this.calcLocalMatrix();
-        this.left_click_listener = Hal.on("LEFT_CLICK", function(pos) {
-          return _this.trigger("LEFT_CLICK", pos);
+        this.drag_ended = Hal.on("DRAG_ENDED", function(pos) {
+          return _this.dragging = false;
         });
-        this.left_dbl_click_listener = Hal.on("LEFT_DBL_CLICK", function(pos) {
-          return _this.trigger("LEFT_DBL_CLICK", pos);
-        });
-        return this.on("ENTITY_MOVING", function(ent) {
-          if (!Hal.math.isPointInRect(ent.viewportPos(), ent.quadspace.bounds)) {
-            Hal.log.debug("i'm out of my quadspace " + ent.id);
-            ent.quadspace.remove(ent);
-            this.quadspace.insert(ent);
+        this.drag = Hal.on("MOUSE_MOVE", function(pos) {
+          if (_this.paused) {
+            return;
           }
-          return this.camera.trigger("CHANGE");
+          if (_this.dragging) {
+            _this.position[0] = _this.prev_pos[0] + (pos[0] - _this.start_drag_point[0]);
+            _this.position[1] = _this.prev_pos[1] + (pos[1] - _this.start_drag_point[1]);
+            _this._update_transform = true;
+            return _this._update_inverse = true;
+          }
         });
+        this.zoom = Hal.on("SCROLL", function(ev) {
+          if (_this.paused) {
+            return;
+          }
+          if (ev.down) {
+            _this.view_matrix[0] -= _this.zoom_step;
+            _this.view_matrix[4] -= _this.zoom_step;
+          } else {
+            _this.view_matrix[0] += _this.zoom_step;
+            _this.view_matrix[4] += _this.zoom_step;
+          }
+          _this._update_transform = true;
+          return _this._update_inverse = true;
+        });
+        return Scene.__super__.init.call(this);
       };
 
       return Scene;

@@ -4,7 +4,7 @@
     var EventDispatcher;
     EventDispatcher = (function() {
       function EventDispatcher() {
-        this.listeners = [];
+        this.listeners = {};
       }
 
       return EventDispatcher;
@@ -27,6 +27,7 @@
         this.listeners[type].push(clb);
         ind = this.listeners[type].indexOf(clb);
       }
+      llogi("Added listener: TYPE = " + type);
       return clb;
     };
     EventDispatcher.prototype.remove = function(type, clb) {
@@ -36,18 +37,22 @@
         if (ind !== -1) {
           this.listeners[type].splice(ind, 1);
         }
-        return clb = null;
+        if (ind !== -1) {
+          return llogi("Removed listener: TYPE = " + type);
+        }
       }
     };
     EventDispatcher.prototype.removeAll = function(type) {
       var key, keys, list, _i, _len, _results;
       if (type) {
-        return delete this.listeners[type];
+        delete this.listeners[type];
+        return llogi("Removed listeners: TYPE = " + type);
       } else {
         keys = Object.keys(this.listeners);
         _results = [];
         for (_i = 0, _len = keys.length; _i < _len; _i++) {
           key = keys[_i];
+          llogi("Removed listeners: KEY = " + key);
           _results.push((function() {
             var _j, _len1, _ref, _results1;
             _ref = this.listeners[key];
@@ -62,11 +67,8 @@
         return _results;
       }
     };
-    EventDispatcher.prototype.trigger = function(type, msg, target) {
+    EventDispatcher.prototype.trigger = function(type, arg1, arg2, arg3) {
       var clb, _i, _len, _ref, _results;
-      if (target == null) {
-        target = this;
-      }
       if (!this.listeners[type]) {
         return;
       }
@@ -75,7 +77,7 @@
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         clb = _ref[_i];
         if (clb != null) {
-          _results.push(clb.call(target, msg, clb));
+          _results.push(clb.call(this, arg1, arg2, arg3));
         } else {
           _results.push(void 0);
         }

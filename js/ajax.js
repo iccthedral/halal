@@ -1,12 +1,13 @@
 (function() {
+  "use strict";
   var __slice = [].slice;
 
-  define(function() {
+  define([], function() {
     var Ajax, Result;
     Result = (function() {
       function Result(url) {
         this.url = url;
-        this.success_ = this.fail_ = this.always_ = Function();
+        this.success_ = this.fail_ = this.always_ = function() {};
         this.success = function(success_) {
           this.success_ = success_;
           return this;
@@ -94,7 +95,7 @@
       };
       return result;
     };
-    return (window.ajx = Ajax);
+    return Ajax;
   });
 
 }).call(this);

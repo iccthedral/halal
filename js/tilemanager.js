@@ -3,7 +3,7 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["spriteentity"], function(SpriteEntity) {
+  define(["shape"], function(Shape) {
     var Tile, TileLayer, TileManager;
     Tile = (function(_super) {
       __extends(Tile, _super);
@@ -16,29 +16,27 @@
       }
 
       Tile.prototype.addTileLayer = function(tile, layer) {
-        var ent, layer_present;
+        var layer_present;
         layer = layer || tile.layer;
         layer_present = this.layers[layer] != null;
         if (layer_present && this.layers[layer].name === tile.name) {
-          Hal.log.debug("You're trying to add the same layer");
+          llogd("You're trying to add the same layer");
           return;
         }
         if (layer_present) {
           this.layers[layer].destroy();
         }
         this.layers[layer] = tile;
-        ent = this.addEntityToQuadspace(tile);
-        ent.attr("shape", this.shape);
-        ent.attr("draw_shape", false);
         return ent;
       };
 
       Tile.prototype.init = function() {
         Tile.__super__.init.call(this);
-        return this.on("LAYER_DESTROYED", function(layer) {
-          Hal.log.debug("layer destroyed " + layer);
+        this.on("LAYER_DESTROYED", function(layer) {
+          llogd("layer destroyed " + layer);
           return this.layers[layer] = null;
         });
+        return this;
       };
 
       Tile.prototype.destroy = function(destroy_children) {
@@ -51,7 +49,7 @@
 
       return Tile;
 
-    })(SpriteEntity);
+    })(Shape);
     TileLayer = (function(_super) {
       __extends(TileLayer, _super);
 
@@ -77,8 +75,8 @@
         if (destroy_children == null) {
           destroy_children = true;
         }
-        Hal.log.debug("destroying myself");
-        Hal.log.debug(this);
+        llogd("destroying myself");
+        llogd(this);
         if (this.parent != null) {
           this.parent.trigger("LAYER_DESTROYED", this.layer);
         }
@@ -87,7 +85,7 @@
 
       return TileLayer;
 
-    })(SpriteEntity);
+    })(Shape);
     return TileManager = (function() {
       function TileManager(map, tileList) {
         var _this = this;
@@ -113,7 +111,7 @@
           list = "assets/TilesList.list";
         }
         Ajax.get("assets/amjad/TilesList.json", function(tiles) {});
-        Hal.log.debug("TileManager loaded tiles.");
+        llogd("TileManager loaded tiles.");
         tiles = JSON.parse(tiles);
         _results = [];
         for (k in tiles) {
@@ -125,8 +123,8 @@
 
       TileManager.prototype.load = function(tiles) {
         var i, t, _results;
-        Hal.log.debug("Loading tiles...");
-        Hal.log.debug(tiles);
+        llogd("Loading tiles...");
+        llogd(tiles);
         _results = [];
         for (i in tiles) {
           t = tiles[i];
@@ -157,7 +155,6 @@
       };
 
       TileManager.prototype.newTileHolder = function(meta) {
-        meta.parent = this.map;
         return new Tile(meta);
       };
 
@@ -172,22 +169,20 @@
           y_offset = 0;
         }
         if ((holder == null) || (tile == null)) {
-          Hal.log.debug("holder or tile is null");
+          llogd("holder or tile is null");
           return;
         }
         if (tile.attr("group") === "default") {
           tile.attr("group", "layer_" + layer);
         }
-        Hal.log.debug("x_offset: " + x_offset);
-        Hal.log.debug("y_offset: " + y_offset);
+        llogd("x_offset: " + x_offset);
+        llogd("y_offset: " + y_offset);
         tile = holder.addTileLayer(tile, layer);
         if (tile == null) {
           return;
         }
-        Hal.log.debug(x_offset);
-        Hal.log.debug(y_offset);
-        tile.attr("w", x_offset);
-        tile.attr("h", y_offset);
+        llogd(x_offset);
+        llogd(y_offset);
         return tile;
       };
 

@@ -2,7 +2,7 @@
   "use strict";
   var __slice = [].slice;
 
-  define(function() {
+  define([], function() {
     var Deferred, Promise;
     Promise = (function() {
       function Promise() {
@@ -61,9 +61,6 @@
       return Deferred;
 
     })();
-    /* @todo izbaciti ovo*/
-
-    window.Deferred = Deferred;
     return Deferred;
   });
 

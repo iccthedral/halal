@@ -9,8 +9,7 @@
       __extends(Camera, _super);
 
       function Camera(ctx, cam_bounds, scene) {
-        var camera_canvas,
-          _this = this;
+        var _this = this;
         this.ctx = ctx;
         this.scene = scene;
         Camera.__super__.constructor.call(this);
@@ -28,9 +27,6 @@
         this.view_frustum = [];
         this.recalcCamera();
         this.setViewFrustum(cam_bounds);
-        camera_canvas = Hal.dom.createCanvasLayer(this.w, this.h, 50000);
-        Hal.dom.addCanvas(camera_canvas, 0, 0, true);
-        this.cctx = camera_canvas.getContext("2d");
         this.on("CHANGE", function(prop) {
           var _ref;
           if (prop == null) {
@@ -65,14 +61,6 @@
         this.h = newH / this.zoom;
         this.recalcCamera();
         return this.trigger("CHANGE");
-      };
-
-      Camera.prototype.clipViewport = function() {
-        this.cctx.fillStyle = "rgba(0, 0, 0, 255);";
-        this.cctx.fillRect(0, 0, this.w, this.h);
-        this.cctx.translate(this.cx, this.cy);
-        this.cctx.clearRect(-this.w2, -this.h2, this.w, this.h);
-        return this.cctx.translate(-this.cx, -this.cy);
       };
 
       Camera.prototype.enableDrag = function() {
@@ -126,8 +114,8 @@
         this.view_frustum[1] = bnds[1];
         this.view_frustum[2] = bnds[2] - bnds[0];
         this.view_frustum[3] = bnds[3] - bnds[1];
-        Hal.log.debug("Camera view frustum setted");
-        return Hal.log.debug(this.view_frustum);
+        llogd("Camera view frustum setted");
+        return llogd(this.view_frustum);
       };
 
       Camera.prototype.enableArrowKeys = function() {

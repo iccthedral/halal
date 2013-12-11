@@ -1,6 +1,6 @@
 (function() {
   "use strict";
-  define([], function() {
+  define(["metaconfig"], function(MetaConfig) {
     var Sprite;
     Sprite = (function() {
       function Sprite(img, name, x, y, w, h) {
@@ -10,7 +10,7 @@
         this.y = y;
         this.w = w;
         this.h = h;
-        spl = this.img.src.match(/\/assets\/sprites\/(.*\/)(.*)\.png/);
+        spl = this.img.src.match(MetaConfig.Regex.SpriteMatcher);
         this.name = spl && spl[2] ? spl[2] : "";
         this.w2 = this.w * 0.5;
         this.h2 = this.h * 0.5;

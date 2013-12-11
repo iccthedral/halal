@@ -93,11 +93,8 @@ usage:
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
-  define(["deferred", "deferredcounter", "ajax", "spritefactory", "sprite", "spritesheet", "eventdispatcher"], function(Deferred, DeferredCounter, Ajax, SpriteFactory, Sprite, SpriteSheet, EventDispatcher) {
-    var AssetManager, extract_type, res_url, ws_url;
-    res_url = "/assets/";
-    ws_url = "http://localhost:8080";
-    extract_type = /^(.*)\.(.*)$/;
+  define(["deferred", "deferredcounter", "ajax", "spritefactory", "sprite", "spritesheet", "eventdispatcher", "metaconfig"], function(Deferred, DeferredCounter, Ajax, SpriteFactory, Sprite, SpriteSheet, EventDispatcher, MetaConfig) {
+    var AssetManager;
     AssetManager = (function(_super) {
       __extends(AssetManager, _super);
 
@@ -117,24 +114,24 @@ usage:
 
     })(EventDispatcher);
     AssetManager.prototype.setResourcesRelativeURL = function(url) {
-      return res_url = url;
+      return MetaConfig.URI.Assets = url;
     };
     AssetManager.prototype.resolvePath = function(url) {
       var g, grps, key, top, _i, _len, _ref;
       grps = url.split("/");
       if (this.assets.hasOwnProperty(grps[0])) {
         top = this.assets[grps[0]];
-        _ref = grps.slice(1, +(grps.length - 2) + 1 || 9e9);
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          g = _ref[_i];
-          if (!top.hasOwnProperty(g)) {
-            top[g] = {};
-          }
-          top = top[g];
-        }
       }
-      key = grps[grps.length - 1];
-      key = key.substring(0, key.lastIndexOf("."));
+      _ref = grps.slice(1, grps.length - 1);
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        g = _ref[_i];
+        if (!top.hasOwnProperty(g)) {
+          top[g] = new Object();
+        }
+        top = top[g];
+        key = grps[grps.length - 1];
+        key = key.substring(0, key.lastIndexOf("."));
+      }
       return [top, key];
     };
     AssetManager.prototype.addToStorage = function(url, obj) {
@@ -176,31 +173,37 @@ usage:
       }
       return defer.promise();
     };
-    AssetManager.prototype.tint = function(spr, color) {
+    AssetManager.prototype.getTintedSprite = function(sprite, color, alpha) {
+      var id;
+      if (color == null) {
+        color = "red";
+      }
+      if (alpha == null) {
+        alpha = 0.5;
+      }
       /*
-        @todo 
+          @todo 
           Treba proveriti velicinu tint kesa, isprazniti ga 
           ako predje neke threshold
       */
 
-      var id;
-      id = spr.folder + spr.name + color;
+      id = sprite.getName() + color;
       if (!this.tint_cache[id]) {
-        this.tint_cache[id] = Hal.im.tintImage(spr.img, color, 0.5);
+        this.tint_cache[id] = Hal.imgutils.tintImage(sprite.img, color, alpha);
       }
       return this.tint_cache[id];
     };
     AssetManager.prototype.loadSprite = function(url) {
       var defer,
         _this = this;
-      url = res_url + url;
+      url = MetaConfig.URI.Assets + url;
       defer = new Deferred();
       this.loadImage(url).then(function(img) {
         var name, sprite;
         sprite = SpriteFactory.fromSingleImage(img, url);
         name = sprite.getName();
         if (_this.wait_queue[name]) {
-          Hal.log.debug(_this.wait_queue[name]);
+          llogi("Sprite was in a waiting queue: SPRITE = " + name);
           _this.wait_queue[name].changeSprite(sprite);
           delete _this.wait_queue[url];
         }
@@ -211,16 +214,10 @@ usage:
       });
       return defer.promise();
     };
-    AssetManager.prototype.loadAudio = function(audioURL) {
-      var audio, defer;
-      defer = new Deferred();
-      return audio = new Audio(audioURL);
-    };
     AssetManager.prototype.loadSound = function(url) {
       var defer;
-      url = res_url + url;
-      defer = new Deferred();
-      return this.loadAudio();
+      url = MetaConfig.URI.Assets + url;
+      return defer = new Deferred();
     };
     AssetManager.prototype.addSprite = function(g) {
       var _this = this;
@@ -228,7 +225,7 @@ usage:
         return _this.addToStorage(g, sprite);
       });
     };
-    AssetManager.prototype.addSound = function(g) {
+    AssetManager.prototype.addSound = function() {
       var _this = this;
       return this.loadSound(g).then(function(sound) {
         return _this.addToStorage(g, sound);
@@ -240,7 +237,7 @@ usage:
       if (this.assets.hasOwnProperty(grps[0])) {
         top = this.assets[grps[0]];
         if (grps.length > 3) {
-          _ref = grps.slice(1, +(grps.length - 3) + 1 || 9e9);
+          _ref = grps.slice(1, grps.length - 2);
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             g = _ref[_i];
             if (!top.hasOwnProperty(g)) {
@@ -256,25 +253,25 @@ usage:
     AssetManager.prototype.loadViaSocketIO = function() {
       var _this = this;
       if (typeof io === "undefined" || io === null) {
-        Hal.log.error("Couldn't find socket.io library");
+        lloge("Couldn't find socket.io library");
         return;
       }
-      this.socket = io.connect(ws_url);
+      this.socket = io.connect(MetaConfig.URI.Websockets);
       this.socket.on("connect", function() {
-        return Hal.log.debug("connected");
+        return llogd("Connected via socket.io");
       });
       this.socket.on("LOAD_SPRITES", function(data) {
-        var g, i, length, list, _i, _len, _results;
+        var g, i, len, list, _i, _len, _results;
         list = JSON.parse(data.files);
-        length = list.length;
-        _this.trigger("SPRITES_LOADING", length);
+        len = list.length;
+        _this.trigger("SPRITES_LOADING", len);
         _results = [];
         for (i = _i = 0, _len = list.length; _i < _len; i = ++_i) {
           g = list[i];
           _results.push((function(g, i) {
             return _this.addSprite(data.url + g).then(function() {
               _this.trigger("SPRITE_LOADED", g);
-              if (i >= (length - 1)) {
+              if (i >= (len - 1)) {
                 return _this.trigger("SPRITES_LOADED");
               }
             });
@@ -283,17 +280,17 @@ usage:
         return _results;
       });
       this.socket.on("LOAD_SOUNDS", function(data) {
-        var g, i, length, list, _i, _len, _results;
+        var g, i, len, list, _i, _len, _results;
         list = JSON.parse(data.files);
-        length = list.length;
-        _this.trigger("SOUNDS_LOADING", length);
+        len = list.length;
+        _this.trigger("SOUNDS_LOADING", len);
         _results = [];
         for (i = _i = 0, _len = list.length; _i < _len; i = ++_i) {
           g = list[i];
           _results.push((function(g, i) {
             return _this.addSound(data.url + g).then(function() {
               _this.trigger("SOUND_LOADED");
-              if (i >= (length - 1)) {
+              if (i >= (len - 1)) {
                 return _this.trigger("SOUNDS_LOADED");
               }
             });
@@ -301,69 +298,65 @@ usage:
         }
         return _results;
       });
+      this.socket.on("SPRITE_FOLDER_ADDED", function(data) {
+        var file, i, len, _fn, _i, _len, _ref, _results;
+        llogd("Sprite folder added: data.url");
+        len = data.files.length;
+        _this.trigger("SPRITES_LOADING");
+        _ref = data.files;
+        _fn = function(file, i) {};
+        _results = [];
+        for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
+          file = _ref[i];
+          llogd("Adding sprite: " + file);
+          _fn(file, i);
+          _results.push(_this.addSprite(data.url + file).then(function() {
+            _this.trigger("SPRITE_LOADED", file);
+            if (i >= (len - 1)) {
+              return _this.trigger("SPRITES_LOADED");
+            }
+          }));
+        }
+        return _results;
+      });
       this.socket.on("SPRITE_ADDED", function(data) {
-        Hal.log.debug("sprite added");
-        Hal.log.debug(data);
+        llogd("Sprite added: " + data.url);
         return _this.addSprite(data.url);
       });
       this.socket.on("SPRITESHEET_ADDED", function(data) {
-        return Hal.log.debug(data);
+        return llogd("Spritesheet added: " + data.url);
       });
       this.socket.on("SPRITE_DELETED", function(data) {
-        Hal.log.debug("sprite deleted");
-        Hal.log.debug(data);
+        llogd("Sprite deleted: " + data.url);
         return _this.deleteFromStorage(data.url);
       });
       this.socket.on("SPRITE_FOLDER_DELETED", function(data) {
         var key, storage, _ref;
-        Hal.log.debug("sprite folder deleted");
-        Hal.log.debug(data);
+        llogd("Sprite folder deleted: " + data.url);
         _ref = _this.resolveFolderPath(data.url), storage = _ref[0], key = _ref[1];
         delete storage[key];
         return _this.trigger("SPRITES_LOADED");
       });
-      this.socket.on("SPRITE_FOLDER_ADDED", function(data) {
-        var file, i, length, _i, _len, _ref, _results;
-        Hal.log.debug("sprite folder added");
-        Hal.log.debug(data);
-        length = data.files.length;
-        _this.trigger("SPRITES_LOADING");
-        _ref = data.files;
-        _results = [];
-        for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
-          file = _ref[i];
-          Hal.log.debug("file: " + file);
-          _results.push((function(file, i) {
-            Hal.log.debug(data.url + file);
-            return _this.addSprite(data.url + file).then(function() {
-              _this.trigger("SPRITE_LOADED", file);
-              if (i >= (length - 1)) {
-                return _this.trigger("SPRITES_LOADED");
-              }
-            });
-          })(file, i));
-        }
-        return _results;
-      });
       return this.socket.on("SPRITESHEET_DELETED", function(data) {
-        return Hal.log.debug(data);
+        llogd("Spritesheet deleted: " + data.url);
+        return llogd(data);
       });
     };
     AssetManager.prototype.loadSpritesFromFileList = function(list) {
       var _this = this;
       return Ajax.get(list, function(data) {
-        var i, length, spr, _i, _len, _results;
-        data = data.split("\n");
+        var i, len, spr, _i, _len, _results;
+        data = data.split("\r\n");
         data.splice(-1);
-        length = data.length;
-        _this.trigger("SPRITES_LOADING", length);
+        len = data.length;
+        _this.trigger("SPRITES_LOADING", len);
         _results = [];
         for (i = _i = 0, _len = data.length; _i < _len; i = ++_i) {
           spr = data[i];
           _results.push((function(spr, i) {
             return _this.addSprite(spr).then(function() {
               _this.trigger("SPRITE_LOADED", spr);
-              if (i >= (length - 1)) {
+              if (i >= (len - 1)) {
                 return _this.trigger("SPRITES_LOADED");
               }
             });
@@ -373,14 +366,13 @@ usage:
       });
     };
     AssetManager.prototype.loadFromArray = function(type, array) {
-      var _ref;
-      if (_ref = !type, __indexOf.call(this.assets, _ref) >= 0) {
+      if (__indexOf.call(this.assets, type) < 0) {
 
       }
     };
     AssetManager.prototype.getSprite = function(spr) {
       var key, store, _ref;
-      _ref = this.resolvePath("sprites/" + spr + "."), store = _ref[0], key = _ref[1];
+      _ref = this.resolvePath(MetaConfig.URI.Sprites + spr + "."), store = _ref[0], key = _ref[1];
       return store[key];
     };
     AssetManager.prototype.getSpritesFromFolder = function(folder) {
@@ -397,7 +389,7 @@ usage:
         folder = "" + folder + "/";
       }
       out = {};
-      _ref = this.resolveFolderPath("sprites/" + folder), storage = _ref[0], key = _ref[1];
+      _ref = this.resolveFolderPath(MetaConfig.URI.Sprites + folder), storage = _ref[0], key = _ref[1];
       _ref1 = storage[key];
       for (k in _ref1) {
         v = _ref1[k];
@@ -418,7 +410,7 @@ usage:
         folder = "" + folder + "/";
       }
       out = {};
-      _ref = this.resolveFolderPath("sprites/" + folder), storage = _ref[0], key = _ref[1];
+      _ref = this.resolveFolderPath(MetaConfig.URI.Sprites + folder), storage = _ref[0], key = _ref[1];
       _ref1 = storage[key];
       for (k in _ref1) {
         v = _ref1[k];

@@ -145,7 +145,6 @@
 
       Entity.prototype.addEntity = function(ent) {
         this.children.push(ent);
-        this.scene.addEntity(ent);
         this.trigger("CHILD_ENTITY_ADDED", ent);
         ent.attr("scene", this.scene);
         ent.attr("parent", this);
@@ -155,7 +154,6 @@
 
       Entity.prototype.addEntityToQuadspace = function(ent) {
         this.children.push(ent);
-        this.scene.addEntityToQuadspace(ent);
         this.trigger("CHILD_ENTITY_ADDED", ent);
         ent.attr("scene", this.scene);
         ent.attr("parent", this);
@@ -170,7 +168,7 @@
         }
         this.removeAll();
         if (this.scene == null) {
-          Hal.log.warn("this entity didn't belong to a scene");
+          llogw("this entity didn't belong to a scene");
         } else {
           this.scene.removeEntity(this);
         }
@@ -179,7 +177,7 @@
         this.drawables = null;
         this.parent = null;
         if (this.quadspace == null) {
-          Hal.log.warn("this entity had no quadspace");
+          llogw("this entity had no quadspace");
         } else {
           this.quadspace.remove(this);
         }
@@ -203,11 +201,19 @@
       };
 
       Entity.prototype.update = function(delta) {
+        var c, _i, _len, _ref, _results;
         if (this.needs_updating) {
           if (!this.glow) {
             this.scene.g.ctx.shadowBlur = 0;
           }
-          return this.calcLocalMatrix();
+          this.calcLocalMatrix();
+          _ref = this.children;
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            c = _ref[_i];
+            _results.push(c.update(delta));
+          }
+          return _results;
         }
       };
 
@@ -225,7 +231,7 @@
       };
 
       Entity.prototype.draw = function(delta) {
-        var s, _i, _j, _len, _len1, _ref, _ref1, _results;
+        var c, s, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _results;
         if (this.needs_updating) {
           this.scene.g.ctx.setTransform(this.local_matrix[0], this.local_matrix[3], this.local_matrix[1], this.local_matrix[4], this.local_matrix[2], this.local_matrix[5]);
           this.needs_updating = false;
@@ -236,15 +242,8 @@
             this.scene.g.ctx.lineWidth = this.line_width;
           }
         }
-        if (this.glow) {
-          this.scene.g.ctx.shadowBlur = this.glow_amount;
-          this.scene.g.ctx.shadowColor = this.glow_color;
-        }
         if (this.draw_shape) {
           this.scene.g.strokePolygon(this.shape, !this.selected ? this.stroke_color : this.selected_color);
-        }
-        if (this.glow) {
-          this.scene.g.ctx.shadowBlur = 0;
         }
         if (this.line_width !== 1.0 && this.draw_shape) {
           this.scene.g.ctx.lineWidth = 1.0;
@@ -256,15 +255,20 @@
         if (this.draw_bbox) {
           this.scene.g.strokeRect(this.bbox, "cyan");
         }
-        _ref = this.drawables;
+        _ref = this.children;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          s = _ref[_i];
-          s.call(this, delta);
+          c = _ref[_i];
+          c.draw(delta);
         }
-        _ref1 = this.shapes;
-        _results = [];
+        _ref1 = this.drawables;
         for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
           s = _ref1[_j];
+          s.call(this, delta);
+        }
+        _ref2 = this.shapes;
+        _results = [];
+        for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
+          s = _ref2[_k];
           _results.push(this.scene.g.strokePolygon(s, "blue"));
         }
         return _results;

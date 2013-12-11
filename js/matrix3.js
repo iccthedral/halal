@@ -1,11 +1,11 @@
 (function() {
   "use strict";
-  define([], function() {
+  define(["mathutil"], function(MathUtil) {
     var Matrix3;
     Matrix3 = {};
     Matrix3.create = function() {
       var out;
-      out = [];
+      out = new MathUtil.ARRAY_TYPE(9);
       out[0] = 1;
       out[1] = 0;
       out[2] = 0;
@@ -17,7 +17,7 @@
       out[8] = 1;
       return out;
     };
-    Matrix3.invert = function(out, a) {
+    Matrix3.inverse = function(out, a) {
       var a00, a01, a02, a10, a11, a12, a20, a21, a22, b01, b11, b21, det;
       a00 = a[0];
       a01 = a[1];
@@ -32,8 +32,7 @@
       b11 = -a22 * a10 + a12 * a20;
       b21 = a21 * a10 - a11 * a20;
       det = a00 * b01 + a01 * b11 + a02 * b21;
-      if (det === 0) {
-        Hal.log.debug("oh god no");
+      if (!det) {
         return null;
       }
       det = 1.0 / det;
@@ -50,7 +49,7 @@
     };
     Matrix3.translate = function(x, y) {
       var out;
-      out = [];
+      out = new MathUtil.ARRAY_TYPE(9);
       out[0] = 1;
       out[1] = 0;
       out[2] = x;
@@ -62,15 +61,13 @@
       out[8] = 1;
       return out;
     };
-    Matrix3.scale = function(scaleX, scaleY) {
-      var out;
+    Matrix3.scale = function(out, scaleX, scaleY) {
       if (scaleX == null) {
         scaleX = 1;
       }
       if (scaleY == null) {
         scaleY = 1;
       }
-      out = [];
       out[0] = scaleX;
       out[1] = 0;
       out[2] = 0;
@@ -82,21 +79,15 @@
       out[8] = 1;
       return out;
     };
-    Matrix3.rotate = function(angle, orx, ory) {
+    Matrix3.rotate = function(angle) {
       var out;
-      if (orx == null) {
-        orx = 0;
-      }
-      if (ory == null) {
-        ory = 0;
-      }
-      out = [];
+      out = new MathUtil.ARRAY_TYPE(9);
       out[0] = Math.cos(angle);
       out[1] = -Math.sin(angle);
-      out[2] = orx;
+      out[2] = 0;
       out[3] = Math.sin(angle);
       out[4] = Math.cos(angle);
-      out[5] = ory;
+      out[5] = 0;
       out[6] = 0;
       out[7] = 0;
       out[8] = 1;
@@ -127,8 +118,46 @@
       }
       return out;
     };
-    Matrix3.mul = function(a, b) {
-      var a00, a01, a02, a10, a11, a12, a20, a21, a22, b00, b01, b02, b10, b11, b12, b20, b21, b22, out;
+    Matrix3.clone = function(a) {
+      var out;
+      out = new MathUtil.ARRAY_TYPE(9);
+      out[0] = a[0];
+      out[1] = a[1];
+      out[2] = a[2];
+      out[3] = a[3];
+      out[4] = a[4];
+      out[5] = a[5];
+      out[6] = a[6];
+      out[7] = a[7];
+      out[8] = a[8];
+      return out;
+    };
+    Matrix3.copy = function(a) {
+      out[0] = a[0];
+      out[1] = a[1];
+      out[2] = a[2];
+      out[3] = a[3];
+      out[4] = a[4];
+      out[5] = a[5];
+      out[6] = a[6];
+      out[7] = a[7];
+      out[8] = a[8];
+      return out;
+    };
+    Matrix3.identity = function(out) {
+      out[0] = 1;
+      out[1] = 0;
+      out[2] = 0;
+      out[3] = 0;
+      out[4] = 1;
+      out[5] = 0;
+      out[6] = 0;
+      out[7] = 0;
+      out[8] = 1;
+      return out;
+    };
+    Matrix3.mul = function(out, a, b) {
+      var a00, a01, a02, a10, a11, a12, a20, a21, a22, b00, b01, b02, b10, b11, b12, b20, b21, b22;
       out = [];
       a00 = a[0];
       a01 = a[1];
@@ -159,7 +188,6 @@
       out[8] = b20 * a02 + b21 * a12 + b22 * a22;
       return out;
     };
-    window.Matrix3 = Matrix3;
     return Matrix3;
   });
 

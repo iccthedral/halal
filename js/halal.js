@@ -3,7 +3,7 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["loglevel", "eventdispatcher", "scene", "dommanager", "renderer", "mathutil", "vec2", "deferred", "deferredcounter", "domeventmanager", "assetmanager", "imgutils", "entity", "spriteentity", "isometricmap", "ajax"], function(loglevel, EventDispatcher, Scene, DOMManager, Renderer, MathUtil, Vec2, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, Entity, SpriteEntity, IsometricMap, Ajax) {
+  define(["logger", "eventdispatcher", "scene", "dommanager", "renderer", "geometry", "vec2", "matrix3", "deferred", "deferredcounter", "domeventmanager", "assetmanager", "imgutils", "entity", "spriteentity", "isometricmap", "ajax", "shape", "line", "mathutil"], function(Logger, EventDispatcher, Scene, DOMManager, Renderer, Geometry, Vec2, Matrix3, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, Entity, SpriteEntity, IsometricMap, Ajax, Shape, Line, MathUtil) {
     /*
         A shim (sort of) to support RAF execution
     */
@@ -44,8 +44,8 @@
       _ref = Hal.scenes;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         sc = _ref[_i];
-        sc.update_(delta);
-        sc.draw_(delta);
+        sc.update(delta);
+        sc.draw(delta);
       }
       if (cur_fps_time >= fps_trigger_time) {
         Hal.fps = fps_counter;
@@ -68,7 +68,7 @@
         this.pressed_keys = [];
         this.scenes = [];
         this.fps = 0;
-        this.log.debug("Engine constructed");
+        llogd("Engine constructed");
       }
 
       return Halal;
@@ -76,26 +76,26 @@
     })(EventDispatcher);
     Halal.prototype.addScene = function(scene) {
       if (!(scene instanceof Scene)) {
-        this.log.error("Not a Scene instance");
+        lloge("Not a Scene instance");
         return null;
       }
       if (!scene.bounds) {
-        this.log.error("Bounds not set on scene " + scene.name);
+        lloge("Bounds not set on scene " + scene.name);
         return null;
       }
       if (!scene.name) {
-        this.log.warn("Name for scene wasn't provided");
+        llogw("Name for scene wasn't provided");
         scene.name = "#scene" + "_" + scene.id;
       }
       scene.init();
       Hal.trigger("SCENE_ADDED_" + scene.name.toUpperCase(), scene);
       this.scenes.unshift(scene);
-      this.log.debug("Added scene: " + scene.name);
+      llogd("Added scene: " + scene.name);
       return scene;
     };
     Halal.prototype.pause = function() {
-      cancelAnimationFrame(last_frame_id);
       paused = true;
+      cancelAnimationFrame(last_frame_id);
       return this.trigger("ENGINE_PAUSED");
     };
     Halal.prototype.resume = function() {
@@ -112,14 +112,15 @@
     Halal.prototype.init = function() {
       this.evm = new DOMEventManager();
       this.glass = new Renderer(this.viewportBounds(), null, 11);
+      this.glass.ctx.font = "10pt monospace";
+      this.glass.ctx.fillStyle = "black";
       this.on("MOUSE_MOVE", function(pos) {
         var sc, _i, _len, _ref, _results;
         _ref = this.scenes;
         _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           sc = _ref[_i];
-          sc.mpos = pos;
-          _results.push(sc.world_pos = sc.worldToLocal(pos));
+          _results.push(sc.mpos = pos);
         }
         return _results;
       });
@@ -127,18 +128,18 @@
         var ind;
         ind = this.scenes.indexOf(scene);
         if (ind === -1) {
-          log.error("No such scene: " + scene.name);
+          lloge("No such scene: " + scene.name);
         }
         this.scenes[ind] = null;
         return this.scenes.splice(ind, 1);
       });
-      return this.log.debug("Engine initialized");
+      return llogd("Engine initialized");
     };
     Halal.prototype.start = function() {
       this.init();
       paused = false;
       this.trigger("ENGINE_STARTED");
-      Hal.log.debug("Engine started");
+      llogd("Engine started");
       return rafLoop();
     };
     Halal.prototype.isPaused = function() {
@@ -153,10 +154,9 @@
     };
     Halal.prototype.drawInfo = function() {
       this.glass.ctx.setTransform(1, 0, 0, 1, 0, 0);
-      this.glass.ctx.fillStyle = "black";
       return this.glass.ctx.fillText("FPS: " + this.fps, 0, 10);
     };
-    Halal.prototype.tween = function(obj, property, t, from, to, repeat) {
+    Halal.prototype.tween = function(obj, property, t, from, to, repeat, arr_index) {
       var $, accul, defer, speed, val;
       if (repeat == null) {
         repeat = 1;
@@ -169,15 +169,13 @@
       Hal.on("ENTER_FRAME", $ = function(delta) {
         accul += delta;
         val += speed * delta;
-        obj.attr(property, val);
-        obj.requestUpdate();
+        obj.attr(property, val, arr_index);
         accul = Math.min(accul, t);
         if (t === accul) {
           repeat--;
-          obj.attr(property, to);
-          obj.requestUpdate();
+          obj.attr(property, to, arr_index);
           if (repeat === 0) {
-            defer.resolve(obj);
+            defer.resolve(obj, $);
             Hal.remove("ENTER_FRAME", $);
           } else {
             accul = 0;
@@ -185,7 +183,7 @@
           }
         }
       });
-      return defer.promise();
+      return [defer.promise(), $];
     };
     Halal.prototype.tweenF = function(t, func, from, to, repeat) {
       var $, accul, speed, val;
@@ -223,9 +221,24 @@
         return Hal.dom.viewport.style["opacity"] = val;
       }), 1, 0);
     };
-    Halal.prototype.IsometricMap = function(meta) {
-      return new IsometricMap(meta);
-    };
+    /*
+        @todo kontekst bi valjalo prosledjivati, mozda window ne bude window
+        i undefined ne bude undefined
+    */
+
+    Halal.prototype.math = MathUtil;
+    Halal.prototype.geometry = Geometry;
+    Halal.prototype.asm = new AssetManager();
+    Halal.prototype.im = new ImgUtils();
+    /* classes*/
+
+    Halal.prototype.Line = Line;
+    Halal.prototype.Vec2 = Vec2;
+    Halal.prototype.Matrix3 = Matrix3;
+    Halal.prototype.Shape = Shape;
+    Halal.prototype.Scene = Scene;
+    Halal.prototype.Ajax = Ajax;
+    Halal.prototype.IsometricMap = IsometricMap;
     Halal.prototype.Keys = {
       SHIFT: 16,
       G: 71,
@@ -244,22 +257,8 @@
       DOWN: 40,
       F: 70
     };
-    /*
-        @todo kontekst bi valjalo prosledjivati, mozda window ne bude window
-        i undefined ne bude undefined
-    */
-
-    Halal.prototype.math = MathUtil;
-    Halal.prototype.asm = new AssetManager();
-    Halal.prototype.im = new ImgUtils();
-    Halal.prototype.log = loglevel;
-    /* classes*/
-
-    Halal.prototype.Scene = Scene;
-    Halal.prototype.Entity = Entity;
-    Halal.prototype.SpriteEntity = SpriteEntity;
-    Halal.prototype.Ajax = Ajax;
-    return (window.Hal = new Halal());
+    window.Hal = new Halal();
+    return window.Hal;
   });
 
 }).call(this);

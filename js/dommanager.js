@@ -5,9 +5,9 @@
     DOMManager = (function() {
       function DOMManager(Hal) {
         var _this = this;
-        this.renderspace = document.getElementById('renderspace');
-        this.hud = document.getElementById('hud');
-        this.viewport = document.getElementById('viewport');
+        this.renderspace = document.getElementById("renderspace");
+        this.hud = document.getElementById("hud");
+        this.viewport = document.getElementById("viewport");
         this.area = renderspace.getBoundingClientRect();
         this.current_zindex = 1000;
         this.canvases = [];
@@ -25,26 +25,35 @@
             _ref = _this.canvases;
             for (_ in _ref) {
               c = _ref[_];
-              c.setAttribute('style', (c.getAttribute('style') || '') + ' ' + '-webkit-transform: scale3d(' + _this.fullscreen_scale[0] + ',' + _this.fullscreen_scale[1] + ', 1.0); -webkit-transform-origin: 0 0 0;');
+              c.setAttribute("style", (c.getAttribute("style") || "") + " " + "-webkit-transform: scale3d(" + _this.fullscreen_scale[0] + "," + _this.fullscreen_scale[1] + ", 1.0); -webkit-transform-origin: 0 0 0;");
             }
-            _this.area = _this.renderspace.getBoundingClientRect();
-            return Hal.scm.enterFullScreen(_this.fullscreen_scale);
+            return _this.area = _this.renderspace.getBoundingClientRect();
           } else {
-            _this.renderspace.style["width"] = Hal.r.prev_bounds[2] + "px";
-            _this.renderspace.style["height"] = Hal.r.prev_bounds[3] + "px";
+            _this.renderspace.style["width"] = "" + Hal.r.prev_bounds[2] + "px";
+            _this.renderspace.style["height"] = "" + Hal.r.prev_bounds[3] + "px";
             Hal.r.resize(Hal.r.prev_bounds[2], Hal.r.prev_bounds[3]);
             _ref1 = _this.canvases;
             for (_ in _ref1) {
               c = _ref1[_];
-              c.setAttribute('style', (c.getAttribute('style') || '') + ' ' + '-webkit-transform: scale3d(1.0, 1.0, 1.0); -webkit-transform-origin: 0 0 0;');
+              c.setAttribute("style", (c.getAttribute("style") || "") + " " + "-webkit-transform: scale3d(1.0, 1.0, 1.0); -webkit-transform-origin: 0 0 0;");
             }
-            _this.area = _this.renderspace.getBoundingClientRect();
-            return Hal.scm.exitFullScreen([1, 1]);
+            return _this.area = _this.renderspace.getBoundingClientRect();
           }
         });
         Hal.on("DOM_ADD", function(callb) {
           if (callb != null) {
-            return callb.call(null, _this.hud);
+            return callb.call({}, _this.hud);
+          }
+        });
+        Hal.on("REQUEST_FULLSCREEN", function(scene) {
+          if (!Hal.supports("FULLSCREEN")) {
+            log.warn("Fullscreen not supported");
+            return;
+          }
+          if (!_this.in_fullscreen) {
+            _this.renderspace.style["width"] = "" + _this.screen_w + " + px";
+            _this.renderspace.style["height"] = "" + _this.screen_h + " + px";
+            return _this.renderspace.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
           }
         });
         window.addEventListener("resize", function() {
@@ -56,25 +65,14 @@
         document.addEventListener("fullscreenchange", function() {
           this.in_fullscreen = !this.in_fullscreen;
           return Hal.trigger("FULLSCREEN_CHANGE", this.in_fullscreen);
-        }, false);
+        });
         document.addEventListener("webkitfullscreenchange", function() {
           this.in_fullscreen = !this.in_fullscreen;
           return Hal.trigger("FULLSCREEN_CHANGE", this.in_fullscreen);
-        }, false);
+        });
         document.addEventListener("mozfullscreenchange", function() {
           this.in_fullscreen = !this.in_fullscreen;
           return Hal.trigger("FULLSCREEN_CHANGE", this.in_fullscreen);
-        }, false);
-        Hal.on("REQUEST_FULLSCREEN", function(scene) {
-          if (!Hal.supports("FULLSCREEN")) {
-            log.warn("Fullscreen not supported");
-            return;
-          }
-          if (!_this.in_fullscreen) {
-            _this.renderspace.style["width"] = _this.screen_w + "px";
-            _this.renderspace.style["height"] = _this.screen_h + "px";
-            return _this.renderspace.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
-          }
         });
       }
 
@@ -118,14 +116,15 @@
       if (y == null) {
         y = 0;
       }
-      z = canvas.style['z-index'];
+      z = canvas.style["z-index"];
       if (this.canvases[z]) {
+        llogw("Canvas with z-index of " + z + " already exists");
         return;
       }
-      canvas.style.left = x + "px";
-      canvas.style.top = y + "px";
+      canvas.style.left = "" + x + "px";
+      canvas.style.top = "" + y + "px";
       if (!isTransp) {
-        canvas.style['background-color'] = "white";
+        canvas.style["background-color"] = "white";
       }
       this.viewport.appendChild(canvas);
       return this.canvases[z] = canvas;
