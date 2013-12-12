@@ -18,12 +18,10 @@
         if (meta == null) {
           meta = {};
         }
-        Scene.__super__.constructor.call(this);
-        this.name = meta.name != null ? meta.name : "" + (Hal.ID());
-        this.bounds = meta.bounds != null ? meta.bounds : Hal.viewportBounds();
+        this.parseMeta(meta);
         this.paused = true;
-        this.bg_color = meta.bg_color != null ? meta.bg_color : "white";
         this.entities = [];
+        this.ent_cache = {};
         this.mpos = [0, 0];
         this.z = 1;
         this.g = new Renderer(this.bounds, null, this.z);
@@ -40,18 +38,30 @@
         this.zoom_step = 0.1;
         this.camera_speed = 2;
         this._update_zoom = false;
-        this.prev_pos = [this.position[0], this.position[1]];
         this.center = Vec2.from(this.bounds[2] * 0.5, this.bounds[3] * 0.5);
         this._update_transform = true;
         this.view_matrix = Matrix3.create();
         this.view_matrix[2] = this.center[0];
         this.view_matrix[5] = this.center[1];
-        this.setPosition(0, 0);
+        Scene.__super__.constructor.call(this);
+        this.setOrigin(this.center[0], this.center[1]);
+        this.prev_pos = [this.position[0], this.position[1]];
         return this;
       }
 
+      Scene.prototype.parseMeta = function(meta) {
+        this.name = meta.name != null ? meta.name : "" + (Hal.ID());
+        this.bounds = meta.bounds != null ? meta.bounds : Hal.viewportBounds();
+        return this.bg_color = meta.bg_color != null ? meta.bg_color : "white";
+      };
+
       Scene.prototype.addEntity = function(ent) {
+        if (ent == null) {
+          lloge("Entity is null");
+          return;
+        }
         this.entities.push(ent);
+        this.ent_cache[ent.id] = ent;
         ent.attr("scene", this);
         this.trigger("ENTITY_ADDED", ent);
         return ent;
@@ -79,9 +89,11 @@
       Scene.prototype.update = function(delta) {
         var en, _i, _len, _ref, _results;
         this.g.ctx.fillStyle = this.bg_color;
+        this.g.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.g.ctx.fillRect(0, 0, this.bounds[2], this.bounds[3]);
+        this.g.ctx.strokeRect(this.center[0] - 1, this.center[1] - 1, 2, 2);
         if (this._update_transform) {
-          this.combineTransform(this.view_matrix);
+          this.transform(this.view_matrix);
           this.update_ents = true;
         }
         _ref = this.entities;
@@ -126,9 +138,7 @@
           en = _ref[_i];
           en.draw(this.g.ctx, delta);
         }
-        this.update_ents = false;
-        this.g.ctx.setTransform(1, 0, 0, 1, 0, 0);
-        return this.g.ctx.strokeRect(this.center[0] - 1, this.center[1] - 1, 2, 2);
+        return this.update_ents = false;
       };
 
       Scene.prototype.pause = function() {
@@ -139,6 +149,51 @@
         return this.attr("paused", false);
       };
 
+      Scene.prototype.getAllEntities = function() {
+        return this.entities.slice();
+      };
+
+      Scene.prototype.removeEntity = function(ent) {
+        var ind;
+        if (!this.ent_cache[ent.id]) {
+          lloge("No such entity " + ent.id + " in cache");
+          return;
+        }
+        ind = this.entities.indexOf(ent);
+        if (ind === -1) {
+          lloge("No such entity " + ent.id + " in entity list");
+          return;
+        }
+        delete this.ent_cache[ent.id];
+        this.trigger("ENTITY_DESTROYED", ent);
+        return this.entities.splice(ind, 1);
+      };
+
+      Scene.prototype.removeAllEntities = function(destroy_children) {
+        var ent, _i, _len, _ref;
+        if (destroy_children == null) {
+          destroy_children = false;
+        }
+        _ref = this.getAllEntities();
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          ent = _ref[_i];
+          ent.destroy();
+        }
+      };
+
+      Scene.prototype.removeEntityByID = function(entid) {
+        var ent;
+        ent = this.ent_cache[entid];
+        if (ent != null) {
+          return ent.removeEntity(ent);
+        } else {
+          return llogw("No such entity " + entid + " in entity cache");
+        }
+      };
+
+      /* valja sve unregistorovati posle*/
+
+
       Scene.prototype.init = function() {
         var _this = this;
         this.paused = false;
@@ -148,10 +203,15 @@
             return this._update_inverse = true;
           }
         });
+        this.on("ENTITY_REQ_DESTROYING", function(entity) {
+          return this.removeEntity(entity);
+        });
         Hal.on("RESIZE", function(area) {
           _this.g.resize(area.width, area.height);
           _this.bounds[2] = area.width;
-          return _this.bounds[3] = area.height;
+          _this.bounds[3] = area.height;
+          _this._update_transform = true;
+          return _this._update_inverse = true;
         });
         Hal.on("RIGHT_CLICK", function(pos) {
           if (_this.paused) {
@@ -159,16 +219,19 @@
           }
           Vec2.set(_this.cam_move, (_this.center[0] - pos[0]) + _this.position[0], (_this.center[1] - pos[1]) + _this.position[1]);
           if (_this.lerp_anim) {
-            Hal.remove("EXIT_FRAME", _this.lerp_anim);
+            Hal.removeTrigger("EXIT_FRAME", _this.lerp_anim);
             _this.lerp_anim = null;
+            _this._update_transform = true;
+            _this._update_inverse = true;
           }
           return _this.lerp_anim = Hal.on("EXIT_FRAME", function(delta) {
             Vec2.lerp(_this.position, _this.position, _this.cam_move, delta * 2);
             if ((~~Math.abs(_this.position[0] - _this.cam_move[0]) + ~~Math.abs(-_this.position[1] + _this.cam_move[1])) < 2) {
-              Hal.remove("EXIT_FRAME", _this.lerp_anim);
+              Hal.removeTrigger("EXIT_FRAME", _this.lerp_anim);
               _this.lerp_anim = null;
             }
-            return _this._update_transform = true;
+            _this._update_transform = true;
+            return _this._update_inverse = true;
           });
         });
         this.drag_started = Hal.on("DRAG_STARTED", function(pos) {
@@ -182,12 +245,14 @@
           _this._update_transform = true;
           _this._update_inverse = true;
           if (_this.lerp_anim) {
-            Hal.remove("EXIT_FRAME", _this.lerp_anim);
+            Hal.removeTrigger("EXIT_FRAME", _this.lerp_anim);
             return _this.lerp_anim = null;
           }
         });
         this.drag_ended = Hal.on("DRAG_ENDED", function(pos) {
-          return _this.dragging = false;
+          _this.dragging = false;
+          _this._update_transform = true;
+          return _this._update_inverse = true;
         });
         this.drag = Hal.on("MOUSE_MOVE", function(pos) {
           if (_this.paused) {

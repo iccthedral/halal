@@ -22,11 +22,11 @@ define ["deferred"],
                 @resolve(target, args)
 
         acquire: (target, args...) ->
-            @num_rejected++
+            @num_rejected++            
             @reject(target, args)
         
         release: (target, args...) -> 
             @num_approved++
-            @resolve(target, args)        
+            @resolve(target, args)
 
     return DeferredCounter

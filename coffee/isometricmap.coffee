@@ -1,15 +1,15 @@
 "use strict"
 
-define ["scene", "shape", "tilemanager"], 
+define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"], 
 
-(Scene, Entity, TileManager) ->
+(Scene, Entity, TileManager, QuadTree, Geometry, Vec2) ->
 
     class IsometricMap extends Scene
         constructor: (meta) ->
             @tilew          = meta.tilew
             @tileh          = meta.tileh
-            @nrows          = meta.rows
-            @ncols          = meta.cols
+            @nrows          = +meta.rows
+            @ncols          = +meta.cols
 
             @tm             = new TileManager(@)
 
@@ -32,14 +32,11 @@ define ["scene", "shape", "tilemanager"],
 
             @on_exit_frame  = null
 
-
             @supported_modes = 
                 "mode-default": () =>
                     @processMouseClick()
                     return
                 "mode-erase": () =>
-                    #treba tintovati sliku nad kojom hoverujemo
-                    # @tm.addTileLayerToHolder
                     @processMouseClick()
                     return if not @clicked_layer? or @clicked_layer.animating 
                     @clicked_layer.tween(
@@ -56,21 +53,22 @@ define ["scene", "shape", "tilemanager"],
                     @clicked_layer = null
                     
                 "mode-place": () =>
+                    return if not @tile_under_mouse?
                     t = @tm.addTileLayerToHolder(
                         @tile_under_mouse,
-                        @tm.newTileLayer(@selected_tile),
-                        @selected_tile.layer,
-                        @selected_tile_x, @selected_tile_y
+                        @selected_tile,
+                        @tile_under_mouse.position[0], 
+                        @tile_under_mouse.position[1] #,@selected_tile.layer
                     )
                     return
 
             @camera_moved       = false
             @current_mode       = "mode-default"
             @current_mode_clb   = @supported_modes[@current_mode]
-            meta.world_bounds     = [@tilew2, @tileh2, @ncols * @tilew2, (@nrows-0.5) * @tileh]
-            llogd "camera bounds: #{meta.world_bounds}"
             
-            super(meta)
+            @world_bounds   = [0, 0, (@ncols-1) * @tilew2, (@nrows-0.5) * @tileh]
+            
+            llogd "camera bounds: #{meta.world_bounds}"
 
             @iso_shape = [
                 Hal.Vec2.from(-@tilew2, 0),
@@ -94,9 +92,8 @@ define ["scene", "shape", "tilemanager"],
                 start_col: "starting col: "
                 end_row: "end row: "
                 end_col: "end_col: "
-                tile_x: "tile_x: "
-                tile_y: "tile_y: "
-                cam_mouse: "camera_mouse: "
+                tile_under_mouse: "Tile position: "
+                world_pos: "Mouse world position: "
             }
 
             @mask           = Hal.asm.getSprite("test/tilemask_128x64")
@@ -111,76 +108,26 @@ define ["scene", "shape", "tilemanager"],
                  "red": Hal.asm.getSprite("test/grid_unit_over_red_128x64")
             }
 
-            @last_clicked_layer = null
-            @tile_under_mouse   = null
-            # @search_range       = @bounds[2] * 0.5
-
-        showRegion: (pos, range_row, range_col) ->
-            return
-            # c = @getTileAt(@worldToLocal(pos))
-            # if not c?
-            #     return
-            # c_row = c.row
-            # c_col = c.col
-
-            # if c_col % 2 is 0
-            #     range_row -= 1
-
-            # t_left = @getTile(
-            #     Hal.math.clamp(c_row - range_row, c_row, @nrows - 1)
-            #     ,
-            #     Hal.math.clamp(c_col - range_col, c_col, @ncols - 1)
-            # )
-            # b_right = @getTile(
-            #     Hal.math.clamp(c_row + range_row, c_row, @nrows - 1)
-            #     ,
-            #     Hal.math.clamp(c_col + range_col, c_col, @ncols - 1)
-            # )
-            # t_right = @getTile(
-            #     Hal.math.clamp(c_row - range_row, c_row, @nrows - 1)
-            #     ,
-            #     Hal.math.clamp(c_col + range_col, c_col, @ncols - 1)
-            # )
-            # b_left = @getTile(
-            #     Hal.math.clamp(c_row + range_row, c_row, @nrows - 1)
-            #     ,
-            #     Hal.math.clamp(c_col - range_col, c_col, @ncols - 1)
-            # )
-
-            # if not (t_left? and t_right? and b_left? and b_right?)
-            #     return
-
-            # shape = [
-            #     t_left.x - (t_right.x - t_left.x)
-            #     t_left.y - (b_right.y - t_left.y)
-            #     (t_right.x - t_left.x) * 2
-            #     (b_right.y - t_left.y) * 2
-            # ]
-            # @g.strokeRect(shape, "cyan")
-
+            super(meta)
 
         drawStat: () ->
             super()
-            # if @tile_under_mouse?
-            #     Hal.glass.ctx.fillText(@info.row + @tile_under_mouse.row, 0, 195)
-            #     Hal.glass.ctx.fillText(@info.col + @tile_under_mouse.col, 0, 210)
-            #     Hal.glass.ctx.fillText(@info.tile_x + @tile_under_mouse.x, 0, 225)
-            #     Hal.glass.ctx.fillText(@info.tile_y + @tile_under_mouse.y, 0, 240)
+            if @tile_under_mouse?
+                Hal.glass.ctx.fillText(@info.row + @tile_under_mouse.row, 0, 195)
+                Hal.glass.ctx.fillText(@info.col + @tile_under_mouse.col, 0, 210)
+                Hal.glass.ctx.fillText(@info.tile_under_mouse + Vec2.str(@tile_under_mouse.position), 0, 225)
+                Hal.glass.ctx.fillText(@info.world_pos + Vec2.str(@world_pos) , 0, 240)        
 
-            # Hal.glass.ctx.fillText(@info.start_row + @display.startr, 0, 115)
-            # Hal.glass.ctx.fillText(@info.start_col + @display.startc, 0, 130)
-            # Hal.glass.ctx.fillText(@info.end_row + @display.endr, 0, 145)
-            # Hal.glass.ctx.fillText(@info.end_col + @display.endc, 0, 160)
-            # Hal.glass.ctx.fillText(@info.cam_mouse + "#{(-@camera.x + @mpos[0]).toFixed(2)}, #{(-@camera.y + @mpos[1]).toFixed(2)}", 0, 255)
+        screenToWorld: (point) ->
+            return Geometry.transformPoint(point[0], point[1], @inverseTransform())
 
-        init: () ->
-            super()
+        init: (meta) ->
+            super(meta)
 
-            ###
-                @todo: Ovo posle treba ukloniti!
-            ###
-            # @camera.on "CHANGE", () =>
-            #     @calcDrawingArea()
+            @last_clicked_layer = null
+            @tile_under_mouse   = null
+            @quadtree           = new QuadTree(@world_bounds)
+            @search_range       = [0, 0, @bounds[2], @bounds[3]]
 
             Hal.on "LEFT_CLICK", () =>
                 @current_mode_clb()
@@ -196,120 +143,24 @@ define ["scene", "shape", "tilemanager"],
             Hal.on "TILE_LAYER_SELECTED", (tile) =>
                 llogd "Tile layer selected from editor"
                 llogd tile
-                # @selected_tile = tile
-                # @selected_tile_sprite = Hal.asm.getSprite(@selected_tile.sprite)
-                # @selected_tile_x = @selected_tile_sprite.w2 - @tilew2
-                # @selected_tile_y = @selected_tile_sprite.h2 - @tileh2
-
-            # Hal.on "RIGHT_CLICK", (pos) =>
-            #     return if @paused
-            #     @camera.lerpTo(@localToWorld(@world_pos))
-
-            # @on "ENTITY_DESTROYED", (ent) =>
-            #     ind = @map.indexOf(ent)
-            #     if ind is -1
-            #         llogd "oh shit, no such entity #{ent.id}"
-            #     else
-            #         @map[ind] = null
-
-            # @on_exit_frame =
-            # Hal.on "EXIT_FRAME", (delta) =>
-            #     if @current_mode is "mode-place"
-            #         @g.drawSprite(Hal.asm.getSprite(@selected_tile.sprite), @mpos[0], @mpos[1])
-
-            # @camera.on "ZOOM", (zoom) =>
-            #     cam_bounds = [@tilew2, @tileh2, (@ncols-1) * @tilew2*zoom, (@nrows-0.5) * @tileh*zoom]
-            #     @camera.setViewFrustum(cam_bounds)
+                @selected_tile = tile
+                @selected_tile_sprite = Hal.asm.getSprite(@selected_tile.sprite)
+                @selected_tile_x = @selected_tile_sprite.w2  #- @tilew2
+                @selected_tile_y = @selected_tile_sprite.h2  #- @tileh2
 
             Hal.on "MOUSE_MOVE", (pos) =>
-                return
-                #t = @getTileAt(@worldToLocal(pos))
-                # if t isnt @tile_under_mouse
-                #     if @tile_under_mouse
-                #         @tile_under_mouse.attr("line_width", 1)
-                #         @tile_under_mouse.attr("glow", false)
-                #         @tile_under_mouse.attr("draw_shape", false)
-                #     @tile_under_mouse = t                   
-                #     if t?
-                #         t.attr("glow", true)
-                #         t.attr("draw_shape", true)
-                #         t.attr("stroke_color", "white")
-                #         # Hal.tween(t,
-                #         #     "line_width",
-                #         #     400,
-                #         #     1,
-                #         #     3.5,
-                #         #     1
-                #         # )
-
-            #@draw = (delta) ->
-            # #     return
-            #     # super(delta)
-            #     # @total_rendered = 0
-
-            #     # # for i in [@display.startr..@display.startr + @display.endr]
-            #     # #     for j in [@display.startc..@display.endc + @display.startc]
-            #     # #         tile = @map[j + i*@ncols]
-            #     # #         if not tile?
-            #     # #             continue
-            #     # #         tile.update(delta)
-            #     # #         tile.draw(delta)
-            #     # #         @total_rendered++
-
-            #     # @camera_moved = false
-
-            #     @g.ctx.setTransform(
-            #         @local_matrix[0], 
-            #         @local_matrix[3],
-            #         @local_matrix[1],
-            #         @local_matrix[4],
-            #         @local_matrix[2],
-            #         @local_matrix[5]
-            #     )
-
-            #     # ### @todo draw_region property ###
-            #     # @showRegion(@mpos, 3, 3)
-
-            #     # if @current_mode is "mode-place"
-            #     #     return if not @selected_tile?
-            #     #     @g.drawSprite(@selected_tile_sprite, -@world_pos[0] + @selected_tile_x, -@world_pos[1] + @selected_tile_y)
-
-            #     if @draw_quadspace
-            #         @drawQuadSpace(@quadspace)
-            #         @g.strokeRect(@camera.view_frustum, "green")
-
-            #     @g.ctx.setTransform(1, 0, 0, 1, -@search_range*@camera.zoom, -@search_range*@camera.zoom)
-            #     @g.strokeRect([
-            #        @mpos[0], 
-            #        @mpos[1], 
-            #        2*@search_range*@camera.zoom, 
-            #        2*@search_range*@camera.zoom  
-            #     ], "red")
+                Vec2.release(@world_pos) if @world_pos?
+                @world_pos = @screenToWorld(pos)
+                t = @getTileAt(@world_pos)
+                if t isnt @tile_under_mouse
+                    if @tile_under_mouse
+                        @tile_under_mouse.drawableOffState(Hal.DrawableStates.Fill)
+                    @tile_under_mouse = t
+                    if @tile_under_mouse?
+                        @tile_under_mouse.drawableOnState(Hal.DrawableStates.Fill)
 
             @initMap()
-
-        calcDrawingArea: () ->
-            ### mozda da pomerim granicu, jel da? ###
-            #@translate_x = @camera.x / @tilew2
-            # @old_camx = @camera.x
-            # if (@camera.x % @tilew2) is 0
-            #     llogd "oh jea"
-            #     @camera_moved = true
-
-            # top_left = @getTileAt(@worldToLocal([0, 0]))
-            # if not top_left?
-            #     sc = 0
-            #     sr = 0
-            # else 
-            #     sc = top_left.col
-            #     sr = top_left.row
-
-            # @display = {
-            #     startc: sc
-            #     endr: @maxRows()
-            #     startr: sr
-            #     endc: @maxCols()
-            # }
+            # llog.setLevel "DEBUG"
 
         maxRows: () ->
             return Math.min(@nrows-1, Math.round((@bounds[3] / (@tileh * @scale[0])) + 4))
@@ -339,136 +190,109 @@ define ["scene", "shape", "tilemanager"],
 
         initMap: () ->
             @clicked_layer = null
-
-            llogd "max rows: #{@maxRows()}"
-            llogd "max cols: #{@maxCols()}"
-            llogd "total at this resolution: #{@maxRows() * @maxCols()}"
-
-            @max_rows = @maxRows()
-            @max_cols = @maxCols()
-
             @map = new Array(@nrows * @ncols)
-            #@map = new Array(@nrows * @ncols)
             k = 0
             t1 = performance.now()
-            for i in [0..@nrows-1] #@max_rows - 1] #@nrows-1]
-                for j in [0..@ncols - 1] #@ncols-1]
+            for i in [0..@nrows-1]
+                for j in [0..@ncols - 1]
                     x = (j / 2) * @tilew
                     y = (i + ((j % 2) / 2)) * @tileh
-                    #@map[k] = [x, y]
-                    # ++k
-                    t = @tm.newTileHolder(
+                    t = @tm.newTileHolder
                         "shape": @iso_shape
-                        "draw_shape": false
                         "x": x
                         "y": y
                         "row": i
                         "col": j
-                        "visible_sprite": true
-                        "sprite": Hal.asm.getSprite("test/grid_unit_128x64")
-                    )
                     @map[k] = @addEntity(t)
                     k++
-                        # row: i
-                        # col: j
-                        # x: x
-                        # y: y #@addEntity(t)
 
             t2 = performance.now() - t1
             llogd "it took: #{t1}"
-            # @calcDrawingArea()
-            # @camera.trigger "CHANGE"
 
         processMouseClick: () ->
             if @clicked_layer?
                 @clicked_layer.trigger "DESELECTED"
                 @clicked_layer = null
-
-            return
-            for tile in @quadspace.searchInRange(@world_pos, @search_range, @)
-                # tile.tween(
-                #     attr: "h"
-                #     from: 0
-                #     to: 100
-                #     duration: 500
-                # ).tween(
-                #     attr: "opacity"
-                #     from: 1
-                #     to: 0
-                #     duration: 700
-                # )
-
-                if not tile.inShapeBounds(@world_pos)
+            t1 = performance.now()
+            for layer in @quadtree.findEntitiesInRectangle(@search_range, @transform())
+                transp = Geometry.transformPoint(@world_pos[0], @world_pos[1], layer.inverseTransform())
+                if Hal.im.isTransparent(layer.sprite.img, transp[0] + layer.sprite.w2, transp[1] + layer.sprite.h2)
+                    Vec2.release(transp)
                     continue
-                llogd tile
+                Vec2.release(transp)
                 if not @clicked_layer?
-                    @clicked_layer = tile
+                    @clicked_layer = layer
                 else
-                    if (tile.parent.col == @clicked_layer.parent.col) and (tile.parent.row == @clicked_layer.parent.row)
-                        if tile.layer > @clicked_layer.layer
+                    if (layer.holder.col is @clicked_layer.holder.col) and (layer.holder.row is @clicked_layer.holder.row)
+                        if layer.layer > @clicked_layer.layer
                             @clicked_layer = tile
-                    else if (tile.parent.row == @clicked_layer.parent.row)
-                        if (tile.h + tile.y > @clicked_layer.h + @clicked_layer.y)
+                    else if (layer.holder.row is @clicked_layer.holder.row)
+                        if (layer.h + layer.position[1] > @clicked_layer.h + @clicked_layer.position[1])
                             @clicked_layer = tile
-                    else if (tile.parent.col == @clicked_layer.parent.col)
-                        if (tile.h + tile.y > @clicked_layer.h + @clicked_layer.y)
+                    else if (layer.holder.col is @clicked_layer.holder.col)
+                        if (layer.h + layer.position[1] > @clicked_layer.h + @clicked_layer.position[1])
                             @clicked_layer = tile
-                    else if (tile.parent.col != @clicked_layer.parent.col) and (tile.parent.row != @clicked_layer.parent.row)
-                        if (tile.h + tile.y > @clicked_layer.h + @clicked_layer.y)
+                    else if (layer.holder.col isnt @clicked_layer.holder.col) and (layer.holder.row isnt @clicked_layer.holder.row)
+                        if (layer.h + layer.position[1] > @clicked_layer.h + @clicked_layer.position[1])
                             @clicked_layer = tile
-
+            t2 = performance.now() - t1
+            llogd "searching took: #{t2.toFixed(2)} ms"
             if @clicked_layer?
-                llogd "clicked layer"
-                llogd @clicked_layer
                 @trigger "LAYER_SELECTED", @clicked_layer
-                @clicked_layer.trigger "LEFT_CLICK"
+                @clicked_layer.trigger "SELECTED"
+                if not @clicked_layer.tweener.animating 
+                    @clicked_layer.tween
+                        attr: "position[1]"
+                        from: @clicked_layer.position[1]
+                        to: @clicked_layer.position[1] - 10
+                        duration: 300
+                    .done () ->
+                        @tween
+                            attr: "position[1]"
+                            from: @position[1]
+                            to: @position[1] + 10
+                            duration: 300
 
-        # splitMap: () ->
-        #     map =
-        #         nw: null
-        #         ns: null
-        #         s: null
-        #         w: null
-        #         e: null
-        #         n: null
-        #         sw: null
-        #         se: null
-        #         c: null
-
-        # loadRandomMap: (i, data) ->
-        #     for i in [0..@ncols-1]
-        #         for j in [0..@nrows-1]
-        #             t = @getTile(i, j)
-        #             k = 5
-        #             while k > 0 and not t.isFull()
-        #                 @addRandomLayer(t)
-        #                 --k
-
-        # addRandomLayer: (t) ->
-        #     tskeys = Object.keys(@tmngr.Tiles)
-        #     #llogd tskeys
-        #     randts = ~~(Math.random() * tskeys.length)
-        #     #llogd randts
-        #     index = tskeys[randts]
-        #     tiles = amj.tmngr.Tiles[index]
-        #     #llogd tiles
-        #     tkeys = Object.keys(tiles)
-        #     randt = ~~(Math.random() * tkeys.length)
-        #     index = tkeys[randt]
-        #     tileLayer = tiles[index]
-        #     #llogd tileLayer
-        #     #llogd tileLayer
-        #     # hw = [0,0]
-        #     # spr = Hal.asm.getSprite(tileLayer.sprite)
-        #     # #llogd spr
-        #     # @calcCenterAdjPos(hw, spr)
-        #     # #llogd hw
-        #     # area = @getSpanArea(t, tileLayer.size)
-        #     # if @canBePlacedOn(area, @layers[tileLayer.level])
-        #     #     return t.addLayer(tileLayer.name, hw, true)
-        
-        # genRandomMap: () ->
-
-        #     #split Map in 8 regions
+        drawQuadTree: (quadtree) ->
+            return if @paused
+            @g.ctx.textAlign = "center"
+            @g.ctx.fillStyle = "white"
             
+            if quadtree.nw?
+                @drawQuadTree(quadtree.nw)
+                @g.ctx.strokeRect(quadtree.nw.bounds[0], quadtree.nw.bounds[1], quadtree.nw.bounds[2], quadtree.nw.bounds[3])
+                @g.ctx.fillText("#{quadtree.nw.id}", quadtree.nw.bounds[0] + quadtree.nw.bounds[2]*0.5, quadtree.nw.bounds[1] + quadtree.nw.bounds[3]*0.5)
+
+            if quadtree.ne?
+                @drawQuadTree(quadtree.ne)
+                @g.ctx.strokeRect(quadtree.ne.bounds[0], quadtree.ne.bounds[1], quadtree.ne.bounds[2], quadtree.ne.bounds[3])
+                @g.ctx.fillText("#{quadtree.ne.id}", quadtree.ne.bounds[0] + quadtree.ne.bounds[2]*0.5, quadtree.ne.bounds[1] + quadtree.ne.bounds[3]*0.5)
+
+            if quadtree.sw?
+                @drawQuadTree(quadtree.sw)
+                @g.ctx.strokeRect(quadtree.sw.bounds[0], quadtree.sw.bounds[1], quadtree.sw.bounds[2], quadtree.sw.bounds[3])
+                @g.ctx.fillText("#{quadtree.sw.id}", quadtree.sw.bounds[0] + quadtree.sw.bounds[2]*0.5, quadtree.sw.bounds[1] + quadtree.sw.bounds[3]*0.5)
+
+            if quadtree.se?
+                @drawQuadTree(quadtree.se)
+                @g.ctx.strokeRect(quadtree.se.bounds[0], quadtree.se.bounds[1], quadtree.se.bounds[2], quadtree.se.bounds[3])
+                @g.ctx.fillText("#{quadtree.se.id}", quadtree.se.bounds[0] + quadtree.se.bounds[2]*0.5, quadtree.se.bounds[1] + quadtree.se.bounds[3]*0.5)
+        
+        draw: (delta) ->
+            super(delta)
+            @g.ctx.setTransform(
+                @_transform[0],
+                @_transform[3],
+                @_transform[1],
+                @_transform[4],
+                @_transform[2],
+                @_transform[5]
+            )
+            @drawQuadTree(@quadtree)
+            if @current_mode is "mode-place"
+                return if not @selected_tile? or not @tile_under_mouse?
+                @g.ctx.globalAlpha = 0.5
+                @g.ctx.drawImage(@selected_tile_sprite.img, @tile_under_mouse.position[0] - @selected_tile_x, @tile_under_mouse.position[1] - @selected_tile_y)
+                @g.ctx.globalAlpha = 1.0
+
     return IsometricMap

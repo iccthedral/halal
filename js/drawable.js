@@ -9,58 +9,70 @@
     Drawable = (function() {
       Drawable.prototype.drawableToggleState = function(state) {
         if (state == null) {
-          state = DrawableStates.stroke;
+          state = 0x00;
         }
         return this._drawableState ^= state;
       };
 
       Drawable.prototype.drawableOnState = function(state) {
+        if (state == null) {
+          state = 0x00;
+        }
         return this._drawableState |= state;
       };
 
       Drawable.prototype.drawableOffState = function(state) {
+        if (state == null) {
+          state = 0x00;
+        }
         this.drawableOnState(state);
         return this.drawableToggleState(state);
       };
 
       Drawable.prototype.drawableIsState = function(state) {
+        if (state == null) {
+          state = 0x00;
+        }
         return (this._drawableState & state) === state;
       };
 
+      Drawable.prototype.destructor = function() {
+        this.removeTrigger("CHANGE", this.drawable_change);
+        this.removeTrigger("POST_FRAME", this.drawable_post_frame);
+        return console.info("You got destroyed");
+      };
+
       function Drawable() {
-        llogd(this);
-        this._drawableState = 0x00;
+        this._drawableState = 0xF00;
         this.stroke_color = "white";
         this.fill_color = "orange";
         this.sprite = null;
         this.glow_amount = 1;
         this.glow_color = "blue";
         this.stroke_width = 1;
-        this.on("CHANGE", function(key, val) {
-          var shape;
+        this.opacity = 1;
+        this.on("CHANGE", this.drawable_change = function(key, val) {
           if (key === "sprite") {
+            console.log("koliko puta ide ovo");
             if ((this.sprite == null) || !this.sprite instanceof Sprite) {
               return;
             }
-            shape = Geometry.createPolygonFromRectangle(this.sprite.w2, this.sprite.h2);
-            lloge(shape);
-            debugger;
-            this.setShape(shape);
-            this.drawableOnState(this.DrawableStates.Sprite);
-            this.drawableOffState(this.DrawableStates.Fill);
-            return this.drawableOffState(this.DrawableStates.Stroke);
+            this.trigger("SPRITE_ADDED", this.sprite);
+            this.drawableOnState(Drawable.DrawableStates.Sprite);
+            this.drawableOffState(Drawable.DrawableStates.Fill);
+            return this.drawableOffState(Drawable.DrawableStates.Stroke);
           } else if (key === "glow" && val === true) {
-            this.drawableOnState(this.DrawableStates.Stroke);
-            return this.drawableOnState(this.DrawableStates.Glow);
+            this.drawableOnState(Drawable.DrawableStates.Stroke);
+            return this.drawableOnState(Drawable.DrawableStates.Glow);
           } else if (key === "glow" && val === false) {
-            return this.drawableOffState(this.DrawableStates.Glow);
+            return this.drawableOffState(Drawable.DrawableStates.Glow);
           }
         });
-        this.on("POST_FRAME", function(ctx, delta) {
+        this.on("POST_FRAME", this.drawable_post_frame = function(ctx, delta) {
           /* @FILL*/
 
           var i, mid, p, p1, p2;
-          if (this.drawableIsState(this.DrawableStates.Fill)) {
+          if (this.drawableIsState(Drawable.DrawableStates.Fill)) {
             ctx.fillStyle = this.fill_color;
             ctx.beginPath();
             ctx.moveTo(this._mesh[0][0], this._mesh[0][1]);
@@ -74,18 +86,18 @@
           }
           /* @DRAW @SPRITE*/
 
-          if (this.drawableIsState(this.DrawableStates.Sprite) && (this.sprite != null)) {
+          if (this.drawableIsState(Drawable.DrawableStates.Sprite) && (this.sprite != null)) {
             ctx.drawImage(this.sprite.img, -this.sprite.w2, -this.sprite.h2);
           }
           /* @GLOW*/
 
-          if (this.drawableIsState(this.DrawableStates.Glow)) {
+          if (this.drawableIsState(Drawable.DrawableStates.Glow)) {
             ctx.shadowColor = this.glow_color;
             ctx.shadowBlur = this.glow_amount;
           }
           /* @STROKE*/
 
-          if (this.drawableIsState(this.DrawableStates.Stroke)) {
+          if (this.drawableIsState(Drawable.DrawableStates.Stroke)) {
             ctx.lineWidth = this.stroke_width;
             ctx.strokeStyle = this.stroke_color;
             ctx.beginPath();
@@ -99,12 +111,12 @@
             ctx.stroke();
             ctx.lineWidth = 1;
           }
-          if (this.drawableIsState(this.DrawableStates.Glow)) {
+          if (this.drawableIsState(Drawable.DrawableStates.Glow)) {
             ctx.shadowBlur = 0;
           }
           /* @DRAW @NORMALS*/
 
-          if (this.drawableIsState(this.DrawableStates.DrawNormals)) {
+          if (this.drawableIsState(Drawable.DrawableStates.DrawNormals)) {
             i = 0;
             p1 = Vec2.acquire();
             p2 = Vec2.acquire();
@@ -132,10 +144,10 @@
             Vec2.release(mid);
             Vec2.release(p);
           }
-          if (this.drawableIsState(this.DrawableStates.DrawCenter)) {
+          if (this.drawableIsState(Drawable.DrawableStates.DrawCenter)) {
             ctx.strokeRect(0, 0, 1, 1);
           }
-          if (this.drawableIsState(this.DrawableStates.DrawBBox)) {
+          if (this.drawableIsState(Drawable.DrawableStates.DrawBBox)) {
             return ctx.strokeRect(this._bbox[0], this._bbox[1], this._bbox[2], this._bbox[3]);
           }
         });
@@ -144,7 +156,7 @@
       return Drawable;
 
     })();
-    Drawable.prototype.DrawableStates = {
+    Drawable.DrawableStates = {
       DrawCenter: 0x01,
       DrawOriginNormals: 0x02,
       Glow: 0x04,

@@ -73,10 +73,10 @@ define ["vec2", "matrix3", "mathutil"],
     ###
     Geometry.createPolygonFromRectangle = (w2, h2) ->
         return [
-            Vec2.from(-w2, h2),
-            Vec2.from(w2, -h2),
             Vec2.from(-w2, -h2),
-            Vec2.from(w2, h2)
+            Vec2.from(w2, -h2),
+            Vec2.from(w2, h2),
+            Vec2.from(-w2, h2)
         ]
 
     Geometry.isPointInRectangle = (p, rect) ->
@@ -170,9 +170,9 @@ define ["vec2", "matrix3", "mathutil"],
     Geometry.rectangleIntersectsRectangle = (rectA, rectB) ->
         return rectA[0] <= (rectB[0] + rectB[2]) and (rectA[0] + rectA[2]) >= rectB[0] and rectA[1] <= (rectB[1] + rectB[3]) and (rectA[3] + rectA[1]) >= rectB[1]
 
-    Geometry.rectangeIntersectsOrContainsRectangle = (rectA, rectB) ->
+    Geometry.rectangleIntersectsOrContainsRectangle = (rectA, rectB) ->
         return @rectangleIntersectsRectangle(rectA, rectB) or 
-            @rectangleContainsRectangle(rectA, rectB)
+            @rectangleContainsRectangle(rectA, rectB) or @rectangleContainsRectangle(rectB, rectA)
 
     Geometry.rectangleIntersectsOrContainsCircle = (rect, circpos, radius) ->
         return (
@@ -241,10 +241,9 @@ define ["vec2", "matrix3", "mathutil"],
             a[mark] = val
             indices[mark] = i
         for ind, i in indices
-            Vec2.copy(a[i], poly[ind])
-        # Vec2.release(p) for p in poly[ind]
+            a[i] = poly[ind]
         Vec2.release(t)
-        return a.reverse()
+        return a
 
     ###
         Returns convex hull of a concave degenerate polygon

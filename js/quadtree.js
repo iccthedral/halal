@@ -1,8 +1,8 @@
 (function() {
   "use strict";
-  define(["vec2"], function(Vec2) {
+  define(["vec2", "geometry", "matrix3"], function(Vec2, Geometry, Matrix3) {
     var QuadTree, capacity, total;
-    capacity = 1;
+    capacity = 8;
     total = 0;
     QuadTree = (function() {
       function QuadTree(bounds) {
@@ -20,11 +20,12 @@
       };
 
       QuadTree.prototype.insert = function(ent) {
-        if (!Hal.math.isPointInRect(ent.worldPos(), this.bounds)) {
+        if (!Geometry.isPointInRectangle(ent.position, this.bounds)) {
+          llogd("Entity doesnt't interrsect " + this.id);
           return false;
         }
         if (this.pts.length < capacity) {
-          ent.quadspace = this;
+          ent.attr("quadspace", this);
           this.pts.push(ent);
           total++;
           return true;
@@ -51,34 +52,98 @@
         var ind;
         ind = this.pts.indexOf(ent);
         if (ind === -1) {
+          lloge("Entity " + ent.id + " is not in quadspace");
           return;
         }
         this.pts.splice(ind, 1);
         return total--;
       };
 
-      QuadTree.prototype.searchInRange = function(pos, range, scene) {
-        var cp, entsInRange, lab, p, _i, _len, _ref;
+      QuadTree.prototype.findById = function(id) {
+        var findRec, out;
+        out = null;
+        findRec = function(where) {
+          if (id === where.id) {
+            return out = where;
+          } else if (out == null) {
+            if ((where.nw != null) && (out == null)) {
+              findRec(where.nw);
+            }
+            if ((where.sw != null) && (out == null)) {
+              findRec(where.sw);
+            }
+            if ((where.ne != null) && (out == null)) {
+              findRec(where.ne);
+            }
+            if ((where.se != null) && (out == null)) {
+              return findRec(where.se);
+            }
+          }
+        };
+        findRec(this);
+        return out;
+      };
+
+      QuadTree.prototype.findUnder = function() {
+        var out;
+        out = this.pts.slice();
+        if (this.nw != null) {
+          out = out.concat(this.nw.findUnder());
+        }
+        if (this.sw != null) {
+          out = out.concat(this.sw.findUnder());
+        }
+        if (this.ne != null) {
+          out = out.concat(this.ne.findUnder());
+        }
+        if (this.se != null) {
+          out = out.concat(this.se.findUnder());
+        }
+        return out;
+      };
+
+      QuadTree.prototype.findQuadsInRectangle = function(rect, matrix) {
+        var quads, transformBnds;
+        transformBnds = Geometry.transformRectangle(this.bounds, matrix);
+        quads = [];
+        if (!Geometry.rectangleIntersectsOrContainsRectangle(rect, transformBnds)) {
+          return quads;
+        }
+        quads = [this];
+        if (this.nw == null) {
+          return quads;
+        }
+        quads = quads.concat(this.nw.findQuadsInRectangle(rect, matrix));
+        quads = quads.concat(this.ne.findQuadsInRectangle(rect, matrix));
+        quads = quads.concat(this.sw.findQuadsInRectangle(rect, matrix));
+        quads = quads.concat(this.se.findQuadsInRectangle(rect, matrix));
+        return quads;
+      };
+
+      QuadTree.prototype.findEntitiesInRectangle = function(range, matrix) {
+        var entsInRange, p, ret, transformBnds, _i, _len, _ref;
         entsInRange = [];
-        lab = [pos[0] - range, pos[1] - range, 2 * range, 2 * range];
-        if (!Hal.math.rectIntersectsRect(lab, this.bounds)) {
+        transformBnds = Geometry.transformRectangle(this.bounds, matrix);
+        if (!Geometry.rectangleIntersectsOrContainsRectangle(range, transformBnds)) {
+          console.debug("not in this quadspace: " + this.id);
           return entsInRange;
         }
         _ref = this.pts;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           p = _ref[_i];
-          cp = p.worldToLocal(scene.localToWorld(pos));
-          if (Hal.math.rectIntersectsRect(p.bbox, [cp[0] - range * 0.5, cp[1] - range * 0.5, range, range])) {
-            entsInRange.push(p);
+          ret = Geometry.rectangleIntersectsOrContainsRectangle(range, Geometry.transformRectangle(p._bbox, Matrix3.mul([], p.transform(), matrix)));
+          if (!ret) {
+            continue;
           }
+          entsInRange.push(p);
         }
         if (this.nw == null) {
           return entsInRange;
         }
-        entsInRange = entsInRange.concat(this.nw.searchInRange(pos, range, scene));
-        entsInRange = entsInRange.concat(this.ne.searchInRange(pos, range, scene));
-        entsInRange = entsInRange.concat(this.sw.searchInRange(pos, range, scene));
-        entsInRange = entsInRange.concat(this.se.searchInRange(pos, range, scene));
+        entsInRange = entsInRange.concat(this.nw.searchInRange(range, scene));
+        entsInRange = entsInRange.concat(this.ne.searchInRange(range, scene));
+        entsInRange = entsInRange.concat(this.sw.searchInRange(range, scene));
+        entsInRange = entsInRange.concat(this.se.searchInRange(range, scene));
         return entsInRange;
       };
 

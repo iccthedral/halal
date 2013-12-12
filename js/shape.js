@@ -4,7 +4,7 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
-  define(["vec2", "matrix3", "halalentity", "transformable", "drawable", "geometry", "collidable", "bbresolvers", "sprite"], function(Vec2, Matrix3, HalalEntity, Transformable, Drawable, Geometry, Collidable, BBResolvers, Sprite) {
+  define(["vec2", "matrix3", "halalentity", "transformable", "drawable", "geometry", "collidable", "bbresolvers", "sprite", "groupy"], function(Vec2, Matrix3, HalalEntity, Transformable, Drawable, Geometry, Collidable, BBResolvers, Sprite, Groupy) {
     var Shape, reactives;
     reactives = ["angle", "scale", "position", "origin"];
     Shape = (function(_super) {
@@ -16,25 +16,35 @@
 
       Shape.include(Collidable);
 
+      /* grupi*/
+
+
+      Shape.include(Groupy);
+
       function Shape(meta) {
         Shape.__super__.constructor.call(this);
         this._mesh = null;
         this._numvertices = 0;
         this.scene = null;
-        if (meta.shape != null) {
-          this.setShape(meta.shape);
-          lloge(meta.shape);
-          this.drawableOnState(this.DrawableStates.Stroke);
-        }
-        if ((meta.x != null) && (meta.y != null)) {
-          this.setPosition(meta.x, meta.y);
-        }
+        this.quadspace = null;
+        this.parseMeta(meta);
+        this.init();
         return this;
       }
 
       return Shape;
 
     })(HalalEntity);
+    Shape.prototype.parseMeta = function(meta) {
+      if (meta.shape != null) {
+        this.setShape(meta.shape);
+        this.drawableOnState(Drawable.DrawableStates.Stroke);
+      }
+      if ((meta.x != null) && (meta.y != null)) {
+        this.setPosition(meta.x, meta.y);
+        return lloge(this.position);
+      }
+    };
     Shape.prototype.init = function() {
       this.on("CHANGE", function(key, val) {
         if (__indexOf.call(reactives, key) >= 0) {
@@ -43,26 +53,33 @@
           return this._update_inverse = true;
         }
       });
+      Shape.__super__.init.call(this);
       return this;
+    };
+    Shape.prototype.setSprite = function(sprite) {
+      return this.attr("sprite", sprite);
+    };
+    Shape.prototype.scenePosition = function() {
+      return Hal.geometry.transformPoint(this.position[0], this.position[1], Matrix3.mul([], this.scene.transform(), this.transform()));
+    };
+    Shape.prototype.worldPosition = function() {
+      return this.position;
     };
     Shape.prototype.setShape = function(mesh) {
       var center;
-      if (this._mesh != null) {
-        this.destroyMesh();
-      }
       if (!Geometry.isPolygonConvex(mesh)) {
         llogw("Oh snap, mesh was degenerate");
         mesh = Geometry.polygonSortVertices(mesh);
       }
-      center = Hal.geometry.polygonCentroidPoint(mesh);
-      llogd(center);
+      if (this._mesh != null) {
+        this.destroyMesh();
+      }
+      center = Hal.geometry.polygonMeanPoint(mesh);
       this.setOrigin(center[0], center[1]);
       Vec2.release(center);
-      llogd(mesh);
-      debugger;
       this._mesh = mesh;
       this._numvertices = this._mesh.length;
-      this.trigger("SHAPE_CHANGED");
+      this.trigger("SHAPE_CHANGED", this._mesh);
       return this;
     };
     Shape.prototype.addVertex = function(x, y) {
@@ -90,20 +107,23 @@
       return Geometry.angleOf([p[0] - this.origin[0], p[1] - this.origin[1]]);
     };
     Shape.prototype.addShape = function() {};
+    Shape.prototype.destroy = function() {
+      this.scene.trigger("ENTITY_REQ_DESTROYING", this);
+      this.destructor();
+    };
     Shape.prototype.destroyMesh = function() {
-      var p, _i, _len, _ref, _results;
+      var p, _i, _len, _ref;
       this._numvertices = 0;
       _ref = this._mesh;
-      _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         p = _ref[_i];
         if (p instanceof Float32Array) {
-          _results.push(Vec2.release(p));
+          Vec2.release(p);
         } else {
-          _results.push(void 0);
+          lloge("That is some strange mesh");
         }
       }
-      return _results;
+      return this.trigger("SHAPE_CHANGED");
     };
     return Shape;
   });

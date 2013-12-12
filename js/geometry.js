@@ -84,7 +84,7 @@
     */
 
     Geometry.createPolygonFromRectangle = function(w2, h2) {
-      return [Vec2.from(-w2, h2), Vec2.from(w2, -h2), Vec2.from(-w2, -h2), Vec2.from(w2, h2)];
+      return [Vec2.from(-w2, -h2), Vec2.from(w2, -h2), Vec2.from(w2, h2), Vec2.from(-w2, h2)];
     };
     Geometry.isPointInRectangle = function(p, rect) {
       return p[0] >= rect[0] && p[0] <= (rect[0] + rect[2]) && p[1] >= rect[1] && p[1] <= (rect[1] + rect[3]);
@@ -197,8 +197,8 @@
     Geometry.rectangleIntersectsRectangle = function(rectA, rectB) {
       return rectA[0] <= (rectB[0] + rectB[2]) && (rectA[0] + rectA[2]) >= rectB[0] && rectA[1] <= (rectB[1] + rectB[3]) && (rectA[3] + rectA[1]) >= rectB[1];
     };
-    Geometry.rectangeIntersectsOrContainsRectangle = function(rectA, rectB) {
-      return this.rectangleIntersectsRectangle(rectA, rectB) || this.rectangleContainsRectangle(rectA, rectB);
+    Geometry.rectangleIntersectsOrContainsRectangle = function(rectA, rectB) {
+      return this.rectangleIntersectsRectangle(rectA, rectB) || this.rectangleContainsRectangle(rectA, rectB) || this.rectangleContainsRectangle(rectB, rectA);
     };
     Geometry.rectangleIntersectsOrContainsCircle = function(rect, circpos, radius) {
       return this.rectangleIntersectsCircle(rect, circpos, radius) || this.isPointInRectangle(circpos, rect);
@@ -272,10 +272,10 @@
       }
       for (i = _k = 0, _len = indices.length; _k < _len; i = ++_k) {
         ind = indices[i];
-        Vec2.copy(a[i], poly[ind]);
+        a[i] = poly[ind];
       }
       Vec2.release(t);
-      return a.reverse();
+      return a;
     };
     /*
         Returns convex hull of a concave degenerate polygon

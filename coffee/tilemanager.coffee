@@ -10,66 +10,62 @@ define ["shape"],
             @row    = meta.row
             @col    = meta.col
             @layers = [null, null, null, null, null]
+            return @
 
-        addTileLayer: (tile, layer) ->
-            layer = layer || tile.layer
+        containsLayer: (layermeta, layer) ->
+            layer = layer || layermeta.layer
             layer_present = @layers[layer]?
-            
-            if layer_present and @layers[layer].name is tile.name
-                llogd "You're trying to add the same layer"
-                return
+            if layer_present and @layers[layer].name is layermeta.name
+                return true
+            return false
 
-            if layer_present
+        addTileLayer: (layerobj, layer) ->
+            if @layers[layer]?
                 @layers[layer].destroy()
-            
-            @layers[layer] = tile
-            # ent = @addEntityToQuadspace(tile)
-            # ent.attr("shape", @shape)
-            # ent.attr("draw_shape", false)
-            return ent
+            @layers[layer] = layerobj
+            layerobj.attr("holder", @)
+            return layerobj
 
-        init: () ->
-            super()
-            # @drawableOffState(@DrawableStates.Stroke)
+        init: (meta) ->
+            super(meta)
             @on "LAYER_DESTROYED", (layer) ->
                 llogd "layer destroyed #{layer}"
                 @layers[layer] = null
             return @
 
-        destroy: (destroy_children = false) ->
-            @parent.trigger "ENTITY_DESTROYED", @
-            super(destroy_children)
+        destroy: () ->
+            super()
+            @destroyMesh()
+
+        destroyMesh: () ->            
+            @_mesh = []
+            @_numvertices = 0
+            return
 
     class TileLayer extends Shape
         constructor: (meta) ->
             super(meta)
+            @setSprite(Hal.asm.getSprite(meta.sprite))
             @name   = if meta.name? then meta.name else "#{@id}"
-            @layer = if meta.layer? then meta.layer else 0
+            @layer  = if meta.layer? then meta.layer else 0
+
+        init: (meta) ->
+            super(meta)
 
             @on "SELECTED", () ->
-                @attr("glow", true)
-                @attr("glow_color", "blue")
-                @attr("draw_shape", true)
-                @attr("stroke_color", "white")
-                Hal.tween(@,
-                    "line_width",
-                    200,
-                    1,
-                    14.5,
-                    5
-                )
+                console.log "I'm selected: #{@toString()}"
 
             @on "DESELECTED", () ->
-                @attr("line_width", 1)
-                @attr("glow", false)
-                @attr("draw_shape", false)
+                console.log "I'm deselected: #{@toString()}"
 
         destroy: (destroy_children = true) ->
-            llogd "destroying myself"
-            llogd @
-            if @parent?
-                @parent.trigger "LAYER_DESTROYED", @layer
-            super(destroy_children)
+            console.log "Destroying myself #{@toString()}"
+            if @holder?
+                @holder.trigger "LAYER_DESTROYED", @layer
+            super()
+
+        toString: () ->
+            return "#{@holder.row}, #{@holder.col}"
 
     class TileManager
         constructor: (@map, tileList = "") ->
@@ -109,34 +105,30 @@ define ["shape"],
             delete @tile_name_map[t.name]
             t = null
 
-        newTileLayer: (meta) ->
-            return new TileLayer(meta)
+        newTileLayer: (meta, layer) ->
+            return new TileLayer(meta, layer)
 
         newTileHolder: (meta) ->
-            # meta.parent = @map
             return new Tile(meta)
 
-        addTileLayerToHolder: (holder, tile, layer = tile.layer, x_offset = 0, y_offset = 0) ->
-            if not holder? or not tile?
-                llogd "holder or tile is null"
+        addTileLayerToHolder: (holder, layermeta, x, y, layer = layermeta.layer) ->
+            if holder.containsLayer(layermeta, layer)
+                console.warn "You can't add same layer #{layermeta.name} twice"
                 return
 
-            if tile.attr("group") is "default" 
+            if not holder? or not layermeta?
+                console.error "Holder or layermeta is null"
+                return
+
+            tile = @newTileLayer(layermeta, layer)
+
+            if tile.attr("group") is "default"
                 tile.attr("group", "layer_#{layer}")
 
-            llogd "x_offset: #{x_offset}"
-            llogd "y_offset: #{y_offset}"
-
             tile = holder.addTileLayer(tile, layer)
-            return if not tile?
-
-            # pos = holder.worldToLocal(@map.localToWorld([x_offset - @map.tilew2, y_offset - @map.tileh2]))
-            # llogd pos
-
-            llogd x_offset
-            llogd y_offset
-            
-            # tile.attr("w", x_offset)
-            # tile.attr("h", y_offset)
+            tile.setPosition(x, y)
+            tile.attr("scene", @map)
+            @map.quadtree.insert(tile)
+            @map.addEntity(tile)
 
             return tile

@@ -22,15 +22,17 @@ define [],
         llogi "Added listener: TYPE = #{type}"
         return clb
 
-    EventDispatcher::remove = (type, clb) ->
+    EventDispatcher::removeTrigger = (type, clb) ->
         if @listeners[type]?
-            ind = @listeners[type].indexOf(clb)
-            @listeners[type].splice(ind, 1) if ind isnt -1
-            # clb = null
+            list_arr = @listeners[type].slice()
+            ind = list_arr.indexOf(clb)
+            list_arr.splice(ind, 1) if ind isnt -1
+            @listeners[type] = list_arr
+            clb = null
             if ind isnt -1
                 llogi "Removed listener: TYPE = #{type}"
 
-    EventDispatcher::removeAll = (type) ->
+    EventDispatcher::removeAllTriggers = (type) ->
         if type
             delete @listeners[type]
             llogi "Removed listeners: TYPE = #{type}"
@@ -38,13 +40,13 @@ define [],
             keys = Object.keys(@listeners)
             for key in keys
                 llogi "Removed listeners: KEY = #{key}"
-                @remove(key, list) for list in @listeners[key]
+                @removeTrigger(key, list) for list in @listeners[key]
 
     EventDispatcher::trigger = (type, arg1, arg2, arg3) ->
         return if not @listeners[type]
-        for clb in @listeners[type]
-            if clb? 
-                clb.call(@, arg1, arg2, arg3)
+        list_arr = @listeners[type].slice()
+        for clb in list_arr #@listeners[type]
+            clb.call(@, arg1, arg2, arg3)
 
     return EventDispatcher
     

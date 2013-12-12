@@ -21,6 +21,8 @@ define [
     "shape"
     "line"
     "mathutil"
+    "bbresolvers",
+    "drawable"
 ],
 
 (
@@ -43,7 +45,9 @@ define [
     Ajax, 
     Shape,
     Line,
-    MathUtil
+    MathUtil,
+    BBResolvers,
+    Drawable
 ) ->
 
     ###
@@ -203,7 +207,7 @@ define [
                 obj.attr(property, to, arr_index)
                 if repeat is 0
                     defer.resolve(obj, $)
-                    Hal.remove "ENTER_FRAME", $
+                    Hal.removeTrigger "ENTER_FRAME", $
                     return
                 else
                     accul = 0
@@ -224,7 +228,7 @@ define [
                 repeat--
                 func(to, delta)
                 if repeat is 0
-                    Hal.remove "ENTER_FRAME", $
+                    Hal.removeTrigger "ENTER_FRAME", $
                     return
                 else
                     accul = 0
@@ -247,14 +251,16 @@ define [
     Halal::im       = new ImgUtils()
 
     ### classes ###
-    Halal::Line         = Line
-    Halal::Vec2         = Vec2
-    Halal::Matrix3      = Matrix3
-    Halal::Shape        = Shape
-    Halal::Scene        = Scene
-    Halal::Ajax         = Ajax
-    Halal::IsometricMap = IsometricMap
-    
+    Halal::Line             = Line
+    Halal::Vec2             = Vec2
+    Halal::Matrix3          = Matrix3
+    Halal::Shape            = Shape
+    Halal::Scene            = Scene
+    Halal::Ajax             = Ajax
+    Halal::IsometricMap     = IsometricMap
+    Halal::BBResolvers      = BBResolvers
+    Halal::DrawableStates   = Drawable.DrawableStates
+
     Halal::Keys = 
         SHIFT: 16
         G: 71
@@ -267,6 +273,7 @@ define [
         THREE: 51
         FOUR: 52
         DELETE: 46
+        SPACE: 32
         LEFT: 37
         RIGHT: 39
         UP: 38

@@ -8,48 +8,56 @@ define ["vec2", "geometry", "sprite"],
 (Vec2, Geometry, Sprite) ->
 
     class Drawable
-        drawableToggleState: (state = DrawableStates.stroke) ->
+        drawableToggleState: (state = 0x00) ->
             @_drawableState ^= state
 
-        drawableOnState: (state) ->
+        drawableOnState: (state = 0x00) ->
             @_drawableState |= state
 
-        drawableOffState: (state) ->
+        drawableOffState: (state = 0x00) ->
             @drawableOnState(state)
             @drawableToggleState(state)
 
-        drawableIsState: (state) ->
+        drawableIsState: (state = 0x00) ->
             return (@_drawableState & state) is state;
 
+        destructor: () ->
+            @removeTrigger "CHANGE", @drawable_change
+            @removeTrigger "POST_FRAME", @drawable_post_frame
+            console.info "You got destroyed"
+            
         constructor: () ->
-            llogd @
-            @_drawableState = 0x00
+            @_drawableState = 0xF00
             @stroke_color   = "white"
             @fill_color     = "orange"
             @sprite         = null
             @glow_amount    = 1
             @glow_color     = "blue"
             @stroke_width   = 1
+            @opacity        = 1
 
-            @on "CHANGE", (key, val) ->
+            @on "CHANGE", @drawable_change = (key, val) ->
                 if key is "sprite"
+                    console.log "koliko puta ide ovo"
                     return if not @sprite? or not @sprite instanceof Sprite
-                    shape = Geometry.createPolygonFromRectangle(@sprite.w2, @sprite.h2)
-                    lloge shape
-                    debugger
-                    @setShape(shape)
-                    @drawableOnState(@DrawableStates.Sprite)
-                    @drawableOffState(@DrawableStates.Fill)
-                    @drawableOffState(@DrawableStates.Stroke)
+                    # shape = Geometry.createPolygonFromRectangle(@sprite.w, @sprite.h)
+                    # lloge shape
+                    # @setShape(shape)
+                    @trigger "SPRITE_ADDED", @sprite
+                    @drawableOnState(Drawable.DrawableStates.Sprite)
+                    @drawableOffState(Drawable.DrawableStates.Fill)
+                    @drawableOffState(Drawable.DrawableStates.Stroke)
                 else if key is "glow" and val is true
-                    @drawableOnState(@DrawableStates.Stroke)
-                    @drawableOnState(@DrawableStates.Glow)
+                    @drawableOnState(Drawable.DrawableStates.Stroke)
+                    @drawableOnState(Drawable.DrawableStates.Glow)
                 else if key is "glow" and val is false
-                    @drawableOffState(@DrawableStates.Glow)
+                    @drawableOffState(Drawable.DrawableStates.Glow)
+                # else if key is "opacity"
+                #     @opacity
 
-            @on "POST_FRAME", (ctx, delta) ->
+            @on "POST_FRAME", @drawable_post_frame = (ctx, delta) ->
                 ### @FILL ###
-                if @drawableIsState(@DrawableStates.Fill)
+                if @drawableIsState(Drawable.DrawableStates.Fill)
                     ctx.fillStyle = @fill_color
                     ctx.beginPath()
                     ctx.moveTo(@_mesh[0][0], @_mesh[0][1])
@@ -61,16 +69,16 @@ define ["vec2", "geometry", "sprite"],
                     ctx.fill()
 
                 ### @DRAW @SPRITE ###
-                if @drawableIsState(@DrawableStates.Sprite) and @sprite?
+                if @drawableIsState(Drawable.DrawableStates.Sprite) and @sprite?
                     ctx.drawImage(@sprite.img, -@sprite.w2, -@sprite.h2)
 
                 ### @GLOW ###
-                if @drawableIsState(@DrawableStates.Glow)
+                if @drawableIsState(Drawable.DrawableStates.Glow)
                     ctx.shadowColor = @glow_color
                     ctx.shadowBlur = @glow_amount
 
                 ### @STROKE ###
-                if @drawableIsState(@DrawableStates.Stroke)
+                if @drawableIsState(Drawable.DrawableStates.Stroke)
                     ctx.lineWidth = @stroke_width
                     ctx.strokeStyle = @stroke_color
                     ctx.beginPath()
@@ -83,11 +91,11 @@ define ["vec2", "geometry", "sprite"],
                     ctx.stroke()
                     ctx.lineWidth = 1
 
-                if @drawableIsState(@DrawableStates.Glow)
+                if @drawableIsState(Drawable.DrawableStates.Glow)
                     ctx.shadowBlur = 0
 
                 ### @DRAW @NORMALS ###
-                if @drawableIsState(@DrawableStates.DrawNormals)
+                if @drawableIsState(Drawable.DrawableStates.DrawNormals)
                     i = 0
                     p1 = Vec2.acquire()
                     p2 = Vec2.acquire()
@@ -114,13 +122,13 @@ define ["vec2", "geometry", "sprite"],
                     Vec2.release(mid)
                     Vec2.release(p)
 
-                if @drawableIsState(@DrawableStates.DrawCenter)
+                if @drawableIsState(Drawable.DrawableStates.DrawCenter)
                     ctx.strokeRect(0, 0, 1, 1)
 
-                if @drawableIsState(@DrawableStates.DrawBBox)
+                if @drawableIsState(Drawable.DrawableStates.DrawBBox)
                     ctx.strokeRect(@_bbox[0], @_bbox[1], @_bbox[2], @_bbox[3])
 
-    Drawable::DrawableStates = 
+    Drawable.DrawableStates = 
         DrawCenter:             0x01
         DrawOriginNormals:      0x02
         Glow:                   0x04
@@ -129,4 +137,5 @@ define ["vec2", "geometry", "sprite"],
         Sprite:                 0x20
         DrawBBox:               0x40
         Stroke:                 0x80
+
     return Drawable

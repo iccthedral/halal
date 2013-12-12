@@ -12,8 +12,13 @@ define ["vec2", "geometry", "bbresolvers"],
             @in_collision = false
             @_bbox = new Array()
 
-            @on "SHAPE_CHANGED", () ->
-                @_bbox = BBResolvers.AABBFromPolygon(@_mesh)
+            @on "SHAPE_CHANGED", (mesh) ->
+                lloge "shape changed"
+                lloge mesh
+                @_bbox = BBResolvers.AABBFromPolygon(mesh)
+
+            @on "SPRITE_ADDED", (sprite) ->
+                @_bbox = BBResolvers.AABBoxFromSprite(sprite)
 
             @on "COLLISION_STARTED", (en) ->
                 @stroke_color = "yellow"
@@ -22,7 +27,7 @@ define ["vec2", "geometry", "bbresolvers"],
             @on "COLLISION_ENDED", (en) ->
                 @stroke_color = "white"
                 @in_collision = false
-
+                
         intersectsWithBBox: (other) ->
             return Geometry.rectangleIntersectsRectangle(
                 Geometry.transformRectangle(other._bbox, @transform()),

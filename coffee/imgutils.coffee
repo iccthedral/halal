@@ -44,6 +44,7 @@ define [],
                 data[pos+3]
             ]
             @hit_ctx.clearRect(0, 0, 1, 1)
+            
         tintImage: (img, color, opacity) ->
             tint_buff = @createCanvas(img.width, img.height)
             tint_ctx = tint_buff.getContext("2d")

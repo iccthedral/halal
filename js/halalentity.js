@@ -5,7 +5,7 @@
     __slice = [].slice;
 
   define(["eventdispatcher", "deferred"], function(EventDispatcher, Deferred) {
-    var HalalEntity, Tweener, _init_map, _ref;
+    var HalalEntity, Tweener, _deinit_map, _init_map, _ref;
     Tweener = (function() {
       function Tweener(obj) {
         this.obj = obj;
@@ -45,10 +45,10 @@
             _this.tween(_this.tween_chain.pop());
             _this.num_tweens--;
           }
-          if (_this.num_tweens === 0 && (_this.done_clb != null) && !_this.paused) {
+          if (_this.num_tweens <= 0 && (_this.done_clb != null) && !_this.paused) {
             _this.done_clb.call(_this.obj);
           }
-          if (_this.num_tweens === 0 && _this.to_wait === 0) {
+          if (_this.num_tweens <= 0 && _this.to_wait === 0) {
             return _this.animating = false;
           }
         });
@@ -66,7 +66,7 @@
         _ref = this.clb_ids;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           clb = _ref[_i];
-          Hal.remove("ENTER_FRAME", clb);
+          Hal.removeTrigger("ENTER_FRAME", clb);
         }
         return this;
       };
@@ -84,11 +84,10 @@
 
       Tweener.prototype.stop = function() {
         var clb, _i, _len, _ref;
-        this.paused = true;
         _ref = this.clb_ids;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           clb = _ref[_i];
-          Hal.remove("ENTER_FRAME", clb);
+          Hal.removeTrigger("ENTER_FRAME", clb);
         }
         this.clb_ids = [];
         this.num_tweens = 0;
@@ -109,6 +108,7 @@
 
     })();
     _init_map = {};
+    _deinit_map = {};
     HalalEntity = (function(_super) {
       __extends(HalalEntity, _super);
 
@@ -127,6 +127,12 @@
             _init_map[this.name] = [];
           }
           _init_map[this.name].push(obj.prototype.constructor);
+          if (obj.prototype.destructor != null) {
+            if (_deinit_map[this.name] == null) {
+              _deinit_map[this.name] = [];
+            }
+            _deinit_map[this.name][obj.prototype.constructor.name] = obj.prototype.destructor;
+          }
         }
         llogi("Extending from " + this.name + " with " + obj.name);
         if (!obj.prototype) {
@@ -136,7 +142,7 @@
         _results = [];
         for (key in _ref1) {
           val = _ref1[key];
-          if (key === "constructor" || key === "init") {
+          if (key === "constructor" || key === "init" || key === "destructor") {
             continue;
           }
           if (this.prototype[key] != null) {
@@ -151,8 +157,19 @@
       return HalalEntity;
 
     })(EventDispatcher);
+    HalalEntity.prototype.destructor = function() {
+      var destructor, key, _ref1;
+      _ref1 = this.destructors;
+      for (key in _ref1) {
+        destructor = _ref1[key];
+        destructor.call(this);
+      }
+      return this.removeAllTriggers();
+    };
     HalalEntity.prototype.constructor = function() {
-      var init, _i, _len, _ref1;
+      var deinit, init, name, _i, _len, _ref1, _ref2;
+      this.id = Hal.ID();
+      this.destructors = {};
       HalalEntity.__super__.constructor.call(this);
       if (_init_map[this.__classex__]) {
         _ref1 = _init_map[this.__classex__];
@@ -160,6 +177,13 @@
           init = _ref1[_i];
           llogd("Calling " + this.__classex__ + " constructor");
           init.call(this);
+        }
+      }
+      if (_deinit_map[this.__classex__]) {
+        _ref2 = _deinit_map[this.__classex__];
+        for (name in _ref2) {
+          deinit = _ref2[name];
+          this.destructors[name] = deinit;
         }
       }
       this.tweener = new Tweener(this);
@@ -203,7 +227,8 @@
     };
     HalalEntity.prototype.tween = function(meta) {
       this.tweener.stop();
-      return this.tweener.tween(meta);
+      this.tweener.tween(meta);
+      return this.tweener;
     };
     return HalalEntity;
   });

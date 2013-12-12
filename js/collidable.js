@@ -10,8 +10,13 @@
       function Collidable() {
         this.in_collision = false;
         this._bbox = new Array();
-        this.on("SHAPE_CHANGED", function() {
-          return this._bbox = BBResolvers.AABBFromPolygon(this._mesh);
+        this.on("SHAPE_CHANGED", function(mesh) {
+          lloge("shape changed");
+          lloge(mesh);
+          return this._bbox = BBResolvers.AABBFromPolygon(mesh);
+        });
+        this.on("SPRITE_ADDED", function(sprite) {
+          return this._bbox = BBResolvers.AABBoxFromSprite(sprite);
         });
         this.on("COLLISION_STARTED", function(en) {
           this.stroke_color = "yellow";

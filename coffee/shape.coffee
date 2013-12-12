@@ -9,9 +9,9 @@ define [
     "geometry", 
     "collidable",
     "bbresolvers",
-    "sprite"
-], 
-
+    "sprite",
+    "groupy"
+],
 (
     Vec2, 
     Matrix3, 
@@ -21,7 +21,8 @@ define [
     Geometry, 
     Collidable,
     BBResolvers,
-    Sprite
+    Sprite,
+    Groupy
 ) ->
 
     reactives = ["angle", "scale", "position", "origin"]
@@ -29,23 +30,29 @@ define [
         @include Transformable
         @include Drawable
         @include Collidable
-        # @include Groupy
+
+        ### grupi  ###
+        @include Groupy
 
         constructor: (meta) ->
             super()
             @_mesh                  = null
             @_numvertices           = 0
             @scene                  = null
+            @quadspace              = null
 
-            if meta.shape?
-                @setShape(meta.shape)
-                lloge meta.shape
-                @drawableOnState(@DrawableStates.Stroke)
-            # if meta.sprite?
-            #     @attr("sprite", meta.sprite)
-            if meta.x? and meta.y?
-                @setPosition(meta.x, meta.y)
+            @parseMeta(meta)
+            @init()
             return @
+
+    Shape::parseMeta = (meta) ->
+        if meta.shape?
+            @setShape(meta.shape)
+            @drawableOnState(Drawable.DrawableStates.Stroke)
+        
+        if meta.x? and meta.y?
+            @setPosition(meta.x, meta.y)
+            lloge @position
 
     Shape::init = () ->
         @on "CHANGE", (key, val) ->
@@ -53,24 +60,34 @@ define [
                 @_update_mesh_transform = true
                 @_update_transform      = true
                 @_update_inverse        = true
+        super()
         return @
 
-    Shape::setShape = (mesh) -> #ako je vektor iz bazena
-        if @_mesh?
-            @destroyMesh()
+    Shape::setSprite = (sprite) ->
+        @attr("sprite", sprite)
 
+    Shape::scenePosition = () ->
+        return Hal.geometry.transformPoint(
+            @position[0], 
+            @position[1],
+            Matrix3.mul([], @scene.transform(), @transform())
+        )
+
+    Shape::worldPosition = () ->
+        return @position
+
+    Shape::setShape = (mesh) -> #ako je vektor iz bazena
         if not Geometry.isPolygonConvex(mesh)
             llogw "Oh snap, mesh was degenerate"
             mesh = Geometry.polygonSortVertices(mesh)
-        center = Hal.geometry.polygonCentroidPoint(mesh)
-        llogd center
+        if @_mesh?
+            @destroyMesh()
+        center = Hal.geometry.polygonMeanPoint(mesh)
         @setOrigin(center[0], center[1])
         Vec2.release(center)
-        llogd mesh
-        debugger
         @_mesh = mesh
         @_numvertices = @_mesh.length
-        @trigger "SHAPE_CHANGED"
+        @trigger "SHAPE_CHANGED", @_mesh
         return @
 
     Shape::addVertex = (x, y) ->
@@ -90,7 +107,6 @@ define [
 
     Shape::draw = (ctx, delta) ->
         @trigger "PRE_FRAME", ctx, delta
-
         ctx.setTransform(
             @scene._transform[0],
             @scene._transform[3],
@@ -99,7 +115,6 @@ define [
             @scene._transform[2],
             @scene._transform[5]
         )
-
         ctx.transform(
             @_transform[0],
             @_transform[3],
@@ -108,7 +123,6 @@ define [
             @_transform[2],
             @_transform[5]
         )
-
         @trigger "POST_FRAME", ctx, delta
         return
 
@@ -119,10 +133,18 @@ define [
     Shape::addShape = () ->
         return
     
+    Shape::destroy = () ->
+        @scene.trigger "ENTITY_REQ_DESTROYING", @
+        @destructor()
+        return
+
     Shape::destroyMesh = () ->
         @_numvertices = 0
         for p in @_mesh
             if p instanceof Float32Array
                 Vec2.release(p)
+            else
+                lloge "That is some strange mesh"
+        @trigger "SHAPE_CHANGED"
 
     return Shape

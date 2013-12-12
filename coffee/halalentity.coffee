@@ -36,10 +36,13 @@ define ["eventdispatcher", "deferred"],
                     @to_wait--
                     @tween(@tween_chain.pop())
                     @num_tweens--
-                if @num_tweens is 0 and @done_clb? and not @paused
+                
+                if @num_tweens <= 0 and @done_clb? and not @paused
                     @done_clb.call(@obj)
-                if @num_tweens is 0 and @to_wait is 0
+
+                if @num_tweens <= 0 and @to_wait is 0
                     @animating = false
+
             return @
 
         wait: (wait_clb, msecs) ->
@@ -48,7 +51,7 @@ define ["eventdispatcher", "deferred"],
 
         pause: () ->
             @paused = true
-            Hal.remove "ENTER_FRAME", clb for clb in @clb_ids
+            Hal.removeTrigger "ENTER_FRAME", clb for clb in @clb_ids
             return @
 
         resume: () ->
@@ -57,8 +60,7 @@ define ["eventdispatcher", "deferred"],
             return @
 
         stop: () ->
-            @paused = true
-            Hal.remove "ENTER_FRAME", clb for clb in @clb_ids
+            Hal.removeTrigger "ENTER_FRAME", clb for clb in @clb_ids
             @clb_ids = []
             @num_tweens = 0
             @to_wait = 0
@@ -72,6 +74,7 @@ define ["eventdispatcher", "deferred"],
             return @
 
     _init_map = {}
+    _deinit_map = {}
     class HalalEntity extends EventDispatcher
         #mozda i da args strpam pri pozivu konstruktora
         @include: (obj, args...) ->
@@ -80,23 +83,37 @@ define ["eventdispatcher", "deferred"],
                 llogi "Copying constructor from #{@name}"
                 if not _init_map[@name]? then _init_map[@name] = []
                 _init_map[@name].push obj::constructor
+                if obj::destructor?
+                    if not _deinit_map[@name]? then _deinit_map[@name] = []
+                    _deinit_map[@name][obj::constructor.name] = obj::destructor
             llogi "Extending from #{@name} with #{obj.name}"
             throw ("include(obj) requires obj") unless obj::
             for key, val of obj::
-                continue if key in ["constructor", "init"]
+                continue if key in ["constructor", "init", "destructor"]
                 if @::[key]?
                     lloge "Added to inheritance chain fn: #{key}"
                 @::[key] = val
                 llogd "Extended with #{key}"
 
+    HalalEntity::destructor = () ->
+        for key, destructor of @destructors
+            destructor.call(@)
+        @removeAllTriggers()
+
     HalalEntity::constructor = () ->
+        @id = Hal.ID()
+        @destructors = {}
         super()
         if _init_map[@__classex__]
             for init in _init_map[@__classex__]
                 llogd "Calling #{@__classex__} constructor"
                 init.call(@)
+
+        if _deinit_map[@__classex__]
+            for name, deinit of _deinit_map[@__classex__]
+                @destructors[name] = deinit
+
         @tweener = new Tweener(@)
-        # @init()
         return @
 
     HalalEntity::init = () ->
@@ -127,5 +144,6 @@ define ["eventdispatcher", "deferred"],
     HalalEntity::tween = (meta) ->
         @tweener.stop()
         @tweener.tween(meta)
+        return @tweener
 
     return HalalEntity

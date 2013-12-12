@@ -10,12 +10,10 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
         @include Groupy
 
         constructor: (meta = {}) ->
-            super()
-            @name               = if meta.name? then meta.name else "#{Hal.ID()}"
-            @bounds             = if meta.bounds? then meta.bounds else Hal.viewportBounds()
+            @parseMeta(meta)
             @paused             = true
-            @bg_color           = if meta.bg_color? then meta.bg_color else "white"
             @entities           = []
+            @ent_cache          = {}
             @mpos               = [0, 0]
             @z                  = 1
             @g                  = new Renderer(@bounds, null, @z)
@@ -35,9 +33,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @lerp_anim          = null
             @zoom_step          = 0.1
             @camera_speed       = 2
-            @_update_zoom       = false
-            @prev_pos           = [@position[0], @position[1]]
-            
+            @_update_zoom       = false            
             @center             = Vec2.from(@bounds[2] * 0.5, @bounds[3] * 0.5)
             @_update_transform  = true
 
@@ -45,17 +41,26 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @view_matrix[2]     = @center[0]
             @view_matrix[5]     = @center[1]
 
-            # @setOrigin(@center[0], @center[1], true)
-            
-            @setPosition(0, 0)
-            
+            super()
+
+            @setOrigin(@center[0], @center[1])
+            @prev_pos = [@position[0], @position[1]]
+            #@combineTransform(@view_matrix)
             return @
 
+        parseMeta: (meta) ->
+            @name               = if meta.name? then meta.name else "#{Hal.ID()}"
+            @bounds             = if meta.bounds? then meta.bounds else Hal.viewportBounds()
+            @bg_color           = if meta.bg_color? then meta.bg_color else "white"
+
         addEntity: (ent) ->
+            if not ent?
+                lloge "Entity is null" 
+                return
             @entities.push(ent)
+            @ent_cache[ent.id] = ent
             ent.attr("scene", @)
             @trigger "ENTITY_ADDED", ent
-
             return ent
 
         drawStat: () ->
@@ -77,10 +82,14 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
 
         update: (delta) ->
             @g.ctx.fillStyle = @bg_color
+            @g.ctx.setTransform(1, 0, 0, 1, 0, 0)
             @g.ctx.fillRect(0, 0, @bounds[2], @bounds[3])
+            @g.ctx.strokeRect(@center[0] - 1, @center[1] - 1, 2, 2)
+            
             if @_update_transform
-                @combineTransform(@view_matrix)
+                @transform(@view_matrix)
                 @update_ents = true
+
             for en in @entities
                 en.update(@g.ctx, delta)
 
@@ -88,6 +97,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             #get moving entities
             #group them by the quadspace quadrant they're in
             #group collision check, and resolve
+
             for en in @entities
                 continue if en is ent
                 check = Geometry.polygonIntersectsOrContainsPolygon(en._mesh, ent._mesh, ent.inverseTransform(), en.transform())
@@ -104,8 +114,6 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             for en in @entities
                 en.draw(@g.ctx, delta)
             @update_ents = false
-            @g.ctx.setTransform(1, 0, 0, 1, 0, 0)
-            @g.ctx.strokeRect(@center[0] - 1, @center[1] - 1, 2, 2)
 
         pause: () ->
             @attr("paused", true)
@@ -113,6 +121,36 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
         resume: () ->
             @attr("paused", false)
 
+        getAllEntities: () ->
+            return @entities.slice()
+
+        removeEntity: (ent) ->
+            if not @ent_cache[ent.id]
+                lloge "No such entity #{ent.id} in cache"
+                return
+            ind = @entities.indexOf(ent)
+            if ind is -1
+                lloge "No such entity #{ent.id} in entity list"
+                return
+            delete @ent_cache[ent.id]
+            @trigger "ENTITY_DESTROYED", ent
+            @entities.splice(ind, 1)
+
+        removeAllEntities: (destroy_children = false) ->
+            for ent in @getAllEntities()
+                #let each children entity destroy itself 
+                #rather it to be destroyed by its parent
+                ent.destroy()
+            return
+
+        removeEntityByID: (entid) ->
+            ent = @ent_cache[entid]
+            if ent?
+                ent.removeEntity(ent)
+            else
+                llogw "No such entity #{entid} in entity cache"
+
+        ### valja sve unregistorovati posle ###
         init: () ->
             @paused = false
 
@@ -121,10 +159,15 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                     @_update_transform = true
                     @_update_inverse   = true
             
+            @on "ENTITY_REQ_DESTROYING", (entity) ->
+                @removeEntity(entity)
+
             Hal.on "RESIZE", (area) =>
                 @g.resize(area.width, area.height)
                 @bounds[2] = area.width
                 @bounds[3] = area.height
+                @_update_transform = true
+                @_update_inverse = true
 
             Hal.on "RIGHT_CLICK", (pos) =>
                 return if @paused
@@ -132,16 +175,21 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                     (@center[0] - pos[0]) + @position[0],
                     (@center[1] - pos[1]) + @position[1]
                 )
+
                 if @lerp_anim
-                    Hal.remove "EXIT_FRAME", @lerp_anim
+                    Hal.removeTrigger "EXIT_FRAME", @lerp_anim
                     @lerp_anim = null
+                    @_update_transform = true
+                    @_update_inverse = true
+
                 @lerp_anim = 
                 Hal.on "EXIT_FRAME", (delta) =>
                     Vec2.lerp(@position, @position, @cam_move, delta * 2)
                     if (~~Math.abs(@position[0] - @cam_move[0]) + ~~Math.abs(-@position[1] + @cam_move[1])) < 2
-                        Hal.remove "EXIT_FRAME", @lerp_anim
+                        Hal.removeTrigger "EXIT_FRAME", @lerp_anim
                         @lerp_anim = null
                     @_update_transform = true
+                    @_update_inverse = true
 
             @drag_started = 
             Hal.on "DRAG_STARTED", (pos) =>
@@ -154,12 +202,14 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                 @_update_inverse        = true
 
                 if @lerp_anim
-                    Hal.remove "EXIT_FRAME", @lerp_anim
+                    Hal.removeTrigger "EXIT_FRAME", @lerp_anim
                     @lerp_anim = null
 
             @drag_ended = 
             Hal.on "DRAG_ENDED", (pos) =>
                 @dragging = false
+                @_update_transform = true
+                @_update_inverse = true
 
             @drag =
             Hal.on "MOUSE_MOVE", (pos) =>

@@ -13,25 +13,30 @@
         this.row = meta.row;
         this.col = meta.col;
         this.layers = [null, null, null, null, null];
+        return this;
       }
 
-      Tile.prototype.addTileLayer = function(tile, layer) {
+      Tile.prototype.containsLayer = function(layermeta, layer) {
         var layer_present;
-        layer = layer || tile.layer;
+        layer = layer || layermeta.layer;
         layer_present = this.layers[layer] != null;
-        if (layer_present && this.layers[layer].name === tile.name) {
-          llogd("You're trying to add the same layer");
-          return;
+        if (layer_present && this.layers[layer].name === layermeta.name) {
+          return true;
         }
-        if (layer_present) {
-          this.layers[layer].destroy();
-        }
-        this.layers[layer] = tile;
-        return ent;
+        return false;
       };
 
-      Tile.prototype.init = function() {
-        Tile.__super__.init.call(this);
+      Tile.prototype.addTileLayer = function(layerobj, layer) {
+        if (this.layers[layer] != null) {
+          this.layers[layer].destroy();
+        }
+        this.layers[layer] = layerobj;
+        layerobj.attr("holder", this);
+        return layerobj;
+      };
+
+      Tile.prototype.init = function(meta) {
+        Tile.__super__.init.call(this, meta);
         this.on("LAYER_DESTROYED", function(layer) {
           llogd("layer destroyed " + layer);
           return this.layers[layer] = null;
@@ -39,12 +44,14 @@
         return this;
       };
 
-      Tile.prototype.destroy = function(destroy_children) {
-        if (destroy_children == null) {
-          destroy_children = false;
-        }
-        this.parent.trigger("ENTITY_DESTROYED", this);
-        return Tile.__super__.destroy.call(this, destroy_children);
+      Tile.prototype.destroy = function() {
+        Tile.__super__.destroy.call(this);
+        return this.destroyMesh();
+      };
+
+      Tile.prototype.destroyMesh = function() {
+        this._mesh = [];
+        this._numvertices = 0;
       };
 
       return Tile;
@@ -55,32 +62,34 @@
 
       function TileLayer(meta) {
         TileLayer.__super__.constructor.call(this, meta);
+        this.setSprite(Hal.asm.getSprite(meta.sprite));
         this.name = meta.name != null ? meta.name : "" + this.id;
         this.layer = meta.layer != null ? meta.layer : 0;
-        this.on("SELECTED", function() {
-          this.attr("glow", true);
-          this.attr("glow_color", "blue");
-          this.attr("draw_shape", true);
-          this.attr("stroke_color", "white");
-          return Hal.tween(this, "line_width", 200, 1, 14.5, 5);
-        });
-        this.on("DESELECTED", function() {
-          this.attr("line_width", 1);
-          this.attr("glow", false);
-          return this.attr("draw_shape", false);
-        });
       }
+
+      TileLayer.prototype.init = function(meta) {
+        TileLayer.__super__.init.call(this, meta);
+        this.on("SELECTED", function() {
+          return console.log("I'm selected: " + (this.toString()));
+        });
+        return this.on("DESELECTED", function() {
+          return console.log("I'm deselected: " + (this.toString()));
+        });
+      };
 
       TileLayer.prototype.destroy = function(destroy_children) {
         if (destroy_children == null) {
           destroy_children = true;
         }
-        llogd("destroying myself");
-        llogd(this);
-        if (this.parent != null) {
-          this.parent.trigger("LAYER_DESTROYED", this.layer);
+        console.log("Destroying myself " + (this.toString()));
+        if (this.holder != null) {
+          this.holder.trigger("LAYER_DESTROYED", this.layer);
         }
-        return TileLayer.__super__.destroy.call(this, destroy_children);
+        return TileLayer.__super__.destroy.call(this);
+      };
+
+      TileLayer.prototype.toString = function() {
+        return "" + this.holder.row + ", " + this.holder.col;
       };
 
       return TileLayer;
@@ -150,39 +159,36 @@
         return t = null;
       };
 
-      TileManager.prototype.newTileLayer = function(meta) {
-        return new TileLayer(meta);
+      TileManager.prototype.newTileLayer = function(meta, layer) {
+        return new TileLayer(meta, layer);
       };
 
       TileManager.prototype.newTileHolder = function(meta) {
         return new Tile(meta);
       };
 
-      TileManager.prototype.addTileLayerToHolder = function(holder, tile, layer, x_offset, y_offset) {
+      TileManager.prototype.addTileLayerToHolder = function(holder, layermeta, x, y, layer) {
+        var tile;
         if (layer == null) {
-          layer = tile.layer;
+          layer = layermeta.layer;
         }
-        if (x_offset == null) {
-          x_offset = 0;
-        }
-        if (y_offset == null) {
-          y_offset = 0;
-        }
-        if ((holder == null) || (tile == null)) {
-          llogd("holder or tile is null");
+        if (holder.containsLayer(layermeta, layer)) {
+          console.warn("You can't add same layer " + layermeta.name + " twice");
           return;
         }
+        if ((holder == null) || (layermeta == null)) {
+          console.error("Holder or layermeta is null");
+          return;
+        }
+        tile = this.newTileLayer(layermeta, layer);
         if (tile.attr("group") === "default") {
           tile.attr("group", "layer_" + layer);
         }
-        llogd("x_offset: " + x_offset);
-        llogd("y_offset: " + y_offset);
         tile = holder.addTileLayer(tile, layer);
-        if (tile == null) {
-          return;
-        }
-        llogd(x_offset);
-        llogd(y_offset);
+        tile.setPosition(x, y);
+        tile.attr("scene", this.map);
+        this.map.quadtree.insert(tile);
+        this.map.addEntity(tile);
         return tile;
       };
 

@@ -1,44 +1,46 @@
 (function() {
   "use strict";
   define(["mathutil"], function(MathUtil) {
-    var FreeList, Vec2, i;
+    var FreeList, Vec2, i, v;
     Vec2 = {};
     FreeList = [];
-    Vec2.free = 2000;
-    Vec2.max = 2000;
+    Vec2.free = 10000;
+    Vec2.max = 10000;
     i = 0;
     while (i < Vec2.max) {
-      FreeList.push(new MathUtil.ARRAY_TYPE(2));
+      v = new MathUtil.ARRAY_TYPE(2);
+      v[0] = 0;
+      v[1] = 0;
+      FreeList.push(v);
       i++;
     }
     Vec2.release = function(vec) {
       if (Vec2.free > Vec2.max) {
-        alert("you released a vector which you didn't acquired");
+        lloge("you released a vector which you didn't acquired");
         return;
       }
-      FreeList[Vec2.free] = vec;
-      return Vec2.free++;
+      Vec2.free++;
+      Vec2.set(vec, 0, 0);
+      return FreeList.push(vec);
     };
     Vec2.acquire = function() {
       if (Vec2.free <= 0) {
-        alert("no more vectors in pool");
+        lloge("no more vectors in pool");
         return;
       }
       Vec2.free--;
-      return FreeList[Vec2.free];
+      return FreeList.pop();
     };
     Vec2.create = function() {
       return Vec2.acquire();
     };
     Vec2.newFrom = function(a) {
-      var v;
       v = Vec2.acquire();
       v[0] = a[0];
       v[1] = a[1];
       return v;
     };
     Vec2.clone = function(a) {
-      var v;
       v = Vec2.acquire();
       v[0] = a[0];
       v[1] = a[1];
@@ -50,7 +52,6 @@
       return out;
     };
     Vec2.from = function(x, y) {
-      var v;
       v = Vec2.acquire();
       v[0] = x;
       v[1] = y;
