@@ -247,6 +247,7 @@ define [
                     .then () =>
                         @trigger "SPRITE_LOADED", g
                         if i >= (len-1)
+                            console.log "WTF WTF WTF"
                             @trigger "SPRITES_LOADED"
 
         @socket.on "LOAD_SOUNDS", (data) =>

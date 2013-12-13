@@ -7,6 +7,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
     class IsometricMap extends Scene
         constructor: (meta) ->
             super(meta)
+
             @tilew2prop             = 2 / @tilew
             @tileh2prop             = 2 / @tileh
             @tilew2                 = @tilew / 2
@@ -21,6 +22,8 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             @selected_tile_x        = 0
             @selected_tile_y        = @tileh2
             @selected_tile_sprite   = null
+
+            @max_layers             = 5
 
             ### Isometric shape ###
             @iso_shape = [
@@ -50,8 +53,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                  "green": Hal.asm.getSprite("test/grid_unit_over_green_128x64")
                  "red": Hal.asm.getSprite("test/grid_unit_over_red_128x64")
 
-            super(meta)
-            @world_bounds = [0, 0, (@ncols-0.5) * @tilew2, @nrows * @tileh]
+            @world_bounds = [0, 0, (@ncols - 1) * @tilew2, (@nrows-0.5) * @tileh]
             
         drawStat: () ->
             super()
@@ -98,33 +100,34 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     duration: 700
                 ).done () -> @destroy()
                 @clicked_layer = null
-                    
+
             @supported_modes["mode-place"] = () =>
-                return if not @tile_under_mouse?
+                return if not @tile_under_mouse? or not @selected_tile?
                 @selected_tile_x = @selected_tile_sprite.w2
                 @selected_tile_y = @selected_tile_sprite.h - @tileh2
-                console.debug @selected_tile_y
                 t = @tm.addTileLayerToHolder(
                     @tile_under_mouse.row, @tile_under_mouse.col,
                     @selected_tile, @selected_tile_x, @selected_tile_y #,@selected_tile.layer
                 )
                 return
-                
+
             @current_mode       = "mode-default"
             @current_mode_clb   = @supported_modes[@current_mode]
+            
             ### @SUPPORTED_EDITOR_MODES ###
-
             @clicked_layer      = null
             @tile_under_mouse   = null
             @search_range       = @bounds.slice()
 
             @left_click_listener = 
             Hal.on "LEFT_CLICK", () =>
+                return if @paused
                 @current_mode_clb.call(@)
 
             ###map editor stuff###
             @editor_mode_listener =
             Hal.on "EDITOR_MODE_CHANGED", (mode) =>
+                return if @paused
                 if @supported_modes[mode]?
                     @current_mode       = mode
                     @current_mode_clb   = @supported_modes[mode]
@@ -154,7 +157,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     if @tile_under_mouse?
                         @tile_under_mouse.drawableOnState(Hal.DrawableStates.Fill)
 
-            @initSections()
+            # @initSections()
             @initMap()
 
         #max rows on screen
@@ -186,13 +189,12 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             return @map[Math.floor(coord[0]) + Math.floor(coord[1]) * @ncols]
 
         initSections: () ->
+            @pause()
             @section_center = []
+            z_indices = []
+            z_indices.push z for z in [0...@max_layers]
+            @renderer.createLayers z_indices
 
-        loadCenterSection: () ->
-
-        initMap: () ->
-            @clicked_layer = null
-            @tm = new TileManager(@)
             @map = new Array(@nrows * @ncols)
             k = 0
             t1 = performance.now()
@@ -209,9 +211,21 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     @map[k] = @addEntity(t)
                     k++
             t2 = performance.now() - t1
-            llogd "it took: #{t1}"
+            llogd "Initializing sections took: #{t2} ms"
+            @resume()
+
+        loadCenterSection: () ->
+            return
+
+        initMap: () ->
+            @clicked_layer = null
+            @on "META_LAYERS_LOADED", () ->
+                @initSections.call(@)
+            @tm = new TileManager(@)
 
         saveBitmapMap: () ->
+            @pause()
+            t1 = performance.now()
             out = []
             tiles = @map.slice()
             map_r = @nrows << 32
@@ -221,7 +235,8 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 t_row = t.row << 32
                 t_col = t.col << 16
                 out.push (t_row | t_col)
-                for layer in t.layers
+                for layer_ind in [0...@max_layers]
+                    layer = t.layers[layer_ind]
                     if not layer?
                         out.push -1
                         continue
@@ -229,11 +244,71 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     meta_id = meta.id << 32
                     h = layer.h << 16
                     out.push (h | meta_id)
-
-            @trigger "MAP_SAVED", out
+            t2 = performance.now() - t1
+            @resume()
+            console.info "Saving took: #{t2} ms"
+            @trigger "SECTION_SAVED", out
             return out
 
-        loadBitmapMap: () ->
+        # 54 bita fore da sacuvam informacije o tajlu
+        # na pocetku mi treba velicina rows, cols
+        # pa onda ide sekcija koju ucitavam, neka bude 200*200 za pocetak
+        # treba mi id sa kojim se povezujem sa tile menadzerom
+        
+        # treba mi row, col koji je tile
+        # id za tilelayer 0, height
+        # id za tilelayer 1 height
+        # i tako dalje
+        # za row, max nek je 2^16 granica, isto i za kol
+        # znaci taman stane u 4 bajta
+        # za id jednog tajla mi treba maks 2 ^ 16, znaci ostane mi
+        # jos toliko za height i ko zna sta jos
+        # dogovor je da se sve cita od msb-a ka lsb-u
+        # znaci, po 16 citam
+        # 2^32 - 1, pa shift u desno za 16  -> procitam map rows, pa
+        # jos jednom >> 16, pa map cols
+        # pa onda redom, za svaki tajl -> row, col, 
+        # pa id, pa height
+
+        loadBitmapMap: (bitmap) ->
+            bitmap = bitmap.slice()
+            t1 = performance.now()
+            @pause()
+            mask        = 0xFFFF
+            qword       = bitmap.shift()
+            map_rows    = (qword >> 32) & mask
+            map_cols    = (qword >> 16) & mask
+            total       = map_rows * map_cols
+            if total > @nrows * @ncols
+                console.error "Can't load this bitmap, it's too big"
+                @resume()
+                return
+            @nrows = map_rows
+            @ncols = map_cols
+            while (tile_qword = bitmap.shift())?
+                tile_row = (tile_qword >> 32) & mask
+                tile_col = (tile_qword >> 16) & mask
+                tile = @getTile(tile_row, tile_col)
+                if not tile?
+                    console.warn "Oh snap, something's wrong"
+                    console.warn "Trying to recover"
+                    continue
+                for layer in [0...@max_layers]
+                    layer_qword  = bitmap.shift()
+                    continue if layer_qword is -1
+                    layer_id     = (layer_qword >> 32) & mask
+                    layer_height = (layer_qword >> 16) & mask
+                    @tm.addTileLayerToHolderByLayerId(
+                        tile_row,
+                        tile_col, 
+                        layer_id, 
+                        0,
+                        layer_height
+                    )
+            t2 = performance.now() - t1
+            @resume()
+            console.info "loading took: #{t2} ms"
+            @trigger "SECTION_LOADED"
             return
 
         processLeftClick: () ->
@@ -310,29 +385,5 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             Hal.removeTrigger "MOUSE_MOVE", @mouse_moved_listener
             Hal.removeTrigger "LEFT_CLICK", @left_click_listener
             super()
-
-        # 54 bita fore da sacuvam informacije o tajlu
-        # na pocetku mi treba velicina rows, cols
-        # pa onda ide sekcija koju ucitavam, neka bude 200*200 za pocetak
-        # treba mi id sa kojim se povezujem sa tile menadzerom
-        
-        # treba mi row, col koji je tile
-        # id za tilelayer 0, height
-        # id za tilelayer 1 height
-        # i tako dalje
-        # za row, max nek je 2^16 granica, isto i za kol
-        # znaci taman stane u 4 bajta
-        # za id jednog tajla mi treba maks 2 ^ 16, znaci ostane mi
-        # jos toliko za height i ko zna sta jos
-        # dogovor je da se sve cita od msb-a ka lsb-u
-        # znaci, po 16 citam
-        # 2^32 - 1, pa shift u desno za 16  -> procitam map rows, pa
-        # jos jednom >> 16, pa map cols
-        # pa onda redom, za svaki tajl -> row, col, 
-        # pa id, pa height
-        saveMap: () ->
-            for tile in @map
-                console.debug tile.binaryFormat()
-
 
     return IsometricMap

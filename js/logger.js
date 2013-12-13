@@ -1,8 +1,13 @@
 (function() {
-  "use strict";
   define([], function() {
     var Logger;
     Logger = {
+      report: {
+        info: [],
+        error: [],
+        debug: [],
+        warning: []
+      },
       levels: {
         DEBUG: function() {
           window.llogi = function(msg) {
@@ -19,8 +24,22 @@
           };
         },
         SILENT: function() {
-          return window.llogi = window.lloge = window.llogd = window.llogw = function() {};
+          window.llogi = function(msg) {
+            return Logger.log_report("info", msg);
+          };
+          window.lloge = function(msg) {
+            return Logger.log_report("error", msg);
+          };
+          window.llogd = function(msg) {
+            return Logger.log_report("debug", msg);
+          };
+          return window.llogw = function(msg) {
+            return Logger.log_report("warning", msg);
+          };
         }
+      },
+      log_report: function(type, msg) {
+        return Logger.report[type].push("Time: " + (new Date().toTimeString()) + ", Line: " + (new Error).lineNumber + ", MSG: " + msg);
       },
       setLevel: function(level) {
         var current_level;

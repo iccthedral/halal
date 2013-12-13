@@ -80,20 +80,20 @@ define ["eventdispatcher", "deferred"],
         @include: (obj, args...) ->
             @::["__classex__"] = @name
             if obj::constructor?
-                llogi "Copying constructor from #{@name}"
+                #llogi "Copying constructor from #{@name}"
                 if not _init_map[@name]? then _init_map[@name] = []
                 _init_map[@name].push obj::constructor
                 if obj::destructor?
                     if not _deinit_map[@name]? then _deinit_map[@name] = []
                     _deinit_map[@name][obj::constructor.name] = obj::destructor
-            llogi "Extending from #{@name} with #{obj.name}"
+            #llogi "Extending from #{@name} with #{obj.name}"
             throw ("include(obj) requires obj") unless obj::
             for key, val of obj::
                 continue if key in ["constructor", "init", "destructor"]
-                if @::[key]?
-                    lloge "Added to inheritance chain fn: #{key}"
+                #if @::[key]?
+                #    lloge "Added to inheritance chain fn: #{key}"
                 @::[key] = val
-                llogd "Extended with #{key}"
+                #llogd "Extended with #{key}"
 
     HalalEntity::destructor = () ->
         for key, destructor of @destructors
@@ -108,7 +108,7 @@ define ["eventdispatcher", "deferred"],
         super()
         if _init_map[@__classex__]
             for init in _init_map[@__classex__]
-                llogd "Calling #{init.name} constructor"
+                #llogd "Calling #{init.name} constructor"
                 init.call(@)
                 
         if _deinit_map[@__classex__]
@@ -137,7 +137,7 @@ define ["eventdispatcher", "deferred"],
         for key, val of obj
             continue if @ is val
             if typeof val is "function" and proto
-                llogi "is a function #{key}"
+                #llogi "is a function #{key}"
                 @::[key] = val
             else
                 @[key] = val

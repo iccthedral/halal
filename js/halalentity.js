@@ -122,7 +122,6 @@
         obj = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
         this.prototype["__classex__"] = this.name;
         if (obj.prototype.constructor != null) {
-          llogi("Copying constructor from " + this.name);
           if (_init_map[this.name] == null) {
             _init_map[this.name] = [];
           }
@@ -134,7 +133,6 @@
             _deinit_map[this.name][obj.prototype.constructor.name] = obj.prototype.destructor;
           }
         }
-        llogi("Extending from " + this.name + " with " + obj.name);
         if (!obj.prototype) {
           throw "include(obj) requires obj";
         }
@@ -145,11 +143,7 @@
           if (key === "constructor" || key === "init" || key === "destructor") {
             continue;
           }
-          if (this.prototype[key] != null) {
-            lloge("Added to inheritance chain fn: " + key);
-          }
-          this.prototype[key] = val;
-          _results.push(llogd("Extended with " + key));
+          _results.push(this.prototype[key] = val);
         }
         return _results;
       };
@@ -176,7 +170,6 @@
         _ref1 = _init_map[this.__classex__];
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
           init = _ref1[_i];
-          llogd("Calling " + init.name + " constructor");
           init.call(this);
         }
       }
@@ -218,7 +211,6 @@
           continue;
         }
         if (typeof val === "function" && proto) {
-          llogi("is a function " + key);
           this.prototype[key] = val;
         } else {
           this[key] = val;

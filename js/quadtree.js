@@ -1,9 +1,10 @@
 (function() {
   "use strict";
   define(["vec2", "geometry", "matrix3"], function(Vec2, Geometry, Matrix3) {
-    var QuadTree, capacity, total;
+    var QuadTree, cache, capacity, total;
     capacity = 8;
     total = 0;
+    cache = {};
     QuadTree = (function() {
       function QuadTree(bounds) {
         this.bounds = bounds;
@@ -22,30 +23,30 @@
       QuadTree.prototype.insert = function(ent) {
         if (!Geometry.isPointInRectangle(ent.position, this.bounds)) {
           llogd("Entity doesnt't interrsect " + this.id);
-          return null;
+          return false;
+        }
+        if (this.entities.length < capacity && (cache[ent.id] == null)) {
+          this.entities.push(ent);
+          cache[ent.id] = this;
+          total++;
+          return true;
         }
         if (this.nw == null) {
           this.divide();
         }
-        if (this.entities.length < capacity) {
-          ent.attr("quadspace", this);
-          this.entities.push(ent);
-          total++;
-          return this;
-        }
-        if (this.nw.insert(ent) != null) {
-          return this.nw;
+        if (this.nw.insert(ent)) {
+          return true;
         }
         if (this.ne.insert(ent)) {
-          return this.ne;
+          return true;
         }
         if (this.sw.insert(ent)) {
-          return this.sw;
+          return true;
         }
         if (this.se.insert(ent)) {
-          return this.se;
+          return true;
         }
-        return null;
+        return false;
       };
 
       QuadTree.prototype.remove = function(ent) {
@@ -55,8 +56,9 @@
           lloge("Entity " + ent.id + " is not in quadspace");
           return;
         }
-        this.entities.splice(ind, 1);
-        return total--;
+        total--;
+        delete cache[ent.id];
+        return this.entities.splice(ind, 1);
       };
 
       QuadTree.prototype.removeAll = function() {
@@ -171,6 +173,9 @@
       return QuadTree;
 
     })();
+    QuadTree.fromCache = function(entid) {
+      return cache[entid];
+    };
     return QuadTree;
   });
 

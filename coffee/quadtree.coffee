@@ -4,8 +4,9 @@ define ["vec2", "geometry", "matrix3"],
 
 (Vec2, Geometry, Matrix3) ->
     
-    capacity    = 8
-    total       = 0
+    capacity        = 8
+    total           = 0
+    cache           = {}
 
     class QuadTree
         constructor: (@bounds) ->
@@ -22,35 +23,36 @@ define ["vec2", "geometry", "matrix3"],
         insert: (ent) ->
             if not Geometry.isPointInRectangle(ent.position, @bounds)
                 llogd "Entity doesnt't interrsect #{@id}"
-                return null
+                return false
+
+            if @entities.length < capacity and not cache[ent.id]?
+                @entities.push(ent)
+                cache[ent.id] = @
+                total++
+                return true
 
             if not @nw?
                 @divide()
 
-            if @entities.length < capacity
-                ent.attr("quadspace", @)
-                @entities.push(ent)
-                total++
-                return @
-
-            if @nw.insert(ent)?
-                return @nw
+            if @nw.insert(ent)
+                return true
             if @ne.insert(ent)
-                return @ne
+                return true
             if @sw.insert(ent)
-                return @sw
+                return true
             if @se.insert(ent)
-                return @se
+                return true
 
-            return null
+            return false
 
         remove: (ent) ->
             ind = @entities.indexOf(ent)
             if ind is -1
                 lloge "Entity #{ent.id} is not in quadspace"
                 return
-            @entities.splice(ind, 1)
             total--
+            delete cache[ent.id]
+            @entities.splice(ind, 1)
 
         removeAll: () ->
             for p in @entities.slice()
@@ -121,5 +123,8 @@ define ["vec2", "geometry", "matrix3"],
             @ne         = new QuadTree([@bounds[0] + w, @bounds[1], w, h])
             @sw         = new QuadTree([@bounds[0], @bounds[1] + h, w, h])
             @se         = new QuadTree([@bounds[0] + w, @bounds[1] + h, w, h])
+    
+    QuadTree.fromCache = (entid) ->
+        return cache[entid]
 
     return QuadTree

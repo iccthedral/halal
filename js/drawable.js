@@ -49,7 +49,6 @@
         this.opacity = 1;
         this.on("CHANGE", function(key, val) {
           if (key === "sprite") {
-            console.log("koliko puta ide ovo");
             if ((this.sprite == null) || !this.sprite instanceof Sprite) {
               return;
             }

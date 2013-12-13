@@ -26,20 +26,20 @@ is_json        = /^.*\.[json]+$/
 console.log "Is windows: #{is_win}"
 console.log "Platform #{process.platform}"
 
-io.sockets.on "connection", (sck) ->
-    console.log "Connection via socket.io established".green
+    #io.sockets.on "connection", (sck) ->
+    #console.log "Connection via socket.io established".green
 
-    socket = sck
+    # socket = sck
 
-    allSprites  = getAllSprites()
-    allTiles    = getAllTiles()
+    # allSprites  = getAllSprites()
+    # allTiles    = getAllTiles()
 
-    saveSprites(allSprites)
+    # saveSprites(allSprites)
 
-    socket.emit("LOAD_SPRITES", {
-        files: JSON.stringify(allSprites)
-        url: "sprites/"
-    })
+    # socket.emit("LOAD_SPRITES", {
+    #     files: JSON.stringify(allSprites)
+    #     url: "sprites/"
+    # })
 
 getAllTiles = () ->
     allTiles = fs.readFileSync(config.tiles)

@@ -86,15 +86,18 @@ define [
         delta               = (cur_time - prev_time) * 0.001
         cur_fps_time        += delta
         delta               = Math.min(delta, fstep)
+
         Hal.trigger "ENTER_FRAME", delta
-        if focused_scene? and focused_scene.paused?
+        if focused_scene? and not focused_scene.paused
             focused_scene.update(delta)
             focused_scene.draw(delta)
+
         if cur_fps_time >= fps_trigger_time
             Hal.fps         = fps_counter
             cur_fps_time    = 0
             fps_counter     = 0
             Hal.trigger "FPS_UPDATE", Hal.fps
+            
         Hal.trigger "EXIT_FRAME", delta
         last_frame_id = requestAnimFrame(rafLoop)
         fps_counter++
@@ -118,6 +121,7 @@ define [
     Halal::addScene = (scene, to_focus = true) ->
         if @scenes.length is 0 and not @glass?
             @start()
+
         if not (scene instanceof Scene)
             lloge "Not a Scene instance"
             return null

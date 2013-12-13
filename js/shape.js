@@ -22,6 +22,9 @@
       Shape.include(Groupy);
 
       function Shape(meta) {
+        if (meta == null) {
+          meta = {};
+        }
         Shape.__super__.constructor.call(this);
         this._mesh = null;
         this._numvertices = 0;
@@ -42,8 +45,7 @@
         this.drawableOnState(Drawable.DrawableStates.Stroke);
       }
       if ((meta.x != null) && (meta.y != null)) {
-        this.setPosition(meta.x, meta.y);
-        return lloge(this.position);
+        return this.setPosition(meta.x, meta.y);
       }
     };
     Shape.prototype.init = function() {
@@ -110,9 +112,6 @@
     Shape.prototype.addShape = function() {};
     Shape.prototype.destroy = function() {
       this.scene.trigger("ENTITY_REQ_DESTROYING", this);
-      if (this.quadtree != null) {
-        this.quadtree.remove(this);
-      }
       this.destroyMesh();
       this.destructor();
       delete this.scene;
@@ -129,7 +128,7 @@
           if (p instanceof Float32Array) {
             Vec2.release(p);
           } else {
-            lloge("That is some strange mesh");
+            llogw("That is some strange mesh");
           }
         }
         return this.trigger("SHAPE_CHANGED");

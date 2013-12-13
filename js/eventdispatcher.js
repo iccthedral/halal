@@ -27,7 +27,6 @@
         this.listeners[type].push(clb);
         ind = this.listeners[type].indexOf(clb);
       }
-      llogi("Added listener: TYPE = " + type);
       return clb;
     };
     EventDispatcher.prototype.removeTrigger = function(type, clb) {
@@ -35,25 +34,22 @@
       if (this.listeners[type] != null) {
         ind = this.listeners[type].indexOf(clb);
         if (ind !== -1) {
-          this.listeners[type].splice(ind, 1);
+          if (ind !== -1) {
+            this.listeners[type].splice(ind, 1);
+          }
         }
-        clb = null;
-        if (ind !== -1) {
-          return llogi("Removed listener: TYPE = " + type);
-        }
+        return clb = null;
       }
     };
     EventDispatcher.prototype.removeAllTriggers = function(type) {
       var key, keys, list, _i, _len, _results;
       if (type) {
-        delete this.listeners[type];
-        return llogi("Removed listeners: TYPE = " + type);
+        return delete this.listeners[type];
       } else {
         keys = Object.keys(this.listeners);
         _results = [];
         for (_i = 0, _len = keys.length; _i < _len; _i++) {
           key = keys[_i];
-          llogi("Removed listeners: TYPE = " + key);
           _results.push((function() {
             var _j, _len1, _ref, _results1;
             _ref = this.listeners[key];

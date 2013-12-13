@@ -34,7 +34,7 @@ define [
         ### grupi  ###
         @include Groupy
 
-        constructor: (meta) ->
+        constructor: (meta = {}) ->
             super()
             @_mesh                  = null
             @_numvertices           = 0
@@ -52,7 +52,6 @@ define [
         
         if meta.x? and meta.y?
             @setPosition(meta.x, meta.y)
-            lloge @position
 
     Shape::init = () ->
         @on "CHANGE", (key, val) ->
@@ -134,10 +133,8 @@ define [
     Shape::addShape = () ->
         return
     
-    Shape::destroy = () ->
+    Shape::destroy = () ->       
         @scene.trigger "ENTITY_REQ_DESTROYING", @
-        if @quadtree?
-            @quadtree.remove(@)
         @destroyMesh()
         @destructor()
         delete @scene
@@ -152,7 +149,7 @@ define [
                 if p instanceof Float32Array
                     Vec2.release(p)
                 else
-                    lloge "That is some strange mesh"
+                    llogw "That is some strange mesh"
             @trigger "SHAPE_CHANGED"
 
     return Shape

@@ -13,8 +13,6 @@ define ["vec2", "geometry", "bbresolvers"],
             @_bbox = new Array()
 
             @on "SHAPE_CHANGED", (mesh) ->
-                lloge "shape changed"
-                lloge mesh
                 @_bbox = BBResolvers.AABBFromPolygon(mesh)
 
             @on "SPRITE_ADDED", (sprite) ->

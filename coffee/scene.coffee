@@ -16,12 +16,12 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @bounds             = Hal.viewportBounds()
             @world_bounds       = Hal.viewportBounds()
 
-            @paused             = true
             @entities           = []
             @ent_cache          = {}
             @z                  = 0
             @renderer           = new Renderer(@bounds, null, @z, true)
             @ctx                = @renderer.getLayerContext(@z)
+
             @draw_stat          = true
             @update_ents        = true
             @cam_move_vector    = Vec2.from(0, 0)
@@ -37,17 +37,18 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @view_matrix[2]     = @center[0]
             @view_matrix[5]     = @center[1]
 
-            @setOrigin(@center[0], @center[1])
+            # @setOrigin(@center[0], @center[1])
+            # @combineTransform(@view_matrix)
+            
             @prev_pos = [@position[0], @position[1]]
-
-            #@combineTransform(@view_matrix)
             return @
 
         parseMeta: (meta) ->
             @name               = if meta.name? then meta.name else "#{Hal.ID()}"
             @bg_color           = if meta.bg_color? then meta.bg_color else "white"
             @draw_stat          = if meta.draw_stat? then meta.draw_stat else true 
-
+            @world_bounds       = if meta.world_bounds? then meta.world_bounds else Hal.viewportBounds()
+        
         addEntity: (ent, ctx = @ctx) ->
             if not ent?
                 lloge "Entity is null" 
@@ -63,9 +64,9 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             if not ent?
                 lloge "Entity is null" 
                 return
-            ent.attr("quadtree", @quadtree.insert(ent))
-            ent.attr("scene", @)
+            @quadtree.insert(ent)
             ent.attr("ctx", ctx)
+            ent.attr("scene", @)
             @entities.push(ent)
             @ent_cache[ent.id] = ent
             @trigger "ENTITY_ADDED", ent
@@ -86,14 +87,21 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             return @entities.slice()
 
         update: (delta) ->
-            #@ctx.fillStyle = @bg_color
-            for ctx in @renderer.contexts
-                ctx.fillStyle = @bg_color
-                ctx.setTransform(1, 0, 0, 1, 0, 0)
-                ctx.fillRect(0, 0, @bounds[2], @bounds[3])
-    
+            # @ctx.fillStyle = "rgba(0, 0, 0, 0.5)"
+            @ctx.setTransform(1, 0, 0, 1, 0, 0)
+            @ctx.fillStyle = @bg_color
+            @ctx.fillRect(0, 0, @bounds[2], @bounds[3])
+
+            # for ctx in @renderer.contexts
+            #     ctx.setTransform(1, 0, 0, 1, 0, 0)
+            #     if ctx is @ctx
+            #         ctx.fillStyle = @bg_color
+            #         ctx.fillRect(0, 0, @bounds[2], @bounds[3])
+            #     else
+            #         ctx.clearRect(0, 0, @bounds[2], @bounds[3])
+
             @ctx.strokeRect(@center[0] - 1, @center[1] - 1, 2, 2)
-            
+
             if @_update_transform
                 @transform(@view_matrix)
                 @update_ents = true
@@ -101,26 +109,29 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             for en in @entities
                 en.update(delta)
 
-        checkForCollisions: (ent) ->
+        checkForCollisions: () ->
             #get moving entities
             #group them by the quadtree quadrant they're in
             #group collision check, and resolve
+            for enA in @entities
+                for enB in @entities
+                    continue if enA is enB
+                    if Geometry.polygonIntersectsOrContainsPolygon(enA._mesh, enB._mesh, enB.inverseTransform(), enA.transform())
+                        enA.trigger "COLLISION_HAPPENED", enB
 
-            for en in @entities
-                continue if en is ent
-                check = Geometry.polygonIntersectsOrContainsPolygon(en._mesh, ent._mesh, ent.inverseTransform(), en.transform())
-                if check and not ent.in_collision and not en.in_collision
-                   ent.trigger "COLLISION_STARTED", en
-                   en.trigger "COLLISION_STARTED", ent
-                else if ent.in_collision and en.in_collision and not check
-                    ent.trigger "COLLISION_ENDED", en
-                    en.trigger "COLLISION_ENDED", ent
+                # if check and not ent.in_collision and not en.in_collision
+                #    ent.trigger "COLLISION_STARTED", en
+                #    en.trigger "COLLISION_STARTED", ent
+                # else if ent.in_collision and en.in_collision and not check
+                #     ent.trigger "COLLISION_ENDED", en
+                #     en.trigger "COLLISION_ENDED", ent
 
         draw: (delta) ->
             if @draw_stat
                 @drawStat()
             for en in @entities
                 en.draw(delta)
+
             @update_ents = false
 
         pause: () ->
@@ -137,9 +148,8 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             if ind is -1
                 lloge "No such entity #{ent.id} in entity list"
                 return
+            QuadTree.fromCache(ent.id).remove(ent)
             delete @ent_cache[ent.id]
-            # ent.attr("scene", null)
-            # ent.attr("quadtree", null)
             @trigger "ENTITY_DESTROYED", ent
             @entities.splice(ind, 1)
 
@@ -159,7 +169,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
 
         ### valja sve unregistorovati posle ###
         init: () ->
-            @attr("paused", false)
+            @pause()
             @drag_listener              = null
             @drag_started_listener      = null
             @drag_ended_listener        = null
@@ -171,6 +181,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @resetQuadTree(@world_bounds)
 
             @on "CHANGE", (key, val) ->
+                return if @paused
                 if key in reactives
                     @_update_transform = true
                     @_update_inverse   = true
@@ -251,6 +262,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                 @_update_transform = true
                 @_update_inverse = true
 
+            @resume()
             super()
 
         screenToWorld: (point) ->
@@ -265,6 +277,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @quadtree.divide()
 
         setWorldBounds: (@world_bounds) ->
+            @resetQuadTree(@world_bounds)
             #uh oh
             return
 
@@ -298,7 +311,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                 @ctx.fillText("#{quadtree.se.id}", quadtree.se.bounds[0] + quadtree.se.bounds[2]*0.5, quadtree.se.bounds[1] + quadtree.se.bounds[3]*0.5)
 
         destroy: () ->
-            @attr("paused", true)
+            @pause()
 
             Hal.removeTrigger "SCROLL", @zoom_listener
             Hal.removeTrigger "MOUSE_MOVE", @drag_listener

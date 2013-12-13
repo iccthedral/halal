@@ -79,20 +79,29 @@
       return DOMManager;
 
     })();
-    DOMManager.prototype.createCanvas = function(width, height) {
-      var canvas;
+    DOMManager.prototype.createCanvas = function(width, height, z, transp) {
+      var canvas, ind;
       if (width == null) {
         width = this.area.width;
       }
       if (height == null) {
         height = this.area.height;
       }
+      ind = this.default_zindex + z;
       canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
+      canvas.style["z-index"] = ind;
+      if (!transp) {
+        canvas.style["background"] = "white";
+      } else {
+        canvas.style["background-color"] = "transparent";
+        canvas.style["background"] = "transparent";
+        console.log("it shall be transparent " + ind);
+      }
       return canvas;
     };
-    DOMManager.prototype.createCanvasLayer = function(width, height, z) {
+    DOMManager.prototype.createCanvasLayer = function(width, height, z, transp) {
       var canvas, ind;
       if (width == null) {
         width = this.area.width;
@@ -104,11 +113,9 @@
       if (this.canvases[ind]) {
         return this.canvases[ind];
       }
-      canvas = this.createCanvas(width, height);
-      canvas.style["z-index"] = ind;
-      return canvas;
+      return canvas = this.createCanvas(width, height, z, transp);
     };
-    DOMManager.prototype.addCanvas = function(canvas, x, y, isTransp) {
+    DOMManager.prototype.addCanvas = function(canvas, x, y) {
       var z;
       if (x == null) {
         x = 0;
@@ -121,15 +128,9 @@
         llogw("Canvas with z-index of " + z + " already exists");
         return;
       }
-      canvas.style.left = "" + x + "px";
-      canvas.style.top = "" + y + "px";
-      if (!isTransp) {
-        canvas.style["background-color"] = "white";
-      } else {
-        canvas.style["background-color"] = "transparent";
-      }
+      this.canvases[z] = canvas;
       this.viewport.appendChild(canvas);
-      return this.canvases[z] = canvas;
+      return canvas;
     };
     DOMManager.prototype.removeCanvasLayer = function(z) {
       var ind;

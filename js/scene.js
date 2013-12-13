@@ -22,7 +22,6 @@
         this.parseMeta(meta);
         this.bounds = Hal.viewportBounds();
         this.world_bounds = Hal.viewportBounds();
-        this.paused = true;
         this.entities = [];
         this.ent_cache = {};
         this.z = 0;
@@ -41,7 +40,6 @@
         this.camera_moved = false;
         this.view_matrix[2] = this.center[0];
         this.view_matrix[5] = this.center[1];
-        this.setOrigin(this.center[0], this.center[1]);
         this.prev_pos = [this.position[0], this.position[1]];
         return this;
       }
@@ -49,7 +47,8 @@
       Scene.prototype.parseMeta = function(meta) {
         this.name = meta.name != null ? meta.name : "" + (Hal.ID());
         this.bg_color = meta.bg_color != null ? meta.bg_color : "white";
-        return this.draw_stat = meta.draw_stat != null ? meta.draw_stat : true;
+        this.draw_stat = meta.draw_stat != null ? meta.draw_stat : true;
+        return this.world_bounds = meta.world_bounds != null ? meta.world_bounds : Hal.viewportBounds();
       };
 
       Scene.prototype.addEntity = function(ent, ctx) {
@@ -76,9 +75,9 @@
           lloge("Entity is null");
           return;
         }
-        ent.attr("quadtree", this.quadtree.insert(ent));
-        ent.attr("scene", this);
+        this.quadtree.insert(ent);
         ent.attr("ctx", ctx);
+        ent.attr("scene", this);
         this.entities.push(ent);
         this.ent_cache[ent.id] = ent;
         this.trigger("ENTITY_ADDED", ent);
@@ -102,47 +101,47 @@
       };
 
       Scene.prototype.update = function(delta) {
-        var ctx, en, _i, _j, _len, _len1, _ref, _ref1, _results;
-        _ref = this.renderer.contexts;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          ctx = _ref[_i];
-          ctx.fillStyle = this.bg_color;
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.fillRect(0, 0, this.bounds[2], this.bounds[3]);
-        }
+        var en, _i, _len, _ref, _results;
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.fillStyle = this.bg_color;
+        this.ctx.fillRect(0, 0, this.bounds[2], this.bounds[3]);
         this.ctx.strokeRect(this.center[0] - 1, this.center[1] - 1, 2, 2);
         if (this._update_transform) {
           this.transform(this.view_matrix);
           this.update_ents = true;
         }
-        _ref1 = this.entities;
+        _ref = this.entities;
         _results = [];
-        for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-          en = _ref1[_j];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          en = _ref[_i];
           _results.push(en.update(delta));
         }
         return _results;
       };
 
-      Scene.prototype.checkForCollisions = function(ent) {
-        var check, en, _i, _len, _ref, _results;
+      Scene.prototype.checkForCollisions = function() {
+        var enA, enB, _i, _len, _ref, _results;
         _ref = this.entities;
         _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          en = _ref[_i];
-          if (en === ent) {
-            continue;
-          }
-          check = Geometry.polygonIntersectsOrContainsPolygon(en._mesh, ent._mesh, ent.inverseTransform(), en.transform());
-          if (check && !ent.in_collision && !en.in_collision) {
-            ent.trigger("COLLISION_STARTED", en);
-            _results.push(en.trigger("COLLISION_STARTED", ent));
-          } else if (ent.in_collision && en.in_collision && !check) {
-            ent.trigger("COLLISION_ENDED", en);
-            _results.push(en.trigger("COLLISION_ENDED", ent));
-          } else {
-            _results.push(void 0);
-          }
+          enA = _ref[_i];
+          _results.push((function() {
+            var _j, _len1, _ref1, _results1;
+            _ref1 = this.entities;
+            _results1 = [];
+            for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+              enB = _ref1[_j];
+              if (enA === enB) {
+                continue;
+              }
+              if (Geometry.polygonIntersectsOrContainsPolygon(enA._mesh, enB._mesh, enB.inverseTransform(), enA.transform())) {
+                _results1.push(enA.trigger("COLLISION_HAPPENED", enB));
+              } else {
+                _results1.push(void 0);
+              }
+            }
+            return _results1;
+          }).call(this));
         }
         return _results;
       };
@@ -179,6 +178,7 @@
           lloge("No such entity " + ent.id + " in entity list");
           return;
         }
+        QuadTree.fromCache(ent.id).remove(ent);
         delete this.ent_cache[ent.id];
         this.trigger("ENTITY_DESTROYED", ent);
         return this.entities.splice(ind, 1);
@@ -211,7 +211,7 @@
 
       Scene.prototype.init = function() {
         var _this = this;
-        this.attr("paused", false);
+        this.pause();
         this.drag_listener = null;
         this.drag_started_listener = null;
         this.drag_ended_listener = null;
@@ -221,6 +221,9 @@
         this.resize_listener = null;
         this.resetQuadTree(this.world_bounds);
         this.on("CHANGE", function(key, val) {
+          if (this.paused) {
+            return;
+          }
           if (__indexOf.call(reactives, key) >= 0) {
             this._update_transform = true;
             return this._update_inverse = true;
@@ -302,6 +305,7 @@
           _this._update_transform = true;
           return _this._update_inverse = true;
         });
+        this.resume();
         return Scene.__super__.init.call(this);
       };
 
@@ -323,6 +327,7 @@
 
       Scene.prototype.setWorldBounds = function(world_bounds) {
         this.world_bounds = world_bounds;
+        this.resetQuadTree(this.world_bounds);
       };
 
       Scene.prototype.setBounds = function(bounds) {
@@ -358,7 +363,7 @@
       };
 
       Scene.prototype.destroy = function() {
-        this.attr("paused", true);
+        this.pause();
         Hal.removeTrigger("SCROLL", this.zoom_listener);
         Hal.removeTrigger("MOUSE_MOVE", this.drag_listener);
         Hal.removeTrigger("DRAG_STARTED", this.drag_started_listener);

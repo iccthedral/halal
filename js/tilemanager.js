@@ -12,49 +12,55 @@
         Tile.__super__.constructor.call(this, meta);
         this.row = meta.row;
         this.col = meta.col;
-        this.layers = [null, null, null, null, null];
+        this.layers = new Array();
         return this;
       }
 
-      Tile.prototype.containsLayer = function(layermeta, layer) {
-        var layer_present;
-        layer = layer || layermeta.layer;
-        layer_present = this.layers[layer] != null;
-        if (layer_present && this.layers[layer].name === layermeta.name) {
+      Tile.prototype.containsLayer = function(layermeta) {
+        var layer;
+        layer = layermeta["layer"];
+        if ((this.layers[layer] != null) && (this.layers[layer].name === layermeta.name)) {
           return true;
         }
         return false;
       };
 
-      Tile.prototype.addTileLayer = function(layerobj, layer) {
+      Tile.prototype.addTileLayer = function(layerobj) {
+        var layer;
+        layer = layerobj.layer;
+        console.debug("Adding layer to " + layer + " at " + this.row + ", " + this.col);
         if (this.layers[layer] != null) {
           this.layers[layer].destroy();
         }
         this.layers[layer] = layerobj;
         layerobj.attr("holder", this);
+        this.sortLayers();
         return layerobj;
       };
 
       Tile.prototype.getLayers = function() {
-        var l, out, _i, _len, _ref;
-        out = [];
-        _ref = this.layers;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          l = _ref[_i];
-          if (l != null) {
-            out.push(l);
-          }
+        return this.layers.slice();
+      };
+
+      Tile.prototype.removeLayer = function(layer) {
+        if (this.layers[layer] != null) {
+          this.layers.splice(layer, 1);
+          return this.sortLayers();
         }
-        return out;
       };
 
       Tile.prototype.init = function(meta) {
         Tile.__super__.init.call(this, meta);
-        this.on("LAYER_DESTROYED", function(layer) {
-          llogd("layer destroyed " + layer);
-          return this.layers[layer] = null;
-        });
         return this;
+      };
+
+      Tile.prototype.sortLayers = function() {
+        return this.layers.sort(function(a, b) {
+          if ((a == null) || (b == null)) {
+            return 0;
+          }
+          return a.layer - b.layer;
+        });
       };
 
       Tile.prototype.destroyMesh = function() {
@@ -70,7 +76,6 @@
 
       function TileLayer(meta) {
         TileLayer.__super__.constructor.call(this, meta);
-        console.log("tile layer konstruktor");
         this.setSprite(Hal.asm.getSprite(meta.sprite));
         this.name = meta.name != null ? meta.name : "" + this.id;
         this.layer = meta.layer != null ? meta.layer : 0;
@@ -87,15 +92,12 @@
         });
       };
 
-      TileLayer.prototype.destroy = function(destroy_children) {
-        if (destroy_children == null) {
-          destroy_children = true;
-        }
-        console.log("Destroying myself " + (this.toString()));
+      TileLayer.prototype.destroy = function() {
+        TileLayer.__super__.destroy.call(this);
         if (this.holder != null) {
-          this.holder.trigger("LAYER_DESTROYED", this.layer);
+          this.holder.removeLayer(this.layer);
         }
-        return TileLayer.__super__.destroy.call(this);
+        return delete this.holder;
       };
 
       TileLayer.prototype.toString = function() {
@@ -105,7 +107,7 @@
       return TileLayer;
 
     })(Shape);
-    return TileManager = (function() {
+    TileManager = (function() {
       function TileManager(map, tileList) {
         var _this = this;
         this.map = map;
@@ -116,6 +118,7 @@
         this.tile_name_map = {};
         this.tile_id_map = {};
         this._id = 0;
+        this.max_layers = this.map.max_layers;
         Hal.on("TILE_MNGR_NEW_TILE", function(tile) {
           return _this.add(tile);
         });
@@ -125,7 +128,7 @@
       }
 
       TileManager.prototype.loadFromList = function(list) {
-        var k, t, tiles, _results,
+        var tiles,
           _this = this;
         if (list == null) {
           list = "assets/TilesList.list";
@@ -133,25 +136,17 @@
         Ajax.get("assets/amjad/TilesList.json", function(tiles) {});
         llogd("TileManager loaded tiles.");
         tiles = JSON.parse(tiles);
-        _results = [];
-        for (k in tiles) {
-          t = tiles[k];
-          _results.push(this.add(t));
-        }
-        return _results;
+        return this.load(tiles);
       };
 
       TileManager.prototype.load = function(tiles) {
         var i, t;
         llogd("Loading tiles...");
-        llogd(tiles);
         for (i in tiles) {
           t = tiles[i];
-          console.log(t.name);
-          console.log(t.id);
           this.add(t);
         }
-        return this.map.renderer.createLayers([-1, -2, -3, -4, -5]);
+        return this.map.trigger("META_LAYERS_LOADED");
       };
 
       TileManager.prototype.add = function(tile) {
@@ -203,18 +198,38 @@
         return t = null;
       };
 
-      TileManager.prototype.newTileLayer = function(meta, layer) {
-        return new TileLayer(meta, layer);
+      TileManager.prototype.newTileLayer = function(meta) {
+        return new TileLayer(meta);
       };
 
       TileManager.prototype.newTileHolder = function(meta) {
-        return new Tile(meta);
+        var p, tile_holder, _i, _ref;
+        tile_holder = new Tile(meta);
+        for (p = _i = 0, _ref = this.max_layers; 0 <= _ref ? _i < _ref : _i > _ref; p = 0 <= _ref ? ++_i : --_i) {
+          tile_holder.layers.push(null);
+        }
+        return tile_holder;
       };
 
-      TileManager.prototype.addTileLayerToHolder = function(row, col, layermeta, offset_x, offset_y, layer) {
+      TileManager.prototype.addTileLayerToHolderByLayerId = function(row, col, layer_id, offset_x, offset_y) {
+        var meta;
+        if (offset_x == null) {
+          offset_x = 0;
+        }
+        if (offset_y == null) {
+          offset_y = 0;
+        }
+        meta = this.findById(layer_id);
+        return this.addTileLayerToHolder(row, col, meta, offset_x, offset_y);
+      };
+
+      TileManager.prototype.addTileLayerToHolder = function(row, col, layermeta, offset_x, offset_y) {
         var ctx, holder, off_x, off_y, tile, x, y;
-        if (layer == null) {
-          layer = layermeta.layer;
+        if (offset_x == null) {
+          offset_x = 0;
+        }
+        if (offset_y == null) {
+          offset_y = 0;
         }
         holder = this.map.getTile(row, col);
         if (holder == null) {
@@ -222,67 +237,37 @@
           return;
         }
         if (layermeta == null) {
-          console.error("No layermeta!!!");
+          lloge("No layermeta!!!");
           return;
         }
-        if (holder.containsLayer(layermeta, layer)) {
-          console.warn("You can't add same layer " + layermeta.name + " twice");
+        if (holder.containsLayer(layermeta)) {
+          llogw("You can't add same layer " + layermeta.name + " twice");
+          return;
+        }
+        if (layermeta.layer > this.max_layers) {
+          lloge("You can't have more than " + this.max_layers + " layers");
           return;
         }
         x = (holder.col / 2) * this.map.tilew;
         y = (holder.row + ((holder.col % 2) / 2)) * this.map.tileh;
-        tile = this.newTileLayer(layermeta, layer);
+        tile = this.newTileLayer(layermeta);
         if (tile.attr("group") === "default") {
-          tile.attr("group", "layer_" + layer);
+          tile.attr("group", "layer_" + tile.layer);
         }
-        console.log(offset_y);
-        console.log(offset_x);
-        tile = holder.addTileLayer(tile, -(layer + 1));
+        tile = holder.addTileLayer(tile);
         off_x = tile.sprite.w * 0.5 - this.map.tilew2;
         off_y = tile.sprite.h * 0.5 - this.map.tileh2;
         tile.attr("h", off_y);
         tile.setPosition(x, y - off_y);
-        llogd("Adding to layer: " + layer);
-        ctx = this.map.renderer.getLayerContext(layer);
+        ctx = this.map.renderer.getLayerContext(tile.layer);
         this.map.addEntityToQuadSpace(tile, ctx);
         return tile;
-      };
-
-      TileManager.prototype.saveMap = function() {
-        var h, layer, map_c, map_r, meta, meta_id, out, t, t_col, t_row, tiles, _i, _j, _len, _len1, _ref;
-        out = [];
-        tiles = this.map.map.slice();
-        map_r = this.map.nrows << 32;
-        map_c = this.map.ncols << 16;
-        out.push(map_r | map_c);
-        for (_i = 0, _len = tiles.length; _i < _len; _i++) {
-          t = tiles[_i];
-          t_row = t.row << 32;
-          t_col = t.col << 16;
-          out.push(t_row | t_col);
-          _ref = t.getLayers();
-          for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
-            layer = _ref[_j];
-            meta = this.findByName(layer.name);
-            meta_id = meta.id << 32;
-            h = layer.h << 16;
-            out.push(h | meta_id);
-          }
-        }
-        return out;
-      };
-
-      TileManager.prototype.loadMap = function(bitarray) {
-        var map_c, map_r, mask, qword;
-        mask = 0xFFFF;
-        qword = bitarray.shift();
-        map_r = (qword >> 32) & mask;
-        return map_c = (qword >> 16) & mask;
       };
 
       return TileManager;
 
     })();
+    return TileManager;
   });
 
 }).call(this);

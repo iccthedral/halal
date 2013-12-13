@@ -22,7 +22,7 @@ define ["vec2", "geometry", "sprite"],
             return (@_drawableState & state) is state;
 
         destructor: () ->
-            # @sprite = null
+            return
 
         constructor: () ->
             @_drawableState = 0xF00
@@ -36,7 +36,6 @@ define ["vec2", "geometry", "sprite"],
 
             @on "CHANGE", (key, val) ->
                 if key is "sprite"
-                    console.log "koliko puta ide ovo"
                     return if not @sprite? or not @sprite instanceof Sprite
                     # shape = Geometry.createPolygonFromRectangle(@sprite.w, @sprite.h)
                     # lloge shape

@@ -74,33 +74,37 @@ define [],
                 @in_fullscreen = not @in_fullscreen
                 Hal.trigger "FULLSCREEN_CHANGE", @in_fullscreen
 
-    DOMManager::createCanvas = (width = @area.width, height = @area.height) ->
-        canvas         = document.createElement("canvas")
-        canvas.width   = width
-        canvas.height  = height
-        return canvas
-    
-    DOMManager::createCanvasLayer = (width = @area.width, height = @area.height, z) ->
-        ind = @default_zindex + z
-        if @canvases[ind]
-            return @canvases[ind]
-        canvas = @createCanvas(width, height)
+    DOMManager::createCanvas = (width = @area.width, height = @area.height, z, transp) ->
+        ind             = @default_zindex + z
+        canvas          = document.createElement("canvas")
+        canvas.width    = width
+        canvas.height   = height        
+        if not transp
+            canvas.style["background"] = "white"
+        else 
+            canvas.style["background-color"] = "transparent"
+            canvas.style["background"] = "transparent"
+            console.log "it shall be transparent #{ind}"
         canvas.style["z-index"] = ind
         return canvas
 
-    DOMManager::addCanvas = (canvas, x = 0, y = 0, isTransp) ->
+    DOMManager::createCanvasLayer = (width = @area.width, height = @area.height, z, transp) ->
+        ind = @default_zindex + z
+        if @canvases[ind]
+            return @canvases[ind]
+        canvas = @createCanvas(width, height, z, transp)
+        @default_zindex += 1
+
+    DOMManager::addCanvas = (canvas, x = 0, y = 0) ->
         z = canvas.style["z-index"]
+        canvas.style["left" = "#{x}px"
+        canvas.style["top"]  = "#{y}px"            
         if @canvases[z]
             llogw "Canvas with z-index of #{z} already exists"
             return
-        canvas.style.left = "#{x}px"
-        canvas.style.top  = "#{y}px"
-        if not isTransp
-            canvas.style["background-color"] = "white"
-        else 
-            canvas.style["background-color"] = "transparent"
-        @viewport.appendChild(canvas)
         @canvases[z] = canvas
+        @viewport.appendChild(canvas)
+        return canvas
 
     DOMManager::removeCanvasLayer = (z) ->
         ind = @default_zindex + (+z)

@@ -11,8 +11,6 @@
         this.in_collision = false;
         this._bbox = new Array();
         this.on("SHAPE_CHANGED", function(mesh) {
-          lloge("shape changed");
-          lloge(mesh);
           return this._bbox = BBResolvers.AABBFromPolygon(mesh);
         });
         this.on("SPRITE_ADDED", function(sprite) {

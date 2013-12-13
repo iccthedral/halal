@@ -41,7 +41,7 @@
       cur_fps_time += delta;
       delta = Math.min(delta, fstep);
       Hal.trigger("ENTER_FRAME", delta);
-      if ((focused_scene != null) && (focused_scene.paused != null)) {
+      if ((focused_scene != null) && !focused_scene.paused) {
         focused_scene.update(delta);
         focused_scene.draw(delta);
       }
