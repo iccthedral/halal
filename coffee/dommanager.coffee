@@ -10,8 +10,8 @@ define [],
             @hud                        = document.getElementById("hud")
             @viewport                   = document.getElementById("viewport")
             @area                       = renderspace.getBoundingClientRect()
-            @current_zindex             = 1000
-            @canvases                   = []
+            @default_zindex             = 1000
+            @canvases                   = {}
             @in_fullscreen              = false
             @screen_w                   = window.screen.availWidth
             @screen_h                   = window.screen.availHeight
@@ -81,7 +81,7 @@ define [],
         return canvas
     
     DOMManager::createCanvasLayer = (width = @area.width, height = @area.height, z) ->
-        ind = @current_zindex + z
+        ind = @default_zindex + z
         if @canvases[ind]
             return @canvases[ind]
         canvas = @createCanvas(width, height)
@@ -97,7 +97,15 @@ define [],
         canvas.style.top  = "#{y}px"
         if not isTransp
             canvas.style["background-color"] = "white"
+        else 
+            canvas.style["background-color"] = "transparent"
         @viewport.appendChild(canvas)
         @canvases[z] = canvas
+
+    DOMManager::removeCanvasLayer = (z) ->
+        ind = @default_zindex + (+z)
+        llogi "Removing canvas layer at z-index: #{ind} / #{z}"
+        @viewport.removeChild(@canvases[ind])
+        delete @canvases[ind]
 
     return DOMManager

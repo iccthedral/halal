@@ -26,7 +26,8 @@
         this._mesh = null;
         this._numvertices = 0;
         this.scene = null;
-        this.quadspace = null;
+        this.quadtree = null;
+        this.ctx = null;
         this.parseMeta(meta);
         this.init();
         return this;
@@ -90,17 +91,17 @@
       }
       return this;
     };
-    Shape.prototype.update = function(ctx, delta) {
+    Shape.prototype.update = function(delta) {
       if (this.scene.update_ents) {
         this._update_transform = true;
       }
       this.calcTransform();
     };
-    Shape.prototype.draw = function(ctx, delta) {
-      this.trigger("PRE_FRAME", ctx, delta);
-      ctx.setTransform(this.scene._transform[0], this.scene._transform[3], this.scene._transform[1], this.scene._transform[4], this.scene._transform[2], this.scene._transform[5]);
-      ctx.transform(this._transform[0], this._transform[3], this._transform[1], this._transform[4], this._transform[2], this._transform[5]);
-      this.trigger("POST_FRAME", ctx, delta);
+    Shape.prototype.draw = function(delta) {
+      this.trigger("PRE_FRAME", delta);
+      this.ctx.setTransform(this.scene._transform[0], this.scene._transform[3], this.scene._transform[1], this.scene._transform[4], this.scene._transform[2], this.scene._transform[5]);
+      this.ctx.transform(this._transform[0], this._transform[3], this._transform[1], this._transform[4], this._transform[2], this._transform[5]);
+      this.trigger("POST_FRAME", delta);
     };
     Shape.prototype.angleWithOrigin = function(p) {
       p = Vec2.transformMat3(null, p, this._transform);
@@ -109,21 +110,30 @@
     Shape.prototype.addShape = function() {};
     Shape.prototype.destroy = function() {
       this.scene.trigger("ENTITY_REQ_DESTROYING", this);
+      if (this.quadtree != null) {
+        this.quadtree.remove(this);
+      }
+      this.destroyMesh();
       this.destructor();
+      delete this.scene;
+      delete this.quadtree;
+      delete this.sprite;
     };
     Shape.prototype.destroyMesh = function() {
       var p, _i, _len, _ref;
       this._numvertices = 0;
-      _ref = this._mesh;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        p = _ref[_i];
-        if (p instanceof Float32Array) {
-          Vec2.release(p);
-        } else {
-          lloge("That is some strange mesh");
+      if (this._mesh != null) {
+        _ref = this._mesh;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          p = _ref[_i];
+          if (p instanceof Float32Array) {
+            Vec2.release(p);
+          } else {
+            lloge("That is some strange mesh");
+          }
         }
+        return this.trigger("SHAPE_CHANGED");
       }
-      return this.trigger("SHAPE_CHANGED");
     };
     return Shape;
   });

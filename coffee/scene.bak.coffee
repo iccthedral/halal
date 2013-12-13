@@ -6,7 +6,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
 
     class Scene extends HalalEntity
         constructor: (meta = {}) ->
-            super()
+            super(meta)
             @name               = if meta.name? then meta.name else "#{Hal.ID()}"
             @bounds             = if meta.bounds? then meta.bounds else Hal.viewportBounds()
             @bg_color           = if meta.bg_color? then meta.bg_color else "white"

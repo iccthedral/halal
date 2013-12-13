@@ -13,6 +13,11 @@ define ["vec2", "matrix3"], (Vec2, Matrix3) ->
             @_update_transform   = true
             @_update_inverse     = true
 
+    Transformable::destructor = () ->
+        Vec2.release(@origin)
+        Vec2.release(@scale)
+        Vec2.release(@position)
+        
     Transformable::setOrigin = (x, y, move = true) ->
         if move
             @move(x - @origin[0], y - @origin[1])

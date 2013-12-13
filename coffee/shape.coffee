@@ -39,8 +39,8 @@ define [
             @_mesh                  = null
             @_numvertices           = 0
             @scene                  = null
-            @quadspace              = null
-
+            @quadtree               = null
+            @ctx                    = null
             @parseMeta(meta)
             @init()
             return @
@@ -97,17 +97,18 @@ define [
             @setShape(Geometry.polygonSortVertices(@_mesh))
         return @
 
-    Shape::update = (ctx, delta) ->
+    Shape::update = (delta) ->
         if @scene.update_ents
             @_update_transform = true
         @calcTransform()
+
         # @combineTransform(@scene.transform())
         # @scene.checkForCollisions(@)
         return
 
-    Shape::draw = (ctx, delta) ->
-        @trigger "PRE_FRAME", ctx, delta
-        ctx.setTransform(
+    Shape::draw = (delta) ->
+        @trigger "PRE_FRAME", delta
+        @ctx.setTransform(
             @scene._transform[0],
             @scene._transform[3],
             @scene._transform[1],
@@ -115,7 +116,7 @@ define [
             @scene._transform[2],
             @scene._transform[5]
         )
-        ctx.transform(
+        @ctx.transform(
             @_transform[0],
             @_transform[3],
             @_transform[1],
@@ -123,7 +124,7 @@ define [
             @_transform[2],
             @_transform[5]
         )
-        @trigger "POST_FRAME", ctx, delta
+        @trigger "POST_FRAME", delta
         return
 
     Shape::angleWithOrigin = (p) ->
@@ -135,16 +136,23 @@ define [
     
     Shape::destroy = () ->
         @scene.trigger "ENTITY_REQ_DESTROYING", @
+        if @quadtree?
+            @quadtree.remove(@)
+        @destroyMesh()
         @destructor()
+        delete @scene
+        delete @quadtree
+        delete @sprite
         return
 
     Shape::destroyMesh = () ->
         @_numvertices = 0
-        for p in @_mesh
-            if p instanceof Float32Array
-                Vec2.release(p)
-            else
-                lloge "That is some strange mesh"
-        @trigger "SHAPE_CHANGED"
+        if @_mesh?
+            for p in @_mesh
+                if p instanceof Float32Array
+                    Vec2.release(p)
+                else
+                    lloge "That is some strange mesh"
+            @trigger "SHAPE_CHANGED"
 
     return Shape

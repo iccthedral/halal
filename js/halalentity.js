@@ -164,7 +164,8 @@
         destructor = _ref1[key];
         destructor.call(this);
       }
-      return this.removeAllTriggers();
+      this.removeAllTriggers();
+      this.tweener.stop();
     };
     HalalEntity.prototype.constructor = function() {
       var deinit, init, name, _i, _len, _ref1, _ref2;
@@ -175,7 +176,7 @@
         _ref1 = _init_map[this.__classex__];
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
           init = _ref1[_i];
-          llogd("Calling " + this.__classex__ + " constructor");
+          llogd("Calling " + init.name + " constructor");
           init.call(this);
         }
       }

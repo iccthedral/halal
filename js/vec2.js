@@ -176,7 +176,7 @@
       return out;
     };
     Vec2.str = function(a) {
-      return "vec2(" + a[0] + ", " + a[1] + ")";
+      return "vec2(" + (a[0].toFixed(2)) + ", " + (a[1].toFixed(2)) + ")";
     };
     return Vec2;
   });

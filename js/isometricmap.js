@@ -9,82 +9,34 @@
       __extends(IsometricMap, _super);
 
       function IsometricMap(meta) {
-        var hittest, i, j, _i, _len, _ref,
-          _this = this;
-        this.tilew = meta.tilew;
-        this.tileh = meta.tileh;
-        this.nrows = +meta.rows;
-        this.ncols = +meta.cols;
-        this.tm = new TileManager(this);
+        var hittest, i, j, _i, _len, _ref;
+        IsometricMap.__super__.constructor.call(this, meta);
         this.tilew2prop = 2 / this.tilew;
         this.tileh2prop = 2 / this.tileh;
         this.tilew2 = this.tilew / 2;
         this.tileh2 = this.tileh / 2;
         this.map = [];
-        this.translate_x = 0;
+        this.mpos = Vec2.from(0, 0);
+        this.world_pos = Vec2.from(0, 0);
         this.max_rows = this.nrows - 1;
         this.max_cols = this.ncols - 1;
         this.selected_tile = null;
         this.selected_tile_x = 0;
-        this.selected_tile_y = 0;
+        this.selected_tile_y = this.tileh2;
         this.selected_tile_sprite = null;
-        this.old_camx = 0;
-        this.on_exit_frame = null;
-        this.supported_modes = {
-          "mode-default": function() {
-            _this.processMouseClick();
-          },
-          "mode-erase": function() {
-            _this.processMouseClick();
-            if ((_this.clicked_layer == null) || _this.clicked_layer.animating) {
-              return;
-            }
-            _this.clicked_layer.tween({
-              attr: "h",
-              from: 0,
-              to: 100,
-              duration: 500
-            }).tween({
-              attr: "opacity",
-              from: 1,
-              to: 0,
-              duration: 700
-            }).done(function() {
-              return this.destroy();
-            });
-            return _this.clicked_layer = null;
-          },
-          "mode-place": function() {
-            var t;
-            if (_this.tile_under_mouse == null) {
-              return;
-            }
-            t = _this.tm.addTileLayerToHolder(_this.tile_under_mouse, _this.selected_tile, _this.tile_under_mouse.position[0], _this.tile_under_mouse.position[1]);
-          }
-        };
-        this.camera_moved = false;
-        this.current_mode = "mode-default";
-        this.current_mode_clb = this.supported_modes[this.current_mode];
-        this.world_bounds = [0, 0, (this.ncols - 1) * this.tilew2, (this.nrows - 0.5) * this.tileh];
-        llogd("camera bounds: " + meta.world_bounds);
-        this.iso_shape = [Hal.Vec2.from(-this.tilew2, 0), Hal.Vec2.from(0, this.tileh2), Hal.Vec2.from(this.tilew2, 0), Hal.Vec2.from(0, -this.tileh2)];
-        this.display = {
-          startr: 0,
-          endr: 0,
-          startc: 0,
-          endc: 0
-        };
+        /* Isometric shape*/
+
+        this.iso_shape = [Vec2.from(-this.tilew2, 0), Vec2.from(0, this.tileh2), Vec2.from(this.tilew2, 0), Vec2.from(0, -this.tileh2)];
         this.info = {
-          row: "row: ",
-          col: "col: ",
-          tilename: "tile: ",
-          start_row: "starting row: ",
-          start_col: "starting col: ",
-          end_row: "end row: ",
-          end_col: "end_col: ",
+          row: "Row: ",
+          col: "Col: ",
+          tilename: "Tile: ",
+          mouse_position: "Mouse position: ",
           tile_under_mouse: "Tile position: ",
-          world_pos: "Mouse world position: "
+          world_position: "Mouse world position: "
         };
+        /* Create iso transparency mask*/
+
         this.mask = Hal.asm.getSprite("test/tilemask_128x64");
         hittest = Hal.dom.createCanvas(this.tilew, this.tileh).getContext("2d");
         hittest.drawImage(this.mask.img, 0, 0);
@@ -94,58 +46,104 @@
           i = _ref[j];
           this.mask_data[j] = i < 120;
         }
-        this.over = {
+        this.mouse_over_sprites = {
           "green": Hal.asm.getSprite("test/grid_unit_over_green_128x64"),
           "red": Hal.asm.getSprite("test/grid_unit_over_red_128x64")
         };
         IsometricMap.__super__.constructor.call(this, meta);
+        this.world_bounds = [0, 0, (this.ncols - 0.5) * this.tilew2, this.nrows * this.tileh];
       }
 
       IsometricMap.prototype.drawStat = function() {
         IsometricMap.__super__.drawStat.call(this);
         if (this.tile_under_mouse != null) {
-          Hal.glass.ctx.fillText(this.info.row + this.tile_under_mouse.row, 0, 195);
-          Hal.glass.ctx.fillText(this.info.col + this.tile_under_mouse.col, 0, 210);
-          Hal.glass.ctx.fillText(this.info.tile_under_mouse + Vec2.str(this.tile_under_mouse.position), 0, 225);
-          return Hal.glass.ctx.fillText(this.info.world_pos + Vec2.str(this.world_pos), 0, 240);
+          Hal.glass.ctx.fillText(this.info.mouse_position + Vec2.str(this.mpos), 0, 130);
+          Hal.glass.ctx.fillText(this.info.row + this.tile_under_mouse.row, 0, 145);
+          Hal.glass.ctx.fillText(this.info.col + this.tile_under_mouse.col, 0, 160);
+          Hal.glass.ctx.fillText(this.info.tile_under_mouse + Vec2.str(this.tile_under_mouse.position), 0, 175);
+          return Hal.glass.ctx.fillText(this.info.world_position + Vec2.str(this.world_pos), 0, 190);
         }
       };
 
-      IsometricMap.prototype.screenToWorld = function(point) {
-        return Geometry.transformPoint(point[0], point[1], this.inverseTransform());
+      IsometricMap.prototype.parseMeta = function(meta) {
+        IsometricMap.__super__.parseMeta.call(this, meta);
+        this.tilew = meta.tilew;
+        this.tileh = meta.tileh;
+        this.nrows = +meta.rows;
+        return this.ncols = +meta.cols;
       };
 
-      IsometricMap.prototype.init = function(meta) {
+      IsometricMap.prototype.init = function() {
         var _this = this;
-        IsometricMap.__super__.init.call(this, meta);
-        this.last_clicked_layer = null;
+        IsometricMap.__super__.init.call(this);
+        /* @SUPPORTED_EDITOR_MODES*/
+
+        this.supported_modes = {};
+        this.supported_modes["mode-default"] = function() {
+          _this.processLeftClick();
+        };
+        this.supported_modes["mode-erase"] = function() {
+          _this.processLeftClick();
+          if ((_this.clicked_layer == null) || _this.clicked_layer.animating) {
+            return;
+          }
+          _this.clicked_layer.tween({
+            attr: "h",
+            from: 0,
+            to: 100,
+            duration: 500
+          }).tween({
+            attr: "opacity",
+            from: 1,
+            to: 0,
+            duration: 700
+          }).done(function() {
+            return this.destroy();
+          });
+          return _this.clicked_layer = null;
+        };
+        this.supported_modes["mode-place"] = function() {
+          var t;
+          if (_this.tile_under_mouse == null) {
+            return;
+          }
+          _this.selected_tile_x = _this.selected_tile_sprite.w2;
+          _this.selected_tile_y = _this.selected_tile_sprite.h - _this.tileh2;
+          console.debug(_this.selected_tile_y);
+          t = _this.tm.addTileLayerToHolder(_this.tile_under_mouse.row, _this.tile_under_mouse.col, _this.selected_tile, _this.selected_tile_x, _this.selected_tile_y);
+        };
+        this.current_mode = "mode-default";
+        this.current_mode_clb = this.supported_modes[this.current_mode];
+        /* @SUPPORTED_EDITOR_MODES*/
+
+        this.clicked_layer = null;
         this.tile_under_mouse = null;
-        this.quadtree = new QuadTree(this.world_bounds);
-        this.search_range = [0, 0, this.bounds[2], this.bounds[3]];
-        Hal.on("LEFT_CLICK", function() {
-          return _this.current_mode_clb();
+        this.search_range = this.bounds.slice();
+        this.left_click_listener = Hal.on("LEFT_CLICK", function() {
+          return _this.current_mode_clb.call(_this);
         });
         /*map editor stuff*/
 
-        Hal.on("EDITOR_MODE_CHANGED", function(current_mode) {
-          _this.current_mode = current_mode;
-          if (_this.supported_modes[_this.current_mode]) {
-            _this.current_mode_clb = _this.supported_modes[_this.current_mode];
+        this.editor_mode_listener = Hal.on("EDITOR_MODE_CHANGED", function(mode) {
+          if (_this.supported_modes[mode] != null) {
+            _this.current_mode = mode;
+            _this.current_mode_clb = _this.supported_modes[mode];
           } else {
             llogw("Mode " + mode + " not supported");
           }
           return llogd(_this.current_mode);
         });
-        Hal.on("TILE_LAYER_SELECTED", function(tile) {
+        this.layer_selected_listener = Hal.on("TILE_LAYER_SELECTED", function(tile) {
           llogd("Tile layer selected from editor");
           llogd(tile);
           _this.selected_tile = tile;
           _this.selected_tile_sprite = Hal.asm.getSprite(_this.selected_tile.sprite);
           _this.selected_tile_x = _this.selected_tile_sprite.w2;
-          return _this.selected_tile_y = _this.selected_tile_sprite.h2;
+          return _this.selected_tile_y = _this.selected_tile_sprite.h - _this.tileh2;
         });
-        Hal.on("MOUSE_MOVE", function(pos) {
+        this.mouse_moved_listener = Hal.on("MOUSE_MOVE", function(pos) {
           var t;
+          Vec2.copy(_this.mpos, pos);
           if (_this.world_pos != null) {
             Vec2.release(_this.world_pos);
           }
@@ -161,6 +159,7 @@
             }
           }
         });
+        this.initSections();
         return this.initMap();
       };
 
@@ -198,9 +197,16 @@
         return this.map[Math.floor(coord[0]) + Math.floor(coord[1]) * this.ncols];
       };
 
+      IsometricMap.prototype.initSections = function() {
+        return this.section_center = [];
+      };
+
+      IsometricMap.prototype.loadCenterSection = function() {};
+
       IsometricMap.prototype.initMap = function() {
         var i, j, k, t, t1, t2, x, y, _i, _j, _ref, _ref1;
         this.clicked_layer = null;
+        this.tm = new TileManager(this);
         this.map = new Array(this.nrows * this.ncols);
         k = 0;
         t1 = performance.now();
@@ -223,7 +229,38 @@
         return llogd("it took: " + t1);
       };
 
-      IsometricMap.prototype.processMouseClick = function() {
+      IsometricMap.prototype.saveBitmapMap = function() {
+        var h, layer, map_c, map_r, meta, meta_id, out, t, t_col, t_row, tiles, _i, _j, _len, _len1, _ref;
+        out = [];
+        tiles = this.map.slice();
+        map_r = this.nrows << 32;
+        map_c = this.ncols << 16;
+        out.push(map_r | map_c);
+        for (_i = 0, _len = tiles.length; _i < _len; _i++) {
+          t = tiles[_i];
+          t_row = t.row << 32;
+          t_col = t.col << 16;
+          out.push(t_row | t_col);
+          _ref = t.layers;
+          for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+            layer = _ref[_j];
+            if (layer == null) {
+              out.push(-1);
+              continue;
+            }
+            meta = this.tm.findByName(layer.name);
+            meta_id = meta.id << 32;
+            h = layer.h << 16;
+            out.push(h | meta_id);
+          }
+        }
+        this.trigger("MAP_SAVED", out);
+        return out;
+      };
+
+      IsometricMap.prototype.loadBitmapMap = function() {};
+
+      IsometricMap.prototype.processLeftClick = function() {
         var layer, t1, t2, transp, _i, _len, _ref;
         if (this.clicked_layer != null) {
           this.clicked_layer.trigger("DESELECTED");
@@ -244,19 +281,19 @@
           } else {
             if ((layer.holder.col === this.clicked_layer.holder.col) && (layer.holder.row === this.clicked_layer.holder.row)) {
               if (layer.layer > this.clicked_layer.layer) {
-                this.clicked_layer = tile;
+                this.clicked_layer = layer;
               }
             } else if (layer.holder.row === this.clicked_layer.holder.row) {
               if (layer.h + layer.position[1] > this.clicked_layer.h + this.clicked_layer.position[1]) {
-                this.clicked_layer = tile;
+                this.clicked_layer = layer;
               }
             } else if (layer.holder.col === this.clicked_layer.holder.col) {
               if (layer.h + layer.position[1] > this.clicked_layer.h + this.clicked_layer.position[1]) {
-                this.clicked_layer = tile;
+                this.clicked_layer = layer;
               }
             } else if ((layer.holder.col !== this.clicked_layer.holder.col) && (layer.holder.row !== this.clicked_layer.holder.row)) {
               if (layer.h + layer.position[1] > this.clicked_layer.h + this.clicked_layer.position[1]) {
-                this.clicked_layer = tile;
+                this.clicked_layer = layer;
               }
             }
           }
@@ -284,46 +321,41 @@
         }
       };
 
-      IsometricMap.prototype.drawQuadTree = function(quadtree) {
-        if (this.paused) {
-          return;
-        }
-        this.g.ctx.textAlign = "center";
-        this.g.ctx.fillStyle = "white";
-        if (quadtree.nw != null) {
-          this.drawQuadTree(quadtree.nw);
-          this.g.ctx.strokeRect(quadtree.nw.bounds[0], quadtree.nw.bounds[1], quadtree.nw.bounds[2], quadtree.nw.bounds[3]);
-          this.g.ctx.fillText("" + quadtree.nw.id, quadtree.nw.bounds[0] + quadtree.nw.bounds[2] * 0.5, quadtree.nw.bounds[1] + quadtree.nw.bounds[3] * 0.5);
-        }
-        if (quadtree.ne != null) {
-          this.drawQuadTree(quadtree.ne);
-          this.g.ctx.strokeRect(quadtree.ne.bounds[0], quadtree.ne.bounds[1], quadtree.ne.bounds[2], quadtree.ne.bounds[3]);
-          this.g.ctx.fillText("" + quadtree.ne.id, quadtree.ne.bounds[0] + quadtree.ne.bounds[2] * 0.5, quadtree.ne.bounds[1] + quadtree.ne.bounds[3] * 0.5);
-        }
-        if (quadtree.sw != null) {
-          this.drawQuadTree(quadtree.sw);
-          this.g.ctx.strokeRect(quadtree.sw.bounds[0], quadtree.sw.bounds[1], quadtree.sw.bounds[2], quadtree.sw.bounds[3]);
-          this.g.ctx.fillText("" + quadtree.sw.id, quadtree.sw.bounds[0] + quadtree.sw.bounds[2] * 0.5, quadtree.sw.bounds[1] + quadtree.sw.bounds[3] * 0.5);
-        }
-        if (quadtree.se != null) {
-          this.drawQuadTree(quadtree.se);
-          this.g.ctx.strokeRect(quadtree.se.bounds[0], quadtree.se.bounds[1], quadtree.se.bounds[2], quadtree.se.bounds[3]);
-          return this.g.ctx.fillText("" + quadtree.se.id, quadtree.se.bounds[0] + quadtree.se.bounds[2] * 0.5, quadtree.se.bounds[1] + quadtree.se.bounds[3] * 0.5);
-        }
-      };
-
       IsometricMap.prototype.draw = function(delta) {
         IsometricMap.__super__.draw.call(this, delta);
-        this.g.ctx.setTransform(this._transform[0], this._transform[3], this._transform[1], this._transform[4], this._transform[2], this._transform[5]);
+        this.ctx.setTransform(this._transform[0], this._transform[3], this._transform[1], this._transform[4], this._transform[2], this._transform[5]);
         this.drawQuadTree(this.quadtree);
         if (this.current_mode === "mode-place") {
           if ((this.selected_tile == null) || (this.tile_under_mouse == null)) {
             return;
           }
-          this.g.ctx.globalAlpha = 0.5;
-          this.g.ctx.drawImage(this.selected_tile_sprite.img, this.tile_under_mouse.position[0] - this.selected_tile_x, this.tile_under_mouse.position[1] - this.selected_tile_y);
-          return this.g.ctx.globalAlpha = 1.0;
+          this.ctx.globalAlpha = 0.5;
+          this.ctx.drawImage(this.selected_tile_sprite.img, this.tile_under_mouse.position[0] - this.selected_tile_x, this.tile_under_mouse.position[1] - this.selected_tile_y);
+          return this.ctx.globalAlpha = 1.0;
         }
+      };
+
+      IsometricMap.prototype.destroy = function() {
+        /* @todo @tm.destroy()*/
+
+        Vec2.release(this.mpos);
+        Vec2.release(this.world_pos);
+        Hal.removeTrigger("EDITOR_MODE_CHANGED", this.editor_mode_listener);
+        Hal.removeTrigger("TILE_LAYER_SELECTED", this.layer_selected_listener);
+        Hal.removeTrigger("MOUSE_MOVE", this.mouse_moved_listener);
+        Hal.removeTrigger("LEFT_CLICK", this.left_click_listener);
+        return IsometricMap.__super__.destroy.call(this);
+      };
+
+      IsometricMap.prototype.saveMap = function() {
+        var tile, _i, _len, _ref, _results;
+        _ref = this.map;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          tile = _ref[_i];
+          _results.push(console.debug(tile.binaryFormat()));
+        }
+        return _results;
       };
 
       return IsometricMap;

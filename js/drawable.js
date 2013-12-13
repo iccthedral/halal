@@ -36,11 +36,7 @@
         return (this._drawableState & state) === state;
       };
 
-      Drawable.prototype.destructor = function() {
-        this.removeTrigger("CHANGE", this.drawable_change);
-        this.removeTrigger("POST_FRAME", this.drawable_post_frame);
-        return console.info("You got destroyed");
-      };
+      Drawable.prototype.destructor = function() {};
 
       function Drawable() {
         this._drawableState = 0xF00;
@@ -51,7 +47,7 @@
         this.glow_color = "blue";
         this.stroke_width = 1;
         this.opacity = 1;
-        this.on("CHANGE", this.drawable_change = function(key, val) {
+        this.on("CHANGE", function(key, val) {
           if (key === "sprite") {
             console.log("koliko puta ide ovo");
             if ((this.sprite == null) || !this.sprite instanceof Sprite) {
@@ -68,51 +64,51 @@
             return this.drawableOffState(Drawable.DrawableStates.Glow);
           }
         });
-        this.on("POST_FRAME", this.drawable_post_frame = function(ctx, delta) {
+        this.on("POST_FRAME", function(delta) {
           /* @FILL*/
 
           var i, mid, p, p1, p2;
           if (this.drawableIsState(Drawable.DrawableStates.Fill)) {
-            ctx.fillStyle = this.fill_color;
-            ctx.beginPath();
-            ctx.moveTo(this._mesh[0][0], this._mesh[0][1]);
+            this.ctx.fillStyle = this.fill_color;
+            this.ctx.beginPath();
+            this.ctx.moveTo(this._mesh[0][0], this._mesh[0][1]);
             i = 1;
             while (i < this._numvertices) {
-              ctx.lineTo(this._mesh[i][0], this._mesh[i][1]);
+              this.ctx.lineTo(this._mesh[i][0], this._mesh[i][1]);
               ++i;
             }
-            ctx.closePath();
-            ctx.fill();
+            this.ctx.closePath();
+            this.ctx.fill();
           }
           /* @DRAW @SPRITE*/
 
           if (this.drawableIsState(Drawable.DrawableStates.Sprite) && (this.sprite != null)) {
-            ctx.drawImage(this.sprite.img, -this.sprite.w2, -this.sprite.h2);
+            this.ctx.drawImage(this.sprite.img, -this.sprite.w2, -this.sprite.h2);
           }
           /* @GLOW*/
 
           if (this.drawableIsState(Drawable.DrawableStates.Glow)) {
-            ctx.shadowColor = this.glow_color;
-            ctx.shadowBlur = this.glow_amount;
+            this.ctx.shadowColor = this.glow_color;
+            this.ctx.shadowBlur = this.glow_amount;
           }
           /* @STROKE*/
 
           if (this.drawableIsState(Drawable.DrawableStates.Stroke)) {
-            ctx.lineWidth = this.stroke_width;
-            ctx.strokeStyle = this.stroke_color;
-            ctx.beginPath();
-            ctx.moveTo(this._mesh[0][0], this._mesh[0][1]);
+            this.ctx.lineWidth = this.stroke_width;
+            this.ctx.strokeStyle = this.stroke_color;
+            this.ctx.beginPath();
+            this.ctx.moveTo(this._mesh[0][0], this._mesh[0][1]);
             i = 1;
             while (i < this._numvertices) {
-              ctx.lineTo(this._mesh[i][0], this._mesh[i][1]);
+              this.ctx.lineTo(this._mesh[i][0], this._mesh[i][1]);
               ++i;
             }
-            ctx.closePath();
-            ctx.stroke();
-            ctx.lineWidth = 1;
+            this.ctx.closePath();
+            this.ctx.stroke();
+            this.ctx.lineWidth = 1;
           }
           if (this.drawableIsState(Drawable.DrawableStates.Glow)) {
-            ctx.shadowBlur = 0;
+            this.ctx.shadowBlur = 0;
           }
           /* @DRAW @NORMALS*/
 
@@ -131,12 +127,12 @@
               Vec2.normalize(p2, p1);
               Vec2.scale(p1, p2, 50);
               Vec2.add(p, p1, mid);
-              ctx.strokeStyle = "yellow";
-              ctx.beginPath();
-              ctx.moveTo(mid[0], mid[1]);
-              ctx.lineTo(p[0], p[1]);
-              ctx.closePath();
-              ctx.stroke();
+              this.ctx.strokeStyle = "yellow";
+              this.ctx.beginPath();
+              this.ctx.moveTo(mid[0], mid[1]);
+              this.ctx.lineTo(p[0], p[1]);
+              this.ctx.closePath();
+              this.ctx.stroke();
               ++i;
             }
             Vec2.release(p1);
@@ -145,10 +141,10 @@
             Vec2.release(p);
           }
           if (this.drawableIsState(Drawable.DrawableStates.DrawCenter)) {
-            ctx.strokeRect(0, 0, 1, 1);
+            this.ctx.strokeRect(0, 0, 1, 1);
           }
           if (this.drawableIsState(Drawable.DrawableStates.DrawBBox)) {
-            return ctx.strokeRect(this._bbox[0], this._bbox[1], this._bbox[2], this._bbox[3]);
+            return this.ctx.strokeRect(this._bbox[0], this._bbox[1], this._bbox[2], this._bbox[3]);
           }
         });
       }

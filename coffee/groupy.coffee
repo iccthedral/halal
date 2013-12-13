@@ -15,10 +15,10 @@ define ["eventdispatcher"],
                     ind = group.indexOf(ent)
                     group.splice(ind, 1)
 
-            @on "ENTITY_ADDED", @groupy_ent_add = (ent) ->
+            @on "ENTITY_ADDED", (ent) ->
                 @trigger "GROUP_CHANGE", ent
 
-            @on "GROUP_CHANGE", @groupy_change = (ent) ->
+            @on "GROUP_CHANGE", (ent) ->
                 group = @ent_groups[ent.group]
                 if not group?
                     group = @ent_groups[ent.group] = []
@@ -28,11 +28,6 @@ define ["eventdispatcher"],
                 else
                     group.push(ent)
 
-        destructor: () ->
-            @removeTrigger "GROUP_CHANGE", @groupy_change
-            @removeTrigger "ENTITY_ADDED", @groupy_ent_add
-            @removeTrigger "ENTITY_DESTROYED", @group_ent_destr
-        
         findGroup: (group) ->
             return [] if not @ent_groups[group]?
             return @ent_groups[group].slice()

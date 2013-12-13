@@ -78,28 +78,24 @@ define [
     fstep               = 1 / fps_cap
     draw_info           = null
     paused              = true
+    focused_scene       = null
 
     rafLoop = () ->
-        prev_time = cur_time
-        cur_time = performance.now()
-        delta = (cur_time - prev_time) * 0.001
-        cur_fps_time += delta
-        delta = Math.min(delta, fstep)
-
+        prev_time           = cur_time
+        cur_time            = performance.now()
+        delta               = (cur_time - prev_time) * 0.001
+        cur_fps_time        += delta
+        delta               = Math.min(delta, fstep)
         Hal.trigger "ENTER_FRAME", delta
-
-        for sc in Hal.scenes
-            sc.update(delta)
-            sc.draw(delta)
-
+        if focused_scene? and focused_scene.paused?
+            focused_scene.update(delta)
+            focused_scene.draw(delta)
         if cur_fps_time >= fps_trigger_time
-            Hal.fps = fps_counter
-            cur_fps_time = 0
-            fps_counter = 0
+            Hal.fps         = fps_counter
+            cur_fps_time    = 0
+            fps_counter     = 0
             Hal.trigger "FPS_UPDATE", Hal.fps
-
         Hal.trigger "EXIT_FRAME", delta
-
         last_frame_id = requestAnimFrame(rafLoop)
         fps_counter++
 
@@ -107,32 +103,36 @@ define [
         constructor: () ->
             super()
             @dom            = new DOMManager(@)
+            @glass_z_index  = 100
             @id             = 0
             @debug_mode     = false
             @pressed_keys   = []
             @scenes         = []
             @fps            = 0
+            @glass          = null
             llogd "Engine constructed"
 
-    Halal::addScene = (scene) ->
+    Halal::setFocusedScene = (scene) ->
+        focused_scene = scene
+
+    Halal::addScene = (scene, to_focus = true) ->
+        if @scenes.length is 0 and not @glass?
+            @start()
         if not (scene instanceof Scene)
             lloge "Not a Scene instance"
             return null
-
         if not scene.bounds
             lloge "Bounds not set on scene #{scene.name}"
             return null
-
         if not scene.name
             llogw "Name for scene wasn't provided"
             scene.name = "#scene" + "_" + scene.id
-
         scene.init()
-        Hal.trigger "SCENE_ADDED_" + scene.name.toUpperCase(), scene
-        
         @scenes.unshift(scene)
-
         llogd "Added scene: #{scene.name}"
+        Hal.trigger "SCENE_ADDED", scene
+        if to_focus
+            focused_scene  = scene
         return scene
 
     Halal::pause = () ->
@@ -152,21 +152,27 @@ define [
         @trigger "SUPPORTS_#{feature}"
 
     Halal::init = () ->
-        @evm    = new DOMEventManager()
-        @glass  = new Renderer(@viewportBounds(), null, 11)
-        @glass.ctx.font = "10pt monospace"
-        @glass.ctx.fillStyle = "black"
+        @evm = 
+            new DOMEventManager()
+        @glass = 
+            new Renderer(@viewportBounds(), null, @glass_z_index, true)
+        @glass.ctx.font =
+            "9pt monospace"
+        @glass.ctx.fillStyle = 
+            "black"
 
-        @on "MOUSE_MOVE", (pos) ->
-            for sc in @scenes
-                sc.mpos = pos
-        
-        @on "DESTROY_SCENE", (scene) ->
+        @on "SCENE_REQ_DESTROY", (scene) ->
             ind = @scenes.indexOf(scene)
             if ind is -1
                 lloge "No such scene: #{scene.name}"
-            @scenes[ind] = null
             @scenes.splice(ind, 1)
+            if focused_scene is scene
+                focused_scene = null
+            if @scenes.length is 0
+                @dom.removeCanvasLayer(@glass_z_index)
+                @pause()
+            llogi "Destroyed scene: #{scene.name}"
+            scene = null
 
         llogd "Engine initialized"
     
@@ -185,11 +191,6 @@ define [
 
     Halal::ID = () ->
         return ++@id
-
-    Halal::drawInfo = () ->
-        # need to clear this shit #
-        @glass.ctx.setTransform(1, 0, 0, 1, 0, 0)
-        @glass.ctx.fillText("FPS: #{@fps}", 0, 10)
 
     Halal::tween = (obj, property, t, from, to, repeat = 1, arr_index) ->
         defer = new Deferred()
@@ -249,7 +250,6 @@ define [
     Halal::geometry = Geometry
     Halal::asm      = new AssetManager()
     Halal::im       = new ImgUtils()
-
     ### classes ###
     Halal::Line             = Line
     Halal::Vec2             = Vec2
@@ -260,7 +260,6 @@ define [
     Halal::IsometricMap     = IsometricMap
     Halal::BBResolvers      = BBResolvers
     Halal::DrawableStates   = Drawable.DrawableStates
-
     Halal::Keys = 
         SHIFT: 16
         G: 71
@@ -280,5 +279,4 @@ define [
         DOWN: 40
         F: 70
 
-    window.Hal       = new Halal()
-    return window.Hal
+    return window.Hal = new Halal()

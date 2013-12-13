@@ -14,10 +14,10 @@
             return group.splice(ind, 1);
           }
         });
-        this.on("ENTITY_ADDED", this.groupy_ent_add = function(ent) {
+        this.on("ENTITY_ADDED", function(ent) {
           return this.trigger("GROUP_CHANGE", ent);
         });
-        this.on("GROUP_CHANGE", this.groupy_change = function(ent) {
+        this.on("GROUP_CHANGE", function(ent) {
           var group, ind;
           group = this.ent_groups[ent.group];
           if (group == null) {
@@ -31,12 +31,6 @@
           }
         });
       }
-
-      Groupy.prototype.destructor = function() {
-        this.removeTrigger("GROUP_CHANGE", this.groupy_change);
-        this.removeTrigger("ENTITY_ADDED", this.groupy_ent_add);
-        return this.removeTrigger("ENTITY_DESTROYED", this.group_ent_destr);
-      };
 
       Groupy.prototype.findGroup = function(group) {
         if (this.ent_groups[group] == null) {

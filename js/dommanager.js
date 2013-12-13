@@ -9,8 +9,8 @@
         this.hud = document.getElementById("hud");
         this.viewport = document.getElementById("viewport");
         this.area = renderspace.getBoundingClientRect();
-        this.current_zindex = 1000;
-        this.canvases = [];
+        this.default_zindex = 1000;
+        this.canvases = {};
         this.in_fullscreen = false;
         this.screen_w = window.screen.availWidth;
         this.screen_h = window.screen.availHeight;
@@ -100,7 +100,7 @@
       if (height == null) {
         height = this.area.height;
       }
-      ind = this.current_zindex + z;
+      ind = this.default_zindex + z;
       if (this.canvases[ind]) {
         return this.canvases[ind];
       }
@@ -125,9 +125,18 @@
       canvas.style.top = "" + y + "px";
       if (!isTransp) {
         canvas.style["background-color"] = "white";
+      } else {
+        canvas.style["background-color"] = "transparent";
       }
       this.viewport.appendChild(canvas);
       return this.canvases[z] = canvas;
+    };
+    DOMManager.prototype.removeCanvasLayer = function(z) {
+      var ind;
+      ind = this.default_zindex + (+z);
+      llogi("Removing canvas layer at z-index: " + ind + " / " + z);
+      this.viewport.removeChild(this.canvases[ind]);
+      return delete this.canvases[ind];
     };
     return DOMManager;
   });

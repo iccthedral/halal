@@ -155,37 +155,18 @@ define ["mathutil"],
         out[0] = Math.cos(r) * scale
         out[1] = Math.sin(r) * scale
         return out
-
-    # Vec2.transformMat3 = (out, a, m) ->
-    #     [x, y] = a
-    #     out[0] = m[0] * x + m[3] * y + m[6]
-    #     out[1] = m[1] * x + m[4] * y + m[7]
-    #     return out
         
     Vec2.transformMat3 = (out, a, m) ->
         out[0] = m[0] * a[0] + m[1] * a[1] + m[2]
         out[1] = m[3] * a[0] + m[4] * a[1] + m[5]
         return out
 
-    # Vec2.transformMat2d = (out, a, m) ->
-    #     [x, y] = a
-    #     out[0] = m[0] * x + m[2] * y + m[4]
-    #     out[1] = m[1] * x + m[3] * y + m[5]
-    #     return out
-
     Vec2.perpendicular = (out, a) ->
         out[0] = a[1]
         out[1] = -a[0]
         return out
-        
-    # Vec2.transformMat2 = (out, a, m) ->
-    #     [x, y] = a
-    #     out[0] = m[0] * x + m[2] * y
-    #     out[1] = m[1] * x + m[3] * y
-    #     return out
          
     Vec2.str = (a) ->
-        return "vec2(#{a[0]}, #{a[1]})"
+        return "vec2(#{a[0].toFixed(2)}, #{a[1].toFixed(2)})"
 
     return Vec2
-

@@ -99,6 +99,8 @@ define ["eventdispatcher", "deferred"],
         for key, destructor of @destructors
             destructor.call(@)
         @removeAllTriggers()
+        @tweener.stop()
+        return
 
     HalalEntity::constructor = () ->
         @id = Hal.ID()
@@ -106,9 +108,9 @@ define ["eventdispatcher", "deferred"],
         super()
         if _init_map[@__classex__]
             for init in _init_map[@__classex__]
-                llogd "Calling #{@__classex__} constructor"
+                llogd "Calling #{init.name} constructor"
                 init.call(@)
-
+                
         if _deinit_map[@__classex__]
             for name, deinit of _deinit_map[@__classex__]
                 @destructors[name] = deinit

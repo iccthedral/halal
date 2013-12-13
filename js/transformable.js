@@ -17,6 +17,11 @@
       return Transformable;
 
     })();
+    Transformable.prototype.destructor = function() {
+      Vec2.release(this.origin);
+      Vec2.release(this.scale);
+      return Vec2.release(this.position);
+    };
     Transformable.prototype.setOrigin = function(x, y, move) {
       if (move == null) {
         move = true;

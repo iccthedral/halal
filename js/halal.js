@@ -8,7 +8,7 @@
         A shim (sort of) to support RAF execution
     */
 
-    var Halal, cur_fps_time, cur_time, delta, draw_info, fps_cap, fps_counter, fps_trigger_time, fstep, last_frame_id, paused, prev_time, rafLoop;
+    var Halal, cur_fps_time, cur_time, delta, draw_info, focused_scene, fps_cap, fps_counter, fps_trigger_time, fstep, last_frame_id, paused, prev_time, rafLoop;
     window.requestAnimFrame = (function() {
       return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function(callback) {
         return window.setTimeout(callback, 1);
@@ -33,19 +33,17 @@
     fstep = 1 / fps_cap;
     draw_info = null;
     paused = true;
+    focused_scene = null;
     rafLoop = function() {
-      var sc, _i, _len, _ref;
       prev_time = cur_time;
       cur_time = performance.now();
       delta = (cur_time - prev_time) * 0.001;
       cur_fps_time += delta;
       delta = Math.min(delta, fstep);
       Hal.trigger("ENTER_FRAME", delta);
-      _ref = Hal.scenes;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        sc = _ref[_i];
-        sc.update(delta);
-        sc.draw(delta);
+      if ((focused_scene != null) && (focused_scene.paused != null)) {
+        focused_scene.update(delta);
+        focused_scene.draw(delta);
       }
       if (cur_fps_time >= fps_trigger_time) {
         Hal.fps = fps_counter;
@@ -63,18 +61,29 @@
       function Halal() {
         Halal.__super__.constructor.call(this);
         this.dom = new DOMManager(this);
+        this.glass_z_index = 100;
         this.id = 0;
         this.debug_mode = false;
         this.pressed_keys = [];
         this.scenes = [];
         this.fps = 0;
+        this.glass = null;
         llogd("Engine constructed");
       }
 
       return Halal;
 
     })(EventDispatcher);
-    Halal.prototype.addScene = function(scene) {
+    Halal.prototype.setFocusedScene = function(scene) {
+      return focused_scene = scene;
+    };
+    Halal.prototype.addScene = function(scene, to_focus) {
+      if (to_focus == null) {
+        to_focus = true;
+      }
+      if (this.scenes.length === 0 && (this.glass == null)) {
+        this.start();
+      }
       if (!(scene instanceof Scene)) {
         lloge("Not a Scene instance");
         return null;
@@ -88,9 +97,12 @@
         scene.name = "#scene" + "_" + scene.id;
       }
       scene.init();
-      Hal.trigger("SCENE_ADDED_" + scene.name.toUpperCase(), scene);
       this.scenes.unshift(scene);
       llogd("Added scene: " + scene.name);
+      Hal.trigger("SCENE_ADDED", scene);
+      if (to_focus) {
+        focused_scene = scene;
+      }
       return scene;
     };
     Halal.prototype.pause = function() {
@@ -111,27 +123,25 @@
     };
     Halal.prototype.init = function() {
       this.evm = new DOMEventManager();
-      this.glass = new Renderer(this.viewportBounds(), null, 11);
-      this.glass.ctx.font = "10pt monospace";
+      this.glass = new Renderer(this.viewportBounds(), null, this.glass_z_index, true);
+      this.glass.ctx.font = "9pt monospace";
       this.glass.ctx.fillStyle = "black";
-      this.on("MOUSE_MOVE", function(pos) {
-        var sc, _i, _len, _ref, _results;
-        _ref = this.scenes;
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          sc = _ref[_i];
-          _results.push(sc.mpos = pos);
-        }
-        return _results;
-      });
-      this.on("DESTROY_SCENE", function(scene) {
+      this.on("SCENE_REQ_DESTROY", function(scene) {
         var ind;
         ind = this.scenes.indexOf(scene);
         if (ind === -1) {
           lloge("No such scene: " + scene.name);
         }
-        this.scenes[ind] = null;
-        return this.scenes.splice(ind, 1);
+        this.scenes.splice(ind, 1);
+        if (focused_scene === scene) {
+          focused_scene = null;
+        }
+        if (this.scenes.length === 0) {
+          this.dom.removeCanvasLayer(this.glass_z_index);
+          this.pause();
+        }
+        llogi("Destroyed scene: " + scene.name);
+        return scene = null;
       });
       return llogd("Engine initialized");
     };
@@ -151,10 +161,6 @@
     };
     Halal.prototype.ID = function() {
       return ++this.id;
-    };
-    Halal.prototype.drawInfo = function() {
-      this.glass.ctx.setTransform(1, 0, 0, 1, 0, 0);
-      return this.glass.ctx.fillText("FPS: " + this.fps, 0, 10);
     };
     Halal.prototype.tween = function(obj, property, t, from, to, repeat, arr_index) {
       var $, accul, defer, speed, val;
@@ -260,8 +266,7 @@
       DOWN: 40,
       F: 70
     };
-    window.Hal = new Halal();
-    return window.Hal;
+    return window.Hal = new Halal();
   });
 
 }).call(this);

@@ -7,7 +7,7 @@
     QuadTree = (function() {
       function QuadTree(bounds) {
         this.bounds = bounds;
-        this.pts = [];
+        this.entities = [];
         this.nw = null;
         this.sw = null;
         this.ne = null;
@@ -22,41 +22,52 @@
       QuadTree.prototype.insert = function(ent) {
         if (!Geometry.isPointInRectangle(ent.position, this.bounds)) {
           llogd("Entity doesnt't interrsect " + this.id);
-          return false;
-        }
-        if (this.pts.length < capacity) {
-          ent.attr("quadspace", this);
-          this.pts.push(ent);
-          total++;
-          return true;
+          return null;
         }
         if (this.nw == null) {
           this.divide();
         }
-        if (this.nw.insert(ent)) {
-          return true;
+        if (this.entities.length < capacity) {
+          ent.attr("quadspace", this);
+          this.entities.push(ent);
+          total++;
+          return this;
+        }
+        if (this.nw.insert(ent) != null) {
+          return this.nw;
         }
         if (this.ne.insert(ent)) {
-          return true;
+          return this.ne;
         }
         if (this.sw.insert(ent)) {
-          return true;
+          return this.sw;
         }
         if (this.se.insert(ent)) {
-          return true;
+          return this.se;
         }
-        return false;
+        return null;
       };
 
       QuadTree.prototype.remove = function(ent) {
         var ind;
-        ind = this.pts.indexOf(ent);
+        ind = this.entities.indexOf(ent);
         if (ind === -1) {
           lloge("Entity " + ent.id + " is not in quadspace");
           return;
         }
-        this.pts.splice(ind, 1);
+        this.entities.splice(ind, 1);
         return total--;
+      };
+
+      QuadTree.prototype.removeAll = function() {
+        var p, _i, _len, _ref, _results;
+        _ref = this.entities.slice();
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          p = _ref[_i];
+          _results.push(this.remove(p));
+        }
+        return _results;
       };
 
       QuadTree.prototype.findById = function(id) {
@@ -86,7 +97,7 @@
 
       QuadTree.prototype.findUnder = function() {
         var out;
-        out = this.pts.slice();
+        out = this.entities.slice();
         if (this.nw != null) {
           out = out.concat(this.nw.findUnder());
         }
@@ -125,10 +136,9 @@
         entsInRange = [];
         transformBnds = Geometry.transformRectangle(this.bounds, matrix);
         if (!Geometry.rectangleIntersectsOrContainsRectangle(range, transformBnds)) {
-          console.debug("not in this quadspace: " + this.id);
           return entsInRange;
         }
-        _ref = this.pts;
+        _ref = this.entities;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           p = _ref[_i];
           ret = Geometry.rectangleIntersectsOrContainsRectangle(range, Geometry.transformRectangle(p._bbox, Matrix3.mul([], p.transform(), matrix)));
@@ -140,10 +150,10 @@
         if (this.nw == null) {
           return entsInRange;
         }
-        entsInRange = entsInRange.concat(this.nw.searchInRange(range, scene));
-        entsInRange = entsInRange.concat(this.ne.searchInRange(range, scene));
-        entsInRange = entsInRange.concat(this.sw.searchInRange(range, scene));
-        entsInRange = entsInRange.concat(this.se.searchInRange(range, scene));
+        entsInRange = entsInRange.concat(this.nw.findEntitiesInRectangle(range, matrix));
+        entsInRange = entsInRange.concat(this.ne.findEntitiesInRectangle(range, matrix));
+        entsInRange = entsInRange.concat(this.sw.findEntitiesInRectangle(range, matrix));
+        entsInRange = entsInRange.concat(this.se.findEntitiesInRectangle(range, matrix));
         return entsInRange;
       };
 
@@ -151,6 +161,7 @@
         var h, w;
         w = this.bounds[2] * 0.5;
         h = this.bounds[3] * 0.5;
+        this.entities = [];
         this.nw = new QuadTree([this.bounds[0], this.bounds[1], w, h]);
         this.ne = new QuadTree([this.bounds[0] + w, this.bounds[1], w, h]);
         this.sw = new QuadTree([this.bounds[0], this.bounds[1] + h, w, h]);

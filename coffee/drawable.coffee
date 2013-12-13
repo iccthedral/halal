@@ -22,10 +22,8 @@ define ["vec2", "geometry", "sprite"],
             return (@_drawableState & state) is state;
 
         destructor: () ->
-            @removeTrigger "CHANGE", @drawable_change
-            @removeTrigger "POST_FRAME", @drawable_post_frame
-            console.info "You got destroyed"
-            
+            # @sprite = null
+
         constructor: () ->
             @_drawableState = 0xF00
             @stroke_color   = "white"
@@ -36,7 +34,7 @@ define ["vec2", "geometry", "sprite"],
             @stroke_width   = 1
             @opacity        = 1
 
-            @on "CHANGE", @drawable_change = (key, val) ->
+            @on "CHANGE", (key, val) ->
                 if key is "sprite"
                     console.log "koliko puta ide ovo"
                     return if not @sprite? or not @sprite instanceof Sprite
@@ -55,44 +53,44 @@ define ["vec2", "geometry", "sprite"],
                 # else if key is "opacity"
                 #     @opacity
 
-            @on "POST_FRAME", @drawable_post_frame = (ctx, delta) ->
+            @on "POST_FRAME", (delta) ->
                 ### @FILL ###
                 if @drawableIsState(Drawable.DrawableStates.Fill)
-                    ctx.fillStyle = @fill_color
-                    ctx.beginPath()
-                    ctx.moveTo(@_mesh[0][0], @_mesh[0][1])
+                    @ctx.fillStyle = @fill_color
+                    @ctx.beginPath()
+                    @ctx.moveTo(@_mesh[0][0], @_mesh[0][1])
                     i = 1
                     while i < @_numvertices
-                        ctx.lineTo(@_mesh[i][0], @_mesh[i][1])
+                        @ctx.lineTo(@_mesh[i][0], @_mesh[i][1])
                         ++i
-                    ctx.closePath()
-                    ctx.fill()
+                    @ctx.closePath()
+                    @ctx.fill()
 
                 ### @DRAW @SPRITE ###
                 if @drawableIsState(Drawable.DrawableStates.Sprite) and @sprite?
-                    ctx.drawImage(@sprite.img, -@sprite.w2, -@sprite.h2)
+                    @ctx.drawImage(@sprite.img, -@sprite.w2, -@sprite.h2)
 
                 ### @GLOW ###
                 if @drawableIsState(Drawable.DrawableStates.Glow)
-                    ctx.shadowColor = @glow_color
-                    ctx.shadowBlur = @glow_amount
+                    @ctx.shadowColor = @glow_color
+                    @ctx.shadowBlur = @glow_amount
 
                 ### @STROKE ###
                 if @drawableIsState(Drawable.DrawableStates.Stroke)
-                    ctx.lineWidth = @stroke_width
-                    ctx.strokeStyle = @stroke_color
-                    ctx.beginPath()
-                    ctx.moveTo(@_mesh[0][0], @_mesh[0][1])
+                    @ctx.lineWidth = @stroke_width
+                    @ctx.strokeStyle = @stroke_color
+                    @ctx.beginPath()
+                    @ctx.moveTo(@_mesh[0][0], @_mesh[0][1])
                     i = 1
                     while i < @_numvertices
-                        ctx.lineTo(@_mesh[i][0], @_mesh[i][1])
+                        @ctx.lineTo(@_mesh[i][0], @_mesh[i][1])
                         ++i
-                    ctx.closePath()
-                    ctx.stroke()
-                    ctx.lineWidth = 1
+                    @ctx.closePath()
+                    @ctx.stroke()
+                    @ctx.lineWidth = 1
 
                 if @drawableIsState(Drawable.DrawableStates.Glow)
-                    ctx.shadowBlur = 0
+                    @ctx.shadowBlur = 0
 
                 ### @DRAW @NORMALS ###
                 if @drawableIsState(Drawable.DrawableStates.DrawNormals)
@@ -110,12 +108,12 @@ define ["vec2", "geometry", "sprite"],
                         Vec2.normalize(p2, p1)
                         Vec2.scale(p1, p2, 50)
                         Vec2.add(p, p1, mid)
-                        ctx.strokeStyle = "yellow"
-                        ctx.beginPath()
-                        ctx.moveTo(mid[0], mid[1])
-                        ctx.lineTo(p[0], p[1])
-                        ctx.closePath()
-                        ctx.stroke()
+                        @ctx.strokeStyle = "yellow"
+                        @ctx.beginPath()
+                        @ctx.moveTo(mid[0], mid[1])
+                        @ctx.lineTo(p[0], p[1])
+                        @ctx.closePath()
+                        @ctx.stroke()
                         ++i
                     Vec2.release(p1)
                     Vec2.release(p2)
@@ -123,10 +121,10 @@ define ["vec2", "geometry", "sprite"],
                     Vec2.release(p)
 
                 if @drawableIsState(Drawable.DrawableStates.DrawCenter)
-                    ctx.strokeRect(0, 0, 1, 1)
+                    @ctx.strokeRect(0, 0, 1, 1)
 
                 if @drawableIsState(Drawable.DrawableStates.DrawBBox)
-                    ctx.strokeRect(@_bbox[0], @_bbox[1], @_bbox[2], @_bbox[3])
+                    @ctx.strokeRect(@_bbox[0], @_bbox[1], @_bbox[2], @_bbox[3])
 
     Drawable.DrawableStates = 
         DrawCenter:             0x01
