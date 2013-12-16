@@ -25,8 +25,8 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @draw_stat          = true
             @update_ents        = true
             @cam_move_vector    = Vec2.from(0, 0)
-            @dragging           = false
-            @start_drag_point   = [0, 0]
+            @is_camera_panning      = false
+            @camera_panning_point   = [0, 0]
             @zoom_step          = 0.1
             @camera_speed       = 2
             @_update_zoom       = false
@@ -37,10 +37,11 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @view_matrix[2]     = @center[0]
             @view_matrix[5]     = @center[1]
 
-            # @setOrigin(@center[0], @center[1])
-            # @combineTransform(@view_matrix)
-            
+            #@setOrigin(@center[0], @center[1])
+            @combineTransform(@view_matrix)
             @prev_pos = [@position[0], @position[1]]
+
+            #@init()
             return @
 
         parseMeta: (meta) ->
@@ -53,23 +54,27 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             if not ent?
                 lloge "Entity is null" 
                 return
-            ent.attr("scene", @)
             ent.attr("ctx", ctx)
+            ent.attr("scene", @)
             @entities.push(ent)
             @ent_cache[ent.id] = ent
             @trigger "ENTITY_ADDED", ent
+            ent.trigger "ON_SCENE"
             return ent
 
         addEntityToQuadSpace: (ent, ctx = @ctx) ->
-            if not ent?
-                lloge "Entity is null" 
-                return
+            # if not ent?
+            #     lloge "Entity is null" 
+            #     return
+            # ent.attr("ctx", ctx)
+            # ent.attr("scene", @)
+            # @entities.push(ent)
+            # @ent_cache[ent.id] = ent
+            # @trigger "ENTITY_ADDED", ent
+            # ent.trigger "ON_SCENE"
+            @addEntity(ent, ctx)
             @quadtree.insert(ent)
-            ent.attr("ctx", ctx)
-            ent.attr("scene", @)
-            @entities.push(ent)
-            @ent_cache[ent.id] = ent
-            @trigger "ENTITY_ADDED", ent
+            ent.trigger "IN_QUADSPACE"
             return ent
 
         drawStat: () ->
@@ -88,22 +93,17 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
 
         update: (delta) ->
             # @ctx.fillStyle = "rgba(0, 0, 0, 0.5)"
+            for ctx in @renderer.contexts
+                ctx.setTransform(1, 0, 0, 1, 0, 0)
+                ctx.clearRect(0, 0, @bounds[2], @bounds[3])
+
             @ctx.setTransform(1, 0, 0, 1, 0, 0)
             @ctx.fillStyle = @bg_color
             @ctx.fillRect(0, 0, @bounds[2], @bounds[3])
-
-            # for ctx in @renderer.contexts
-            #     ctx.setTransform(1, 0, 0, 1, 0, 0)
-            #     if ctx is @ctx
-            #         ctx.fillStyle = @bg_color
-            #         ctx.fillRect(0, 0, @bounds[2], @bounds[3])
-            #     else
-            #         ctx.clearRect(0, 0, @bounds[2], @bounds[3])
-
             @ctx.strokeRect(@center[0] - 1, @center[1] - 1, 2, 2)
 
             if @_update_transform
-                @transform(@view_matrix)
+                @combineTransform(@view_matrix)
                 @update_ents = true
 
             for en in @entities
@@ -131,7 +131,6 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                 @drawStat()
             for en in @entities
                 en.draw(delta)
-
             @update_ents = false
 
         pause: () ->
@@ -169,101 +168,17 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
 
         ### valja sve unregistorovati posle ###
         init: () ->
+            super()
             @pause()
-            @drag_listener              = null
-            @drag_started_listener      = null
-            @drag_ended_listener        = null
-            @zoom_listener              = null
+            @camera_panning_started     = null
+            @camera_panning_started     = null
+            @camera_panning_ended       = null
+            @camera_zoom_listener       = null
             @camera_lerp_listener       = null
             @camera_frame_listener      = null
             @resize_listener            = null
-
             @resetQuadTree(@world_bounds)
-
-            @on "CHANGE", (key, val) ->
-                return if @paused
-                if key in reactives
-                    @_update_transform = true
-                    @_update_inverse   = true
-            
-            @on "ENTITY_REQ_DESTROYING", (entity) ->
-                @removeEntity(entity)
-
-            @resize_listener =
-            Hal.on "RESIZE", (area) =>
-                @renderer.resize(area.width, area.height)
-                @bounds[2] = area.width
-                @bounds[3] = area.height
-                @_update_transform = true
-                @_update_inverse = true
-
-            @camera_lerp_listener = 
-            Hal.on "RIGHT_CLICK", (pos) =>
-                return if @paused
-                Vec2.set(@cam_move_vector,
-                    (@center[0] - pos[0]) + @position[0],
-                    (@center[1] - pos[1]) + @position[1]
-                )
-
-                if @camera_frame_listener
-                    Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
-                    @camera_frame_listener = null
-                    @_update_transform = true
-                    @_update_inverse = true
-
-                @camera_frame_listener = 
-                Hal.on "EXIT_FRAME", (delta) =>
-                    Vec2.lerp(@position, @position, @cam_move_vector, delta * 2)
-                    if (~~Math.abs(@position[0] - @cam_move_vector[0]) + ~~Math.abs(-@position[1] + @cam_move_vector[1])) < 2
-                        Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
-                        @camera_frame_listener = null
-                    @_update_transform = true
-                    @_update_inverse = true
-
-            @drag_started_listener = 
-            Hal.on "DRAG_STARTED", (pos) =>
-                return if @paused
-                @dragging               = true
-                @start_drag_point[0]    = pos[0]
-                @start_drag_point[1]    = pos[1]
-                @prev_pos               = [@position[0], @position[1]]
-                @_update_transform      = true
-                @_update_inverse        = true
-
-                if @camera_frame_listener
-                    Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
-                    @camera_frame_listener = null
-
-            @drag_ended_listener = 
-            Hal.on "DRAG_ENDED", (pos) =>
-                @dragging = false
-                @_update_transform = true
-                @_update_inverse = true
-
-            @drag_listener =
-            Hal.on "MOUSE_MOVE", (pos) =>
-                return if @paused
-                if @dragging
-                    @position[0] = (@prev_pos[0] + (pos[0] - @start_drag_point[0]))
-                    @position[1] = (@prev_pos[1] + (pos[1] - @start_drag_point[1]))
-                    @_update_transform = true
-                    @_update_inverse = true
-
-            @zoom_listener =
-            Hal.on "SCROLL", (ev) =>
-                return if @paused
-                if ev.down
-                    @view_matrix[0] -= @zoom_step
-                    @view_matrix[4] -= @zoom_step
-                else
-                    @view_matrix[0] += @zoom_step
-                    @view_matrix[4] += @zoom_step
-
-                @_update_transform = true
-                @_update_inverse = true
-
             @resume()
-            super()
 
         screenToWorld: (point) ->
             return Geometry.transformPoint(point[0], point[1], @inverseTransform())
@@ -310,27 +225,115 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                 @ctx.strokeRect(quadtree.se.bounds[0], quadtree.se.bounds[1], quadtree.se.bounds[2], quadtree.se.bounds[3])
                 @ctx.fillText("#{quadtree.se.id}", quadtree.se.bounds[0] + quadtree.se.bounds[2]*0.5, quadtree.se.bounds[1] + quadtree.se.bounds[3]*0.5)
 
+        disablePanning: () ->
+            Hal.removeTrigger "DRAG_STARTED", @camera_panning_started
+            Hal.removeTrigger "DRAG_ENDED", @camera_panning_ended
+            Hal.removeTrigger "MOUSE_MOVE", @camera_panning_listener
+
         destroy: () ->
             @pause()
-
-            Hal.removeTrigger "SCROLL", @zoom_listener
-            Hal.removeTrigger "MOUSE_MOVE", @drag_listener
-            Hal.removeTrigger "DRAG_STARTED", @drag_started_listener
-            Hal.removeTrigger "DRAG_ENDED", @drag_ended_listener
-            Hal.removeTrigger "RIGHT_CLICK", @camera_lerp_listener
-            Hal.removeTrigger "RESIZE", @resize_listener
-            Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
-
             Vec2.release(@center)
             Vec2.release(@cam_move_vector)
-
             @removeAllEntities()
             @renderer.destroy()
             @quadtree.removeAll()
             @quadtree = null
             @renderer = null
-            @destructor()
-
             Hal.trigger "SCENE_REQ_DESTROY", @
+            super()
+            
+        destroyListeners: () ->
+            super()
+            Hal.removeTrigger "SCROLL", @camera_zoom_listener
+            Hal.removeTrigger "MOUSE_MOVE", @camera_panning_listener
+            Hal.removeTrigger "DRAG_STARTED", @camera_panning_started
+            Hal.removeTrigger "DRAG_ENDED", @camera_panning_ended
+            Hal.removeTrigger "RIGHT_CLICK", @camera_lerp_listener
+            Hal.removeTrigger "RESIZE", @resize_listener
+            Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
+
+        initListeners: () ->
+            super()
+            @on "CHANGE", (key, val) ->
+                return if @paused
+                if key in reactives
+                    @_update_transform = true
+                    @_update_inverse   = true
+            
+            @on "ENTITY_REQ_DESTROYING", (entity) ->
+                @removeEntity(entity)
+
+            @resize_listener =
+            Hal.on "RESIZE", (area) =>
+                @renderer.resize(area.width, area.height)
+                @bounds[2]          = area.width
+                @bounds[3]          = area.height
+                @_update_transform  = true
+                @_update_inverse    = true
+
+            @camera_lerp_listener = 
+            Hal.on "RIGHT_CLICK", (pos) =>
+                return if @paused
+                Vec2.set(@cam_move_vector,
+                    (@center[0] - pos[0]) + @position[0],
+                    (@center[1] - pos[1]) + @position[1]
+                )
+
+                if @camera_frame_listener
+                    Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
+                    @camera_frame_listener  = null
+                    @_update_transform      = true
+                    @_update_inverse        = true
+
+                @camera_frame_listener = 
+                Hal.on "EXIT_FRAME", (delta) =>
+                    Vec2.lerp(@position, @position, @cam_move_vector, delta * 2)
+                    if (~~Math.abs(@position[0] - @cam_move_vector[0]) + ~~Math.abs(-@position[1] + @cam_move_vector[1])) < 2
+                        Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
+                        @camera_frame_listener = null
+                    @_update_transform = true
+                    @_update_inverse = true
+
+            @camera_panning_started = 
+            Hal.on "DRAG_STARTED", (pos) =>
+                return if @paused
+                @is_camera_panning               = true
+                @camera_panning_point[0]    = pos[0]
+                @camera_panning_point[1]    = pos[1]
+                @prev_pos               = [@position[0], @position[1]]
+                @_update_transform      = true
+                @_update_inverse        = true
+
+                if @camera_frame_listener
+                    Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
+                    @camera_frame_listener = null
+
+            @camera_panning_ended = 
+            Hal.on "DRAG_ENDED", (pos) =>
+                @is_camera_panning = false
+                @_update_transform = true
+                @_update_inverse = true
+
+            @camera_panning_started =
+            Hal.on "MOUSE_MOVE", (pos) =>
+                return if @paused
+                if @is_camera_panning
+                    @position[0] = (@prev_pos[0] + (pos[0] - @camera_panning_point[0]))
+                    @position[1] = (@prev_pos[1] + (pos[1] - @camera_panning_point[1]))
+                    @_update_transform = true
+                    @_update_inverse = true
+
+            @camera_zoom_listener =
+            Hal.on "SCROLL", (ev) =>
+                return if @paused
+                if ev.down
+                    @view_matrix[0] -= @zoom_step
+                    @view_matrix[4] -= @zoom_step
+                else
+                    @view_matrix[0] += @zoom_step
+                    @view_matrix[4] += @zoom_step
+
+                @_update_transform = true
+                @_update_inverse = true
 
     return Scene

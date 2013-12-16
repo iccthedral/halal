@@ -36,15 +36,15 @@ define ["eventdispatcher", "deferred"],
                     @to_wait--
                     @tween(@tween_chain.pop())
                     @num_tweens--
-                
                 if @num_tweens <= 0 and @done_clb? and not @paused
                     @done_clb.call(@obj)
-
                 if @num_tweens <= 0 and @to_wait is 0
                     @animating = false
-
             return @
 
+        isAnimating: () ->
+            return @animating
+            
         wait: (wait_clb, msecs) ->
             @to_wait++
             return @
@@ -89,7 +89,7 @@ define ["eventdispatcher", "deferred"],
             #llogi "Extending from #{@name} with #{obj.name}"
             throw ("include(obj) requires obj") unless obj::
             for key, val of obj::
-                continue if key in ["constructor", "init", "destructor"]
+                continue if key in ["constructor", "destructor"]
                 #if @::[key]?
                 #    lloge "Added to inheritance chain fn: #{key}"
                 @::[key] = val
@@ -98,27 +98,25 @@ define ["eventdispatcher", "deferred"],
     HalalEntity::destructor = () ->
         for key, destructor of @destructors
             destructor.call(@)
-        @removeAllTriggers()
-        @tweener.stop()
         return
 
     HalalEntity::constructor = () ->
-        @id = Hal.ID()
         @destructors = {}
+        @tweener = null
         super()
         if _init_map[@__classex__]
             for init in _init_map[@__classex__]
-                #llogd "Calling #{init.name} constructor"
                 init.call(@)
                 
         if _deinit_map[@__classex__]
             for name, deinit of _deinit_map[@__classex__]
                 @destructors[name] = deinit
-
-        @tweener = new Tweener(@)
         return @
 
     HalalEntity::init = () ->
+        @tweener = new Tweener(@)
+        @id = Hal.ID()
+        @initListeners()
         return @
 
     HalalEntity::attr = (key, val, index) ->
@@ -137,11 +135,22 @@ define ["eventdispatcher", "deferred"],
         for key, val of obj
             continue if @ is val
             if typeof val is "function" and proto
-                #llogi "is a function #{key}"
                 @::[key] = val
             else
                 @[key] = val
         return @
+
+    HalalEntity::destroy = () ->
+        @tweener.stop()
+        @destroyListeners()
+        @destructor()
+
+    HalalEntity::initListeners = () ->
+        return
+
+    HalalEntity::destroyListeners = () ->
+        @removeAllTriggers()
+        return
 
     HalalEntity::tween = (meta) ->
         @tweener.stop()

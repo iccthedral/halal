@@ -14,7 +14,6 @@
         this.canvases[this.top_z] = Hal.dom.createCanvasLayer(this.bounds[2], this.bounds[3], this.top_z, transp);
         Hal.dom.addCanvas(this.canvases[this.top_z], this.bounds[0], this.bounds[1]);
         this.ctx = this.canvases[this.top_z].getContext("2d");
-        this.contexts.push(this.ctx);
       }
 
       return Renderer;

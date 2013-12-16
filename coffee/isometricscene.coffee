@@ -4,7 +4,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
 
 (Scene, Entity, TileManager, QuadTree, Geometry, Vec2) ->
 
-    class IsometricMap extends Scene
+    class IsometricScene extends Scene
         constructor: (meta) ->
             super(meta)
 
@@ -18,12 +18,10 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             @max_rows               = @nrows - 1
             @max_cols               = @ncols - 1
 
-            @selected_tile          = null
             @selected_tile_x        = 0
             @selected_tile_y        = @tileh2
+            @selected_tile          = null
             @selected_tile_sprite   = null
-
-            @max_layers             = 5
 
             ### Isometric shape ###
             @iso_shape = [
@@ -54,7 +52,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                  "red": Hal.asm.getSprite("test/grid_unit_over_red_128x64")
 
             @world_bounds = [0, 0, (@ncols - 1) * @tilew2, (@nrows-0.5) * @tileh]
-            
+
         drawStat: () ->
             super()
             if @tile_under_mouse?
@@ -74,90 +72,15 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 +meta.rows
             @ncols = 
                 +meta.cols
+            @max_layers = 
+                meta.max_layers or 5
 
         init: () ->
             super()
-
-            ### @SUPPORTED_EDITOR_MODES ###
-            @supported_modes = {}
-
-            @supported_modes["mode-default"] = () =>
-                    @processLeftClick()
-                    return
-
-            @supported_modes["mode-erase"] = () =>
-                @processLeftClick()
-                return if not @clicked_layer? or @clicked_layer.animating 
-                @clicked_layer.tween(
-                    attr: "h"
-                    from: 0
-                    to: 100
-                    duration: 500
-                ).tween(
-                    attr: "opacity"
-                    from: 1
-                    to: 0
-                    duration: 700
-                ).done () -> @destroy()
-                @clicked_layer = null
-
-            @supported_modes["mode-place"] = () =>
-                return if not @tile_under_mouse? or not @selected_tile?
-                @selected_tile_x = @selected_tile_sprite.w2
-                @selected_tile_y = @selected_tile_sprite.h - @tileh2
-                t = @tm.addTileLayerToHolder(
-                    @tile_under_mouse.row, @tile_under_mouse.col,
-                    @selected_tile, @selected_tile_x, @selected_tile_y #,@selected_tile.layer
-                )
-                return
-
-            @current_mode       = "mode-default"
-            @current_mode_clb   = @supported_modes[@current_mode]
-            
             ### @SUPPORTED_EDITOR_MODES ###
             @clicked_layer      = null
             @tile_under_mouse   = null
             @search_range       = @bounds.slice()
-
-            @left_click_listener = 
-            Hal.on "LEFT_CLICK", () =>
-                return if @paused
-                @current_mode_clb.call(@)
-
-            ###map editor stuff###
-            @editor_mode_listener =
-            Hal.on "EDITOR_MODE_CHANGED", (mode) =>
-                return if @paused
-                if @supported_modes[mode]?
-                    @current_mode       = mode
-                    @current_mode_clb   = @supported_modes[mode]
-                else
-                    llogw "Mode #{mode} not supported"
-                llogd @current_mode
-
-            @layer_selected_listener =
-            Hal.on "TILE_LAYER_SELECTED", (tile) =>
-                llogd "Tile layer selected from editor"
-                llogd tile
-                @selected_tile = tile
-                @selected_tile_sprite = Hal.asm.getSprite(@selected_tile.sprite)
-                @selected_tile_x = @selected_tile_sprite.w2
-                @selected_tile_y = @selected_tile_sprite.h - @tileh2
-
-            @mouse_moved_listener =
-            Hal.on "MOUSE_MOVE", (pos) =>
-                Vec2.copy(@mpos, pos)
-                Vec2.release(@world_pos) if @world_pos?
-                @world_pos = @screenToWorld(pos)
-                t = @getTileAt(@world_pos)
-                if t isnt @tile_under_mouse
-                    if @tile_under_mouse
-                        @tile_under_mouse.drawableOffState(Hal.DrawableStates.Fill)
-                    @tile_under_mouse = t
-                    if @tile_under_mouse?
-                        @tile_under_mouse.drawableOnState(Hal.DrawableStates.Fill)
-
-            # @initSections()
             @initMap()
 
         #max rows on screen
@@ -179,6 +102,42 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 (rowdiv - (transp ^ !(rowdiv & 1))) / 2
             ]
 
+        getNeighbours: (tile) ->
+            out = []
+            return out if not tile?
+            for dir in Object.keys(tile.direction)
+                n = @getTile(tile.row, tile.col, tile.direction[dir])
+                if n?
+                    out.push(n)
+            return out  
+
+        findInDirectionOf: (tile, dirstr, len) ->
+            if not tile?
+                return []
+            out = []
+            out.push(tile)
+            fromr = tile.row
+            fromc = tile.col
+            dir = tile.direction[dirstr]
+            while len > 0
+                t = @getTile(fromr, fromc, dir)
+                if t?
+                    out.push(t)
+                    fromr = t.row
+                    fromc = t.col
+                    dir = t.direction[dirstr]
+                else
+                    break
+                len--
+            return out
+
+        isAdjacentTo: (cellA, cellB) ->
+            return false if not cellB?
+            neighs = @getNeighbours(cellB)
+            in_neighs = neighs.some (el) ->
+                return el.row is cellA.row and el.col is cellA.col
+            return in_neighs
+
         getTile: (row, col, dir=[0,0]) ->
             return @map[(col+dir[1]) + (row+dir[0]) * @ncols]
 
@@ -188,13 +147,12 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 return null
             return @map[Math.floor(coord[0]) + Math.floor(coord[1]) * @ncols]
 
-        initSections: () ->
+        initMapTiles: () ->
             @pause()
             @section_center = []
             z_indices = []
-            z_indices.push z for z in [0...@max_layers]
+            z_indices.push z for z in [1..@max_layers]
             @renderer.createLayers z_indices
-
             @map = new Array(@nrows * @ncols)
             k = 0
             t1 = performance.now()
@@ -202,7 +160,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 for j in [0..@ncols - 1]
                     x = (j / 2) * @tilew
                     y = (i + ((j % 2) / 2)) * @tileh
-                    t = @tm.newTileHolder
+                    t = @tm.newTile
                         "shape": @iso_shape
                         "x": x
                         "y": y
@@ -214,13 +172,10 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             llogd "Initializing sections took: #{t2} ms"
             @resume()
 
-        loadCenterSection: () ->
-            return
-
         initMap: () ->
             @clicked_layer = null
-            @on "META_LAYERS_LOADED", () ->
-                @initSections.call(@)
+            @on "TILE_MANAGER_LOADED", () ->
+                @loadMap()
             @tm = new TileManager(@)
 
         saveBitmapMap: () ->
@@ -269,7 +224,6 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
         # jos jednom >> 16, pa map cols
         # pa onda redom, za svaki tajl -> row, col, 
         # pa id, pa height
-
         loadBitmapMap: (bitmap) ->
             bitmap = bitmap.slice()
             t1 = performance.now()
@@ -282,7 +236,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             if total > @nrows * @ncols
                 console.error "Can't load this bitmap, it's too big"
                 @resume()
-                return
+                return false
             @nrows = map_rows
             @ncols = map_cols
             while (tile_qword = bitmap.shift())?
@@ -298,7 +252,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     continue if layer_qword is -1
                     layer_id     = (layer_qword >> 32) & mask
                     layer_height = (layer_qword >> 16) & mask
-                    @tm.addTileLayerToHolderByLayerId(
+                    @tm.addTileLayerByLayerId(
                         tile_row,
                         tile_col, 
                         layer_id, 
@@ -307,16 +261,20 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     )
             t2 = performance.now() - t1
             @resume()
-            console.info "loading took: #{t2} ms"
-            @trigger "SECTION_LOADED"
-            return
+            console.info "Loading took: #{t2} ms"
+            @trigger "MAP_LOADED"
+            return true
+
+        loadMap: () ->
+            @setWorldBounds(@world_bounds)
+            return @initMapTiles()
 
         processLeftClick: () ->
             if @clicked_layer?
                 @clicked_layer.trigger "DESELECTED"
                 @clicked_layer = null
             t1 = performance.now()
-            for layer in @quadtree.findEntitiesInRectangle(@search_range, @transform())
+            for layer in @quadtree.findEntitiesInRectangle(@search_range, @_transform)
                 transp = Geometry.transformPoint(@world_pos[0], @world_pos[1], layer.inverseTransform())
                 if Hal.im.isTransparent(layer.sprite.img, transp[0] + layer.sprite.w2, transp[1] + layer.sprite.h2)
                     Vec2.release(transp)
@@ -337,28 +295,16 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     else if (layer.holder.col isnt @clicked_layer.holder.col) and (layer.holder.row isnt @clicked_layer.holder.row)
                         if (layer.h + layer.position[1] > @clicked_layer.h + @clicked_layer.position[1])
                             @clicked_layer = layer
+
             t2 = performance.now() - t1
-            llogd "searching took: #{t2.toFixed(2)} ms"
+            llogd "Searching took: #{t2.toFixed(2)} ms"
 
             if @clicked_layer?
                 @trigger "LAYER_SELECTED", @clicked_layer
                 @clicked_layer.trigger "SELECTED"
-                if not @clicked_layer.tweener.animating 
-                    @clicked_layer.tween
-                        attr: "position[1]"
-                        from: @clicked_layer.position[1]
-                        to: @clicked_layer.position[1] - 10
-                        duration: 300
-                    .done () ->
-                        @tween
-                            attr: "position[1]"
-                            from: @position[1]
-                            to: @position[1] + 10
-                            duration: 300
 
         draw: (delta) ->
             super(delta)
-
             @ctx.setTransform(
                 @_transform[0],
                 @_transform[3],
@@ -367,23 +313,24 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 @_transform[2],
                 @_transform[5]
             )
-
             @drawQuadTree(@quadtree)
-
-            if @current_mode is "mode-place"
-                return if not @selected_tile? or not @tile_under_mouse?
-                @ctx.globalAlpha = 0.5
-                @ctx.drawImage(@selected_tile_sprite.img, @tile_under_mouse.position[0] - @selected_tile_x, @tile_under_mouse.position[1] - @selected_tile_y)
-                @ctx.globalAlpha = 1.0
 
         destroy: () ->
             ### @todo @tm.destroy() ###
             Vec2.release(@mpos)
             Vec2.release(@world_pos)
-            Hal.removeTrigger "EDITOR_MODE_CHANGED", @editor_mode_listener
-            Hal.removeTrigger "TILE_LAYER_SELECTED", @layer_selected_listener
             Hal.removeTrigger "MOUSE_MOVE", @mouse_moved_listener
             Hal.removeTrigger "LEFT_CLICK", @left_click_listener
             super()
 
-    return IsometricMap
+        initListeners: () ->
+            super()
+            @mouse_moved_listener =
+            Hal.on "MOUSE_MOVE", (pos) =>
+                Vec2.copy(@mpos, pos)
+                Vec2.release(@world_pos) if @world_pos?
+                @world_pos = @screenToWorld(pos)
+                @tile_under_mouse = @getTileAt(@world_pos)
+            return
+
+    return IsometricScene

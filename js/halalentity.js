@@ -55,6 +55,10 @@
         return this;
       };
 
+      Tweener.prototype.isAnimating = function() {
+        return this.animating;
+      };
+
       Tweener.prototype.wait = function(wait_clb, msecs) {
         this.to_wait++;
         return this;
@@ -140,7 +144,7 @@
         _results = [];
         for (key in _ref1) {
           val = _ref1[key];
-          if (key === "constructor" || key === "init" || key === "destructor") {
+          if (key === "constructor" || key === "destructor") {
             continue;
           }
           _results.push(this.prototype[key] = val);
@@ -158,13 +162,11 @@
         destructor = _ref1[key];
         destructor.call(this);
       }
-      this.removeAllTriggers();
-      this.tweener.stop();
     };
     HalalEntity.prototype.constructor = function() {
       var deinit, init, name, _i, _len, _ref1, _ref2;
-      this.id = Hal.ID();
       this.destructors = {};
+      this.tweener = null;
       HalalEntity.__super__.constructor.call(this);
       if (_init_map[this.__classex__]) {
         _ref1 = _init_map[this.__classex__];
@@ -180,10 +182,12 @@
           this.destructors[name] = deinit;
         }
       }
-      this.tweener = new Tweener(this);
       return this;
     };
     HalalEntity.prototype.init = function() {
+      this.tweener = new Tweener(this);
+      this.id = Hal.ID();
+      this.initListeners();
       return this;
     };
     HalalEntity.prototype.attr = function(key, val, index) {
@@ -217,6 +221,15 @@
         }
       }
       return this;
+    };
+    HalalEntity.prototype.destroy = function() {
+      this.tweener.stop();
+      this.destroyListeners();
+      return this.destructor();
+    };
+    HalalEntity.prototype.initListeners = function() {};
+    HalalEntity.prototype.destroyListeners = function() {
+      this.removeAllTriggers();
     };
     HalalEntity.prototype.tween = function(meta) {
       this.tweener.stop();

@@ -4,13 +4,13 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   define(["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"], function(Scene, Entity, TileManager, QuadTree, Geometry, Vec2) {
-    var IsometricMap;
-    IsometricMap = (function(_super) {
-      __extends(IsometricMap, _super);
+    var IsometricScene;
+    IsometricScene = (function(_super) {
+      __extends(IsometricScene, _super);
 
-      function IsometricMap(meta) {
+      function IsometricScene(meta) {
         var hittest, i, j, _i, _len, _ref;
-        IsometricMap.__super__.constructor.call(this, meta);
+        IsometricScene.__super__.constructor.call(this, meta);
         this.tilew2prop = 2 / this.tilew;
         this.tileh2prop = 2 / this.tileh;
         this.tilew2 = this.tilew / 2;
@@ -20,11 +20,10 @@
         this.world_pos = Vec2.from(0, 0);
         this.max_rows = this.nrows - 1;
         this.max_cols = this.ncols - 1;
-        this.selected_tile = null;
         this.selected_tile_x = 0;
         this.selected_tile_y = this.tileh2;
+        this.selected_tile = null;
         this.selected_tile_sprite = null;
-        this.max_layers = 5;
         /* Isometric shape*/
 
         this.iso_shape = [Vec2.from(-this.tilew2, 0), Vec2.from(0, this.tileh2), Vec2.from(this.tilew2, 0), Vec2.from(0, -this.tileh2)];
@@ -54,8 +53,8 @@
         this.world_bounds = [0, 0, (this.ncols - 1) * this.tilew2, (this.nrows - 0.5) * this.tileh];
       }
 
-      IsometricMap.prototype.drawStat = function() {
-        IsometricMap.__super__.drawStat.call(this);
+      IsometricScene.prototype.drawStat = function() {
+        IsometricScene.__super__.drawStat.call(this);
         if (this.tile_under_mouse != null) {
           Hal.glass.ctx.fillText(this.info.mouse_position + Vec2.str(this.mpos), 0, 130);
           Hal.glass.ctx.fillText(this.info.row + this.tile_under_mouse.row, 0, 145);
@@ -65,109 +64,34 @@
         }
       };
 
-      IsometricMap.prototype.parseMeta = function(meta) {
-        IsometricMap.__super__.parseMeta.call(this, meta);
+      IsometricScene.prototype.parseMeta = function(meta) {
+        IsometricScene.__super__.parseMeta.call(this, meta);
         this.tilew = meta.tilew;
         this.tileh = meta.tileh;
         this.nrows = +meta.rows;
-        return this.ncols = +meta.cols;
+        this.ncols = +meta.cols;
+        return this.max_layers = meta.max_layers || 5;
       };
 
-      IsometricMap.prototype.init = function() {
-        var _this = this;
-        IsometricMap.__super__.init.call(this);
-        /* @SUPPORTED_EDITOR_MODES*/
-
-        this.supported_modes = {};
-        this.supported_modes["mode-default"] = function() {};
-        this.supported_modes["mode-erase"] = function() {
-          _this.processLeftClick();
-          if ((_this.clicked_layer == null) || _this.clicked_layer.animating) {
-            return;
-          }
-          _this.clicked_layer.tween({
-            attr: "h",
-            from: 0,
-            to: 100,
-            duration: 500
-          }).tween({
-            attr: "opacity",
-            from: 1,
-            to: 0,
-            duration: 700
-          }).done(function() {
-            return this.destroy();
-          });
-          return _this.clicked_layer = null;
-        };
-        this.supported_modes["mode-place"] = function() {
-          var t;
-          if ((_this.tile_under_mouse == null) || (_this.selected_tile == null)) {
-            return;
-          }
-          _this.selected_tile_x = _this.selected_tile_sprite.w2;
-          _this.selected_tile_y = _this.selected_tile_sprite.h - _this.tileh2;
-          t = _this.tm.addTileLayerToHolder(_this.tile_under_mouse.row, _this.tile_under_mouse.col, _this.selected_tile, _this.selected_tile_x, _this.selected_tile_y);
-        };
-        this.current_mode = "mode-default";
-        this.current_mode_clb = this.supported_modes[this.current_mode];
+      IsometricScene.prototype.init = function() {
+        IsometricScene.__super__.init.call(this);
         /* @SUPPORTED_EDITOR_MODES*/
 
         this.clicked_layer = null;
         this.tile_under_mouse = null;
         this.search_range = this.bounds.slice();
-        /*map editor stuff*/
-
-        this.editor_mode_listener = Hal.on("EDITOR_MODE_CHANGED", function(mode) {
-          if (_this.paused) {
-            return;
-          }
-          if (_this.supported_modes[mode] != null) {
-            _this.current_mode = mode;
-            _this.current_mode_clb = _this.supported_modes[mode];
-          } else {
-            llogw("Mode " + mode + " not supported");
-          }
-          return llogd(_this.current_mode);
-        });
-        this.layer_selected_listener = Hal.on("TILE_LAYER_SELECTED", function(tile) {
-          llogd("Tile layer selected from editor");
-          llogd(tile);
-          _this.selected_tile = tile;
-          _this.selected_tile_sprite = Hal.asm.getSprite(_this.selected_tile.sprite);
-          _this.selected_tile_x = _this.selected_tile_sprite.w2;
-          return _this.selected_tile_y = _this.selected_tile_sprite.h - _this.tileh2;
-        });
-        this.mouse_moved_listener = Hal.on("MOUSE_MOVE", function(pos) {
-          var t;
-          Vec2.copy(_this.mpos, pos);
-          if (_this.world_pos != null) {
-            Vec2.release(_this.world_pos);
-          }
-          _this.world_pos = _this.screenToWorld(pos);
-          t = _this.getTileAt(_this.world_pos);
-          if (t !== _this.tile_under_mouse) {
-            if (_this.tile_under_mouse) {
-              _this.tile_under_mouse.drawableOffState(Hal.DrawableStates.Fill);
-            }
-            _this.tile_under_mouse = t;
-            if (_this.tile_under_mouse != null) {
-              return _this.tile_under_mouse.drawableOnState(Hal.DrawableStates.Fill);
-            }
-          }
-        });
         return this.initMap();
       };
 
-      IsometricMap.prototype.maxRows = function() {
+      IsometricScene.prototype.maxRows = function() {
         return Math.min(this.nrows - 1, Math.round((this.bounds[3] / (this.tileh * this.scale[0])) + 4));
       };
 
-      IsometricMap.prototype.maxCols = function() {
+      IsometricScene.prototype.maxCols = function() {
         return Math.min(this.ncols - 1, Math.round((this.bounds[2] / (this.tilew2 * this.scale[1])) + 4));
       };
 
-      IsometricMap.prototype.toOrtho = function(pos) {
+      IsometricScene.prototype.toOrtho = function(pos) {
         var coldiv, off_x, off_y, rowdiv, transp;
         coldiv = (pos[0] + this.tilew2) * this.tilew2prop;
         rowdiv = (pos[1] + this.tileh2) * this.tileh2prop;
@@ -177,14 +101,68 @@
         return [coldiv - (transp ^ !(coldiv & 1)), (rowdiv - (transp ^ !(rowdiv & 1))) / 2];
       };
 
-      IsometricMap.prototype.getTile = function(row, col, dir) {
+      IsometricScene.prototype.getNeighbours = function(tile) {
+        var dir, n, out, _i, _len, _ref;
+        out = [];
+        if (tile == null) {
+          return out;
+        }
+        _ref = Object.keys(tile.direction);
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          dir = _ref[_i];
+          n = this.getTile(tile.row, tile.col, tile.direction[dir]);
+          if (n != null) {
+            out.push(n);
+          }
+        }
+        return out;
+      };
+
+      IsometricScene.prototype.findInDirectionOf = function(tile, dirstr, len) {
+        var dir, fromc, fromr, out, t;
+        if (tile == null) {
+          return [];
+        }
+        out = [];
+        out.push(tile);
+        fromr = tile.row;
+        fromc = tile.col;
+        dir = tile.direction[dirstr];
+        while (len > 0) {
+          t = this.getTile(fromr, fromc, dir);
+          if (t != null) {
+            out.push(t);
+            fromr = t.row;
+            fromc = t.col;
+            dir = t.direction[dirstr];
+          } else {
+            break;
+          }
+          len--;
+        }
+        return out;
+      };
+
+      IsometricScene.prototype.isAdjacentTo = function(cellA, cellB) {
+        var in_neighs, neighs;
+        if (cellB == null) {
+          return false;
+        }
+        neighs = this.getNeighbours(cellB);
+        in_neighs = neighs.some(function(el) {
+          return el.row === cellA.row && el.col === cellA.col;
+        });
+        return in_neighs;
+      };
+
+      IsometricScene.prototype.getTile = function(row, col, dir) {
         if (dir == null) {
           dir = [0, 0];
         }
         return this.map[(col + dir[1]) + (row + dir[0]) * this.ncols];
       };
 
-      IsometricMap.prototype.getTileAt = function(pos) {
+      IsometricScene.prototype.getTileAt = function(pos) {
         var coord;
         coord = this.toOrtho(pos);
         if (coord[0] < 0.0 || coord[1] < 0.0 || coord[1] >= this.nrows || coord[0] >= this.ncols) {
@@ -193,12 +171,12 @@
         return this.map[Math.floor(coord[0]) + Math.floor(coord[1]) * this.ncols];
       };
 
-      IsometricMap.prototype.initSections = function() {
+      IsometricScene.prototype.initMapTiles = function() {
         var i, j, k, t, t1, t2, x, y, z, z_indices, _i, _j, _k, _ref, _ref1, _ref2;
         this.pause();
         this.section_center = [];
         z_indices = [];
-        for (z = _i = 0, _ref = this.max_layers; 0 <= _ref ? _i < _ref : _i > _ref; z = 0 <= _ref ? ++_i : --_i) {
+        for (z = _i = 1, _ref = this.max_layers; 1 <= _ref ? _i <= _ref : _i >= _ref; z = 1 <= _ref ? ++_i : --_i) {
           z_indices.push(z);
         }
         this.renderer.createLayers(z_indices);
@@ -209,7 +187,7 @@
           for (j = _k = 0, _ref2 = this.ncols - 1; 0 <= _ref2 ? _k <= _ref2 : _k >= _ref2; j = 0 <= _ref2 ? ++_k : --_k) {
             x = (j / 2) * this.tilew;
             y = (i + ((j % 2) / 2)) * this.tileh;
-            t = this.tm.newTileHolder({
+            t = this.tm.newTile({
               "shape": this.iso_shape,
               "x": x,
               "y": y,
@@ -225,17 +203,15 @@
         return this.resume();
       };
 
-      IsometricMap.prototype.loadCenterSection = function() {};
-
-      IsometricMap.prototype.initMap = function() {
+      IsometricScene.prototype.initMap = function() {
         this.clicked_layer = null;
-        this.on("META_LAYERS_LOADED", function() {
-          return this.initSections.call(this);
+        this.on("TILE_MANAGER_LOADED", function() {
+          return this.loadMap();
         });
         return this.tm = new TileManager(this);
       };
 
-      IsometricMap.prototype.saveBitmapMap = function() {
+      IsometricScene.prototype.saveBitmapMap = function() {
         var h, layer, layer_ind, map_c, map_r, meta, meta_id, out, t, t1, t2, t_col, t_row, tiles, _i, _j, _len, _ref;
         this.pause();
         t1 = performance.now();
@@ -268,7 +244,7 @@
         return out;
       };
 
-      IsometricMap.prototype.loadBitmapMap = function(bitmap) {
+      IsometricScene.prototype.loadBitmapMap = function(bitmap) {
         var layer, layer_height, layer_id, layer_qword, map_cols, map_rows, mask, qword, t1, t2, tile, tile_col, tile_qword, tile_row, total, _i, _ref;
         bitmap = bitmap.slice();
         t1 = performance.now();
@@ -281,7 +257,7 @@
         if (total > this.nrows * this.ncols) {
           console.error("Can't load this bitmap, it's too big");
           this.resume();
-          return;
+          return false;
         }
         this.nrows = map_rows;
         this.ncols = map_cols;
@@ -301,23 +277,29 @@
             }
             layer_id = (layer_qword >> 32) & mask;
             layer_height = (layer_qword >> 16) & mask;
-            this.tm.addTileLayerToHolderByLayerId(tile_row, tile_col, layer_id, 0, layer_height);
+            this.tm.addTileLayerByLayerId(tile_row, tile_col, layer_id, 0, layer_height);
           }
         }
         t2 = performance.now() - t1;
         this.resume();
-        console.info("loading took: " + t2 + " ms");
-        this.trigger("SECTION_LOADED");
+        console.info("Loading took: " + t2 + " ms");
+        this.trigger("MAP_LOADED");
+        return true;
       };
 
-      IsometricMap.prototype.processLeftClick = function() {
+      IsometricScene.prototype.loadMap = function() {
+        this.setWorldBounds(this.world_bounds);
+        return this.initMapTiles();
+      };
+
+      IsometricScene.prototype.processLeftClick = function() {
         var layer, t1, t2, transp, _i, _len, _ref;
         if (this.clicked_layer != null) {
           this.clicked_layer.trigger("DESELECTED");
           this.clicked_layer = null;
         }
         t1 = performance.now();
-        _ref = this.quadtree.findEntitiesInRectangle(this.search_range, this.transform());
+        _ref = this.quadtree.findEntitiesInRectangle(this.search_range, this._transform);
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           layer = _ref[_i];
           transp = Geometry.transformPoint(this.world_pos[0], this.world_pos[1], layer.inverseTransform());
@@ -349,58 +331,46 @@
           }
         }
         t2 = performance.now() - t1;
-        llogd("searching took: " + (t2.toFixed(2)) + " ms");
+        llogd("Searching took: " + (t2.toFixed(2)) + " ms");
         if (this.clicked_layer != null) {
           this.trigger("LAYER_SELECTED", this.clicked_layer);
-          this.clicked_layer.trigger("SELECTED");
-          if (!this.clicked_layer.tweener.animating) {
-            return this.clicked_layer.tween({
-              attr: "position[1]",
-              from: this.clicked_layer.position[1],
-              to: this.clicked_layer.position[1] - 10,
-              duration: 300
-            }).done(function() {
-              return this.tween({
-                attr: "position[1]",
-                from: this.position[1],
-                to: this.position[1] + 10,
-                duration: 300
-              });
-            });
-          }
+          return this.clicked_layer.trigger("SELECTED");
         }
       };
 
-      IsometricMap.prototype.draw = function(delta) {
-        IsometricMap.__super__.draw.call(this, delta);
+      IsometricScene.prototype.draw = function(delta) {
+        IsometricScene.__super__.draw.call(this, delta);
         this.ctx.setTransform(this._transform[0], this._transform[3], this._transform[1], this._transform[4], this._transform[2], this._transform[5]);
-        this.drawQuadTree(this.quadtree);
-        if (this.current_mode === "mode-place") {
-          if ((this.selected_tile == null) || (this.tile_under_mouse == null)) {
-            return;
-          }
-          this.ctx.globalAlpha = 0.5;
-          this.ctx.drawImage(this.selected_tile_sprite.img, this.tile_under_mouse.position[0] - this.selected_tile_x, this.tile_under_mouse.position[1] - this.selected_tile_y);
-          return this.ctx.globalAlpha = 1.0;
-        }
+        return this.drawQuadTree(this.quadtree);
       };
 
-      IsometricMap.prototype.destroy = function() {
+      IsometricScene.prototype.destroy = function() {
         /* @todo @tm.destroy()*/
 
         Vec2.release(this.mpos);
         Vec2.release(this.world_pos);
-        Hal.removeTrigger("EDITOR_MODE_CHANGED", this.editor_mode_listener);
-        Hal.removeTrigger("TILE_LAYER_SELECTED", this.layer_selected_listener);
         Hal.removeTrigger("MOUSE_MOVE", this.mouse_moved_listener);
         Hal.removeTrigger("LEFT_CLICK", this.left_click_listener);
-        return IsometricMap.__super__.destroy.call(this);
+        return IsometricScene.__super__.destroy.call(this);
       };
 
-      return IsometricMap;
+      IsometricScene.prototype.initListeners = function() {
+        var _this = this;
+        IsometricScene.__super__.initListeners.call(this);
+        this.mouse_moved_listener = Hal.on("MOUSE_MOVE", function(pos) {
+          Vec2.copy(_this.mpos, pos);
+          if (_this.world_pos != null) {
+            Vec2.release(_this.world_pos);
+          }
+          _this.world_pos = _this.screenToWorld(pos);
+          return _this.tile_under_mouse = _this.getTileAt(_this.world_pos);
+        });
+      };
+
+      return IsometricScene;
 
     })(Scene);
-    return IsometricMap;
+    return IsometricScene;
   });
 
 }).call(this);

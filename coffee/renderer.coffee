@@ -11,7 +11,7 @@ define [],
             @canvases[@top_z]   = Hal.dom.createCanvasLayer(@bounds[2], @bounds[3], @top_z, transp)
             Hal.dom.addCanvas(@canvases[@top_z], @bounds[0], @bounds[1])
             @ctx = @canvases[@top_z].getContext("2d")
-            @contexts.push @ctx
+            #@contexts.push @ctx
 
     Renderer::resize = (w, h) ->
         for k, canvas of @canvases

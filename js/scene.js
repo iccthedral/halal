@@ -30,8 +30,8 @@
         this.draw_stat = true;
         this.update_ents = true;
         this.cam_move_vector = Vec2.from(0, 0);
-        this.dragging = false;
-        this.start_drag_point = [0, 0];
+        this.is_camera_panning = false;
+        this.camera_panning_point = [0, 0];
         this.zoom_step = 0.1;
         this.camera_speed = 2;
         this._update_zoom = false;
@@ -40,6 +40,7 @@
         this.camera_moved = false;
         this.view_matrix[2] = this.center[0];
         this.view_matrix[5] = this.center[1];
+        this.combineTransform(this.view_matrix);
         this.prev_pos = [this.position[0], this.position[1]];
         return this;
       }
@@ -59,11 +60,12 @@
           lloge("Entity is null");
           return;
         }
-        ent.attr("scene", this);
         ent.attr("ctx", ctx);
+        ent.attr("scene", this);
         this.entities.push(ent);
         this.ent_cache[ent.id] = ent;
         this.trigger("ENTITY_ADDED", ent);
+        ent.trigger("ON_SCENE");
         return ent;
       };
 
@@ -71,16 +73,9 @@
         if (ctx == null) {
           ctx = this.ctx;
         }
-        if (ent == null) {
-          lloge("Entity is null");
-          return;
-        }
+        this.addEntity(ent, ctx);
         this.quadtree.insert(ent);
-        ent.attr("ctx", ctx);
-        ent.attr("scene", this);
-        this.entities.push(ent);
-        this.ent_cache[ent.id] = ent;
-        this.trigger("ENTITY_ADDED", ent);
+        ent.trigger("IN_QUADSPACE");
         return ent;
       };
 
@@ -101,19 +96,25 @@
       };
 
       Scene.prototype.update = function(delta) {
-        var en, _i, _len, _ref, _results;
+        var ctx, en, _i, _j, _len, _len1, _ref, _ref1, _results;
+        _ref = this.renderer.contexts;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          ctx = _ref[_i];
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, this.bounds[2], this.bounds[3]);
+        }
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.fillStyle = this.bg_color;
         this.ctx.fillRect(0, 0, this.bounds[2], this.bounds[3]);
         this.ctx.strokeRect(this.center[0] - 1, this.center[1] - 1, 2, 2);
         if (this._update_transform) {
-          this.transform(this.view_matrix);
+          this.combineTransform(this.view_matrix);
           this.update_ents = true;
         }
-        _ref = this.entities;
+        _ref1 = this.entities;
         _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          en = _ref[_i];
+        for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+          en = _ref1[_j];
           _results.push(en.update(delta));
         }
         return _results;
@@ -210,103 +211,17 @@
 
 
       Scene.prototype.init = function() {
-        var _this = this;
+        Scene.__super__.init.call(this);
         this.pause();
-        this.drag_listener = null;
-        this.drag_started_listener = null;
-        this.drag_ended_listener = null;
-        this.zoom_listener = null;
+        this.camera_panning_started = null;
+        this.camera_panning_started = null;
+        this.camera_panning_ended = null;
+        this.camera_zoom_listener = null;
         this.camera_lerp_listener = null;
         this.camera_frame_listener = null;
         this.resize_listener = null;
         this.resetQuadTree(this.world_bounds);
-        this.on("CHANGE", function(key, val) {
-          if (this.paused) {
-            return;
-          }
-          if (__indexOf.call(reactives, key) >= 0) {
-            this._update_transform = true;
-            return this._update_inverse = true;
-          }
-        });
-        this.on("ENTITY_REQ_DESTROYING", function(entity) {
-          return this.removeEntity(entity);
-        });
-        this.resize_listener = Hal.on("RESIZE", function(area) {
-          _this.renderer.resize(area.width, area.height);
-          _this.bounds[2] = area.width;
-          _this.bounds[3] = area.height;
-          _this._update_transform = true;
-          return _this._update_inverse = true;
-        });
-        this.camera_lerp_listener = Hal.on("RIGHT_CLICK", function(pos) {
-          if (_this.paused) {
-            return;
-          }
-          Vec2.set(_this.cam_move_vector, (_this.center[0] - pos[0]) + _this.position[0], (_this.center[1] - pos[1]) + _this.position[1]);
-          if (_this.camera_frame_listener) {
-            Hal.removeTrigger("EXIT_FRAME", _this.camera_frame_listener);
-            _this.camera_frame_listener = null;
-            _this._update_transform = true;
-            _this._update_inverse = true;
-          }
-          return _this.camera_frame_listener = Hal.on("EXIT_FRAME", function(delta) {
-            Vec2.lerp(_this.position, _this.position, _this.cam_move_vector, delta * 2);
-            if ((~~Math.abs(_this.position[0] - _this.cam_move_vector[0]) + ~~Math.abs(-_this.position[1] + _this.cam_move_vector[1])) < 2) {
-              Hal.removeTrigger("EXIT_FRAME", _this.camera_frame_listener);
-              _this.camera_frame_listener = null;
-            }
-            _this._update_transform = true;
-            return _this._update_inverse = true;
-          });
-        });
-        this.drag_started_listener = Hal.on("DRAG_STARTED", function(pos) {
-          if (_this.paused) {
-            return;
-          }
-          _this.dragging = true;
-          _this.start_drag_point[0] = pos[0];
-          _this.start_drag_point[1] = pos[1];
-          _this.prev_pos = [_this.position[0], _this.position[1]];
-          _this._update_transform = true;
-          _this._update_inverse = true;
-          if (_this.camera_frame_listener) {
-            Hal.removeTrigger("EXIT_FRAME", _this.camera_frame_listener);
-            return _this.camera_frame_listener = null;
-          }
-        });
-        this.drag_ended_listener = Hal.on("DRAG_ENDED", function(pos) {
-          _this.dragging = false;
-          _this._update_transform = true;
-          return _this._update_inverse = true;
-        });
-        this.drag_listener = Hal.on("MOUSE_MOVE", function(pos) {
-          if (_this.paused) {
-            return;
-          }
-          if (_this.dragging) {
-            _this.position[0] = _this.prev_pos[0] + (pos[0] - _this.start_drag_point[0]);
-            _this.position[1] = _this.prev_pos[1] + (pos[1] - _this.start_drag_point[1]);
-            _this._update_transform = true;
-            return _this._update_inverse = true;
-          }
-        });
-        this.zoom_listener = Hal.on("SCROLL", function(ev) {
-          if (_this.paused) {
-            return;
-          }
-          if (ev.down) {
-            _this.view_matrix[0] -= _this.zoom_step;
-            _this.view_matrix[4] -= _this.zoom_step;
-          } else {
-            _this.view_matrix[0] += _this.zoom_step;
-            _this.view_matrix[4] += _this.zoom_step;
-          }
-          _this._update_transform = true;
-          return _this._update_inverse = true;
-        });
-        this.resume();
-        return Scene.__super__.init.call(this);
+        return this.resume();
       };
 
       Scene.prototype.screenToWorld = function(point) {
@@ -362,15 +277,14 @@
         }
       };
 
+      Scene.prototype.disablePanning = function() {
+        Hal.removeTrigger("DRAG_STARTED", this.camera_panning_started);
+        Hal.removeTrigger("DRAG_ENDED", this.camera_panning_ended);
+        return Hal.removeTrigger("MOUSE_MOVE", this.camera_panning_listener);
+      };
+
       Scene.prototype.destroy = function() {
         this.pause();
-        Hal.removeTrigger("SCROLL", this.zoom_listener);
-        Hal.removeTrigger("MOUSE_MOVE", this.drag_listener);
-        Hal.removeTrigger("DRAG_STARTED", this.drag_started_listener);
-        Hal.removeTrigger("DRAG_ENDED", this.drag_ended_listener);
-        Hal.removeTrigger("RIGHT_CLICK", this.camera_lerp_listener);
-        Hal.removeTrigger("RESIZE", this.resize_listener);
-        Hal.removeTrigger("EXIT_FRAME", this.camera_frame_listener);
         Vec2.release(this.center);
         Vec2.release(this.cam_move_vector);
         this.removeAllEntities();
@@ -378,8 +292,109 @@
         this.quadtree.removeAll();
         this.quadtree = null;
         this.renderer = null;
-        this.destructor();
-        return Hal.trigger("SCENE_REQ_DESTROY", this);
+        Hal.trigger("SCENE_REQ_DESTROY", this);
+        return Scene.__super__.destroy.call(this);
+      };
+
+      Scene.prototype.destroyListeners = function() {
+        Scene.__super__.destroyListeners.call(this);
+        Hal.removeTrigger("SCROLL", this.camera_zoom_listener);
+        Hal.removeTrigger("MOUSE_MOVE", this.camera_panning_listener);
+        Hal.removeTrigger("DRAG_STARTED", this.camera_panning_started);
+        Hal.removeTrigger("DRAG_ENDED", this.camera_panning_ended);
+        Hal.removeTrigger("RIGHT_CLICK", this.camera_lerp_listener);
+        Hal.removeTrigger("RESIZE", this.resize_listener);
+        return Hal.removeTrigger("EXIT_FRAME", this.camera_frame_listener);
+      };
+
+      Scene.prototype.initListeners = function() {
+        var _this = this;
+        Scene.__super__.initListeners.call(this);
+        this.on("CHANGE", function(key, val) {
+          if (this.paused) {
+            return;
+          }
+          if (__indexOf.call(reactives, key) >= 0) {
+            this._update_transform = true;
+            return this._update_inverse = true;
+          }
+        });
+        this.on("ENTITY_REQ_DESTROYING", function(entity) {
+          return this.removeEntity(entity);
+        });
+        this.resize_listener = Hal.on("RESIZE", function(area) {
+          _this.renderer.resize(area.width, area.height);
+          _this.bounds[2] = area.width;
+          _this.bounds[3] = area.height;
+          _this._update_transform = true;
+          return _this._update_inverse = true;
+        });
+        this.camera_lerp_listener = Hal.on("RIGHT_CLICK", function(pos) {
+          if (_this.paused) {
+            return;
+          }
+          Vec2.set(_this.cam_move_vector, (_this.center[0] - pos[0]) + _this.position[0], (_this.center[1] - pos[1]) + _this.position[1]);
+          if (_this.camera_frame_listener) {
+            Hal.removeTrigger("EXIT_FRAME", _this.camera_frame_listener);
+            _this.camera_frame_listener = null;
+            _this._update_transform = true;
+            _this._update_inverse = true;
+          }
+          return _this.camera_frame_listener = Hal.on("EXIT_FRAME", function(delta) {
+            Vec2.lerp(_this.position, _this.position, _this.cam_move_vector, delta * 2);
+            if ((~~Math.abs(_this.position[0] - _this.cam_move_vector[0]) + ~~Math.abs(-_this.position[1] + _this.cam_move_vector[1])) < 2) {
+              Hal.removeTrigger("EXIT_FRAME", _this.camera_frame_listener);
+              _this.camera_frame_listener = null;
+            }
+            _this._update_transform = true;
+            return _this._update_inverse = true;
+          });
+        });
+        this.camera_panning_started = Hal.on("DRAG_STARTED", function(pos) {
+          if (_this.paused) {
+            return;
+          }
+          _this.is_camera_panning = true;
+          _this.camera_panning_point[0] = pos[0];
+          _this.camera_panning_point[1] = pos[1];
+          _this.prev_pos = [_this.position[0], _this.position[1]];
+          _this._update_transform = true;
+          _this._update_inverse = true;
+          if (_this.camera_frame_listener) {
+            Hal.removeTrigger("EXIT_FRAME", _this.camera_frame_listener);
+            return _this.camera_frame_listener = null;
+          }
+        });
+        this.camera_panning_ended = Hal.on("DRAG_ENDED", function(pos) {
+          _this.is_camera_panning = false;
+          _this._update_transform = true;
+          return _this._update_inverse = true;
+        });
+        this.camera_panning_started = Hal.on("MOUSE_MOVE", function(pos) {
+          if (_this.paused) {
+            return;
+          }
+          if (_this.is_camera_panning) {
+            _this.position[0] = _this.prev_pos[0] + (pos[0] - _this.camera_panning_point[0]);
+            _this.position[1] = _this.prev_pos[1] + (pos[1] - _this.camera_panning_point[1]);
+            _this._update_transform = true;
+            return _this._update_inverse = true;
+          }
+        });
+        return this.camera_zoom_listener = Hal.on("SCROLL", function(ev) {
+          if (_this.paused) {
+            return;
+          }
+          if (ev.down) {
+            _this.view_matrix[0] -= _this.zoom_step;
+            _this.view_matrix[4] -= _this.zoom_step;
+          } else {
+            _this.view_matrix[0] += _this.zoom_step;
+            _this.view_matrix[4] += _this.zoom_step;
+          }
+          _this._update_transform = true;
+          return _this._update_inverse = true;
+        });
       };
 
       return Scene;

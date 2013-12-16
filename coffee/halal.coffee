@@ -16,7 +16,7 @@ define [
     "imgutils"
     "entity"
     "spriteentity" 
-    "isometricmap"
+    "isometricscene"
     "ajax"
     "shape"
     "line"
@@ -41,13 +41,13 @@ define [
     ImgUtils, 
     Entity, 
     SpriteEntity, 
-    IsometricMap, 
+    IsometricScene, 
     Ajax, 
     Shape,
     Line,
     MathUtil,
     BBResolvers,
-    Drawable
+    Drawable,
 ) ->
 
     ###
@@ -264,6 +264,7 @@ define [
     Halal::IsometricMap     = IsometricMap
     Halal::BBResolvers      = BBResolvers
     Halal::DrawableStates   = Drawable.DrawableStates
+    Halal::IsometricScene   = IsometricScene
     Halal::Keys = 
         SHIFT: 16
         G: 71
