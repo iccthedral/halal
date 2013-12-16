@@ -28,7 +28,6 @@
       Tile.prototype.addTileLayer = function(layerobj) {
         var layer;
         layer = layerobj.layer;
-        console.debug("Adding layer to " + layer + " at " + this.row + ", " + this.col);
         if (this.layers[layer] != null) {
           this.layers[layer].destroy();
         }

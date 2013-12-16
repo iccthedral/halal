@@ -244,7 +244,6 @@
     Halal.prototype.Shape = Shape;
     Halal.prototype.Scene = Scene;
     Halal.prototype.Ajax = Ajax;
-    Halal.prototype.IsometricMap = IsometricMap;
     Halal.prototype.BBResolvers = BBResolvers;
     Halal.prototype.DrawableStates = Drawable.DrawableStates;
     Halal.prototype.IsometricScene = IsometricScene;

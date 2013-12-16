@@ -22,7 +22,6 @@
 
       QuadTree.prototype.insert = function(ent) {
         if (!Geometry.isPointInRectangle(ent.position, this.bounds)) {
-          llogd("Entity doesnt't interrsect " + this.id);
           return false;
         }
         if (this.entities.length < capacity && (cache[ent.id] == null)) {
@@ -53,7 +52,6 @@
         var ind;
         ind = this.entities.indexOf(ent);
         if (ind === -1) {
-          lloge("Entity " + ent.id + " is not in quadspace");
           return;
         }
         total--;

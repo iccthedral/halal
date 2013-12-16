@@ -18,7 +18,7 @@ define ["shape"], (Shape) ->
 
         addTileLayer: (layerobj) ->
             layer = layerobj.layer
-            console.debug "Adding layer to #{layer} at #{@row}, #{@col}"
+            # console.debug "Adding layer to #{layer} at #{@row}, #{@col}"
             if @layers[layer]?
                 @layers[layer].destroy()
             @layers[layer] = layerobj

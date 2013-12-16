@@ -261,7 +261,6 @@ define [
     Halal::Shape            = Shape
     Halal::Scene            = Scene
     Halal::Ajax             = Ajax
-    Halal::IsometricMap     = IsometricMap
     Halal::BBResolvers      = BBResolvers
     Halal::DrawableStates   = Drawable.DrawableStates
     Halal::IsometricScene   = IsometricScene

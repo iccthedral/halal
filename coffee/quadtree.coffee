@@ -22,7 +22,7 @@ define ["vec2", "geometry", "matrix3"],
 
         insert: (ent) ->
             if not Geometry.isPointInRectangle(ent.position, @bounds)
-                llogd "Entity doesnt't interrsect #{@id}"
+                # llogd "Entity doesnt't interrsect #{@id}"
                 return false
 
             if @entities.length < capacity and not cache[ent.id]?
@@ -48,7 +48,7 @@ define ["vec2", "geometry", "matrix3"],
         remove: (ent) ->
             ind = @entities.indexOf(ent)
             if ind is -1
-                lloge "Entity #{ent.id} is not in quadspace"
+                # lloge "Entity #{ent.id} is not in quadspace"
                 return
             total--
             delete cache[ent.id]
