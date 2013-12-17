@@ -223,6 +223,7 @@ define ["tile", "tilelayer"],
             ctx = @map.renderer.getLayerContext(tilelayerobj.layer)
             @map.addEntityToQuadSpace(tilelayerobj, ctx)
             tilelayerobj.trigger "ON_MAP"
+            # console.debug ctx
             return tile
 
         addTileLayerMeta: (row, col, layermeta, offset_x = 0, offset_y = 0) ->
@@ -255,9 +256,15 @@ define ["tile", "tilelayer"],
             layerobj.attr("h", off_y)
             layerobj.setPosition(x, y - off_y)
 
+            # console.debug layerobj
+
             ctx = @map.renderer.getLayerContext(layerobj.layer)
             @map.addEntityToQuadSpace(layerobj, ctx)            
             layerobj.trigger "ON_MAP"
+            # console.debug ctx
             return layerobj
+
+        loadTileLayerById: (tile, id) ->
+            @addTileLayerMetaByLayerId(tile.row, tile.col, id)
 
     return TileManager

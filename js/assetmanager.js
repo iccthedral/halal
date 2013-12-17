@@ -263,7 +263,7 @@ usage:
       this.socket.on("LOAD_SPRITES", function(data) {
         var g, i, len, list, _i, _len, _results;
         list = JSON.parse(data.files);
-        len = list.length;
+        len = list.length - 1;
         _this.trigger("SPRITES_LOADING", len);
         _results = [];
         for (i = _i = 0, _len = list.length; _i < _len; i = ++_i) {
@@ -271,7 +271,7 @@ usage:
           _results.push((function(g, i) {
             return _this.addSprite(data.url + g).then(function() {
               _this.trigger("SPRITE_LOADED", g);
-              if (i >= (len - 1)) {
+              if (i === len) {
                 console.log("WTF WTF WTF");
                 return _this.trigger("SPRITES_LOADED");
               }
@@ -283,7 +283,7 @@ usage:
       this.socket.on("LOAD_SOUNDS", function(data) {
         var g, i, len, list, _i, _len, _results;
         list = JSON.parse(data.files);
-        len = list.length;
+        len = list.length - 1;
         _this.trigger("SOUNDS_LOADING", len);
         _results = [];
         for (i = _i = 0, _len = list.length; _i < _len; i = ++_i) {
@@ -291,7 +291,7 @@ usage:
           _results.push((function(g, i) {
             return _this.addSound(data.url + g).then(function() {
               _this.trigger("SOUND_LOADED");
-              if (i >= (len - 1)) {
+              if (i === len) {
                 return _this.trigger("SOUNDS_LOADED");
               }
             });
@@ -313,7 +313,7 @@ usage:
           _fn(file, i);
           _results.push(_this.addSprite(data.url + file).then(function() {
             _this.trigger("SPRITE_LOADED", file);
-            if (i >= (len - 1)) {
+            if (i === len) {
               return _this.trigger("SPRITES_LOADED");
             }
           }));
@@ -347,9 +347,9 @@ usage:
       var _this = this;
       return Ajax.get(list, function(data) {
         var i, len, spr, _i, _len, _results;
-        data = data.split("\r\n");
+        data = data.split("\n");
         data.splice(-1);
-        len = data.length;
+        len = data.length - 1;
         _this.trigger("SPRITES_LOADING", len);
         _results = [];
         for (i = _i = 0, _len = data.length; _i < _len; i = ++_i) {
@@ -357,7 +357,7 @@ usage:
           _results.push((function(spr, i) {
             return _this.addSprite(spr).then(function() {
               _this.trigger("SPRITE_LOADED", spr);
-              if (i >= (len - 1)) {
+              if (i === len) {
                 return _this.trigger("SPRITES_LOADED");
               }
             });

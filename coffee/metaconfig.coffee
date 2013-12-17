@@ -11,6 +11,7 @@ define [],
         URI:
             Sprites: "sprites/"
             Assets: "/assets/"
+            Maps: "/map/"
             Websockets: "http://localhost:8080"
 
     return MetaConfig

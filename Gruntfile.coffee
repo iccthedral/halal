@@ -1,5 +1,4 @@
 fs      = require "fs"
-io      = require("socket.io").listen(8080, {log: false})
 path    = require "path"
 wrench  = require "wrench"
 

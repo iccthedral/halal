@@ -4,8 +4,8 @@
     var FreeList, Vec2, i, v;
     Vec2 = {};
     FreeList = [];
-    Vec2.free = 10000;
-    Vec2.max = 10000;
+    Vec2.free = 90000;
+    Vec2.max = 90000;
     i = 0;
     while (i < Vec2.max) {
       v = new MathUtil.ARRAY_TYPE(2);

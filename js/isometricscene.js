@@ -24,6 +24,7 @@
         this.selected_tile_y = this.tileh2;
         this.selected_tile = null;
         this.selected_tile_sprite = null;
+        this.tiles_found = [];
         /* Isometric shape*/
 
         this.iso_shape = [Vec2.from(-this.tilew2, 0), Vec2.from(0, this.tileh2), Vec2.from(this.tilew2, 0), Vec2.from(0, -this.tileh2)];
@@ -51,6 +52,29 @@
           "red": Hal.asm.getSprite("test/grid_unit_over_red_128x64")
         };
         this.world_bounds = [0, 0, (this.ncols - 1) * this.tilew2, (this.nrows - 0.5) * this.tileh];
+        this.section_dim = [Math.round(this.world_bounds[2] / 3), Math.round((this.nrows * this.tileh) / 3)];
+        this.cap = Math.round(this.section_dim[0] / this.tilew2) * Math.round(this.section_dim[1] / this.tileh);
+        console.error(this.cap);
+        this.sections = {
+          "center": new QuadTree([this.section_dim[0], this.section_dim[1], this.section_dim[0], this.section_dim[1]], this.cap, false),
+          "ne": new QuadTree([0, 0, this.section_dim[0], this.section_dim[1]], this.cap, false),
+          "n": new QuadTree([this.section_dim[0], 0, this.section_dim[0], this.section_dim[1]], this.cap, false),
+          "nw": new QuadTree([2 * this.section_dim[0], 0, this.section_dim[0], this.section_dim[1]], this.cap, false),
+          "e": new QuadTree([0, this.section_dim[1], this.section_dim[0], this.section_dim[1]], this.cap, false),
+          "w": new QuadTree([2 * this.section_dim[0], this.section_dim[1], this.section_dim[0], this.section_dim[1]], this.cap, false),
+          "se": new QuadTree([0, 2 * this.section_dim[1], this.section_dim[0], this.section_dim[1]], this.cap, false),
+          "s": new QuadTree([this.section_dim[0], 2 * this.section_dim[1], this.section_dim[0], this.section_dim[1]], this.cap, false),
+          "sw": new QuadTree([2 * this.section_dim[0], 2 * this.section_dim[1], this.section_dim[0], this.section_dim[1]], this.cap, false)
+        };
+        this.sections["center"].divide();
+        this.sections["ne"].divide();
+        this.sections["n"].divide();
+        this.sections["nw"].divide();
+        this.sections["e"].divide();
+        this.sections["w"].divide();
+        this.sections["se"].divide();
+        this.sections["s"].divide();
+        this.sections["sw"].divide();
       }
 
       IsometricScene.prototype.drawStat = function() {
@@ -61,6 +85,47 @@
           Hal.glass.ctx.fillText(this.info.col + this.tile_under_mouse.col, 0, 160);
           Hal.glass.ctx.fillText(this.info.tile_under_mouse + Vec2.str(this.tile_under_mouse.position), 0, 175);
           return Hal.glass.ctx.fillText(this.info.world_position + Vec2.str(this.world_pos), 0, 190);
+        }
+      };
+
+      IsometricScene.prototype.drawQuadTree = function(quadtree) {
+        this.drawQuadSections(this.sections["center"], "red");
+        this.drawQuadSections(this.sections["ne"], "gold");
+        this.drawQuadSections(this.sections["n"], "green");
+        this.drawQuadSections(this.sections["nw"], "blue");
+        this.drawQuadSections(this.sections["e"], "cyan");
+        this.drawQuadSections(this.sections["w"], "orange");
+        this.drawQuadSections(this.sections["se"], "yellow");
+        this.drawQuadSections(this.sections["s"], "violet");
+        return this.drawQuadSections(this.sections["sw"], "brown");
+      };
+
+      IsometricScene.prototype.drawQuadSections = function(quadtree, color) {
+        if (this.paused) {
+          return;
+        }
+        this.ctx.textAlign = "center";
+        this.ctx.fillStyle = "white";
+        this.ctx.strokeStyle = color;
+        if (quadtree.nw != null) {
+          this.drawQuadSections(quadtree.nw);
+          this.ctx.strokeRect(quadtree.nw.bounds[0], quadtree.nw.bounds[1], quadtree.nw.bounds[2], quadtree.nw.bounds[3]);
+          this.ctx.fillText("" + quadtree.nw.id, quadtree.nw.bounds[0] + quadtree.nw.bounds[2] * 0.5, quadtree.nw.bounds[1] + quadtree.nw.bounds[3] * 0.5);
+        }
+        if (quadtree.ne != null) {
+          this.drawQuadSections(quadtree.ne);
+          this.ctx.strokeRect(quadtree.ne.bounds[0], quadtree.ne.bounds[1], quadtree.ne.bounds[2], quadtree.ne.bounds[3]);
+          this.ctx.fillText("" + quadtree.ne.id, quadtree.ne.bounds[0] + quadtree.ne.bounds[2] * 0.5, quadtree.ne.bounds[1] + quadtree.ne.bounds[3] * 0.5);
+        }
+        if (quadtree.sw != null) {
+          this.drawQuadSections(quadtree.sw);
+          this.ctx.strokeRect(quadtree.sw.bounds[0], quadtree.sw.bounds[1], quadtree.sw.bounds[2], quadtree.sw.bounds[3]);
+          this.ctx.fillText("" + quadtree.sw.id, quadtree.sw.bounds[0] + quadtree.sw.bounds[2] * 0.5, quadtree.sw.bounds[1] + quadtree.sw.bounds[3] * 0.5);
+        }
+        if (quadtree.se != null) {
+          this.drawQuadSections(quadtree.se);
+          this.ctx.strokeRect(quadtree.se.bounds[0], quadtree.se.bounds[1], quadtree.se.bounds[2], quadtree.se.bounds[3]);
+          return this.ctx.fillText("" + quadtree.se.id, quadtree.se.bounds[0] + quadtree.se.bounds[2] * 0.5, quadtree.se.bounds[1] + quadtree.se.bounds[3] * 0.5);
         }
       };
 
@@ -79,7 +144,6 @@
 
         this.clicked_layer = null;
         this.tile_under_mouse = null;
-        this.search_range = this.bounds.slice();
         return this.initMap();
       };
 
@@ -195,11 +259,21 @@
               "col": j
             });
             this.map[k] = this.addEntity(t);
+            this.sections["center"].insert(this.map[k]);
+            this.sections["ne"].insert(this.map[k]);
+            this.sections["n"].insert(this.map[k]);
+            this.sections["nw"].insert(this.map[k]);
+            this.sections["e"].insert(this.map[k]);
+            this.sections["w"].insert(this.map[k]);
+            this.sections["se"].insert(this.map[k]);
+            this.sections["s"].insert(this.map[k]);
+            this.sections["sw"].insert(this.map[k]);
             k++;
           }
         }
         t2 = performance.now() - t1;
         llogd("Initializing sections took: " + t2 + " ms");
+        this.trigger("MAP_TILES_INITIALIZED");
         return this.resume();
       };
 
@@ -277,7 +351,7 @@
             }
             layer_id = (layer_qword >> 32) & mask;
             layer_height = (layer_qword >> 16) & mask;
-            this.tm.addTileLayerByLayerId(tile_row, tile_col, layer_id, 0, layer_height);
+            this.tm.addTileLayerMetaByLayerId(tile_row, tile_col, layer_id, 0, layer_height);
           }
         }
         t2 = performance.now() - t1;
@@ -299,7 +373,9 @@
           this.clicked_layer = null;
         }
         t1 = performance.now();
-        _ref = this.quadtree.findEntitiesInRectangle(this.search_range, this._transform);
+        this.tiles_found = [];
+        this.quadtree.findEntitiesInRectangle(this.search_range, this._transform, this.tiles_found);
+        _ref = this.tiles_found;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           layer = _ref[_i];
           transp = Geometry.transformPoint(this.world_pos[0], this.world_pos[1], layer.inverseTransform());
@@ -311,19 +387,19 @@
           if (this.clicked_layer == null) {
             this.clicked_layer = layer;
           } else {
-            if ((layer.holder.col === this.clicked_layer.holder.col) && (layer.holder.row === this.clicked_layer.holder.row)) {
+            if ((layer.tile.col === this.clicked_layer.tile.col) && (layer.tile.row === this.clicked_layer.tile.row)) {
               if (layer.layer > this.clicked_layer.layer) {
                 this.clicked_layer = layer;
               }
-            } else if (layer.holder.row === this.clicked_layer.holder.row) {
+            } else if (layer.tile.row === this.clicked_layer.tile.row) {
               if (layer.h + layer.position[1] > this.clicked_layer.h + this.clicked_layer.position[1]) {
                 this.clicked_layer = layer;
               }
-            } else if (layer.holder.col === this.clicked_layer.holder.col) {
+            } else if (layer.tile.col === this.clicked_layer.tile.col) {
               if (layer.h + layer.position[1] > this.clicked_layer.h + this.clicked_layer.position[1]) {
                 this.clicked_layer = layer;
               }
-            } else if ((layer.holder.col !== this.clicked_layer.holder.col) && (layer.holder.row !== this.clicked_layer.holder.row)) {
+            } else if ((layer.tile.col !== this.clicked_layer.tile.col) && (layer.tile.row !== this.clicked_layer.tile.row)) {
               if (layer.h + layer.position[1] > this.clicked_layer.h + this.clicked_layer.position[1]) {
                 this.clicked_layer = layer;
               }
@@ -332,16 +408,11 @@
         }
         t2 = performance.now() - t1;
         llogd("Searching took: " + (t2.toFixed(2)) + " ms");
+        llogd("Tiles found: " + this.tiles_found.length);
         if (this.clicked_layer != null) {
           this.trigger("LAYER_SELECTED", this.clicked_layer);
           return this.clicked_layer.trigger("SELECTED");
         }
-      };
-
-      IsometricScene.prototype.draw = function(delta) {
-        IsometricScene.__super__.draw.call(this, delta);
-        this.ctx.setTransform(this._transform[0], this._transform[3], this._transform[1], this._transform[4], this._transform[2], this._transform[5]);
-        return this.drawQuadTree(this.quadtree);
       };
 
       IsometricScene.prototype.destroy = function() {
@@ -365,7 +436,12 @@
           _this.world_pos = _this.screenToWorld(pos);
           return _this.tile_under_mouse = _this.getTileAt(_this.world_pos);
         });
+        Hal.on("SAVE_MAP", function() {
+          return _this.saveBitmapMap();
+        });
       };
+
+      IsometricScene.prototype.saveMap = function() {};
 
       return IsometricScene;
 

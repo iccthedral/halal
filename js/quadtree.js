@@ -1,19 +1,23 @@
 (function() {
   "use strict";
   define(["vec2", "geometry", "matrix3"], function(Vec2, Geometry, Matrix3) {
-    var QuadTree, cache, capacity, total;
-    capacity = 8;
+    var QuadTree, cache, total;
     total = 0;
     cache = {};
     QuadTree = (function() {
-      function QuadTree(bounds) {
+      function QuadTree(bounds, cap, part) {
         this.bounds = bounds;
+        if (cap == null) {
+          cap = 8;
+        }
+        this.part = part != null ? part : true;
         this.entities = [];
         this.nw = null;
         this.sw = null;
         this.ne = null;
         this.se = null;
         this.id = Hal.ID();
+        this.capacity_ = cap;
       }
 
       QuadTree.prototype.total = function() {
@@ -24,26 +28,28 @@
         if (!Geometry.isPointInRectangle(ent.position, this.bounds)) {
           return false;
         }
-        if (this.entities.length < capacity && (cache[ent.id] == null)) {
+        if ((this.entities.length < this.capacity_ && !cache[ent.id]) || (!this.part && !cache[ent.id])) {
           this.entities.push(ent);
           cache[ent.id] = this;
           total++;
           return true;
         }
-        if (this.nw == null) {
-          this.divide();
-        }
-        if (this.nw.insert(ent)) {
-          return true;
-        }
-        if (this.ne.insert(ent)) {
-          return true;
-        }
-        if (this.sw.insert(ent)) {
-          return true;
-        }
-        if (this.se.insert(ent)) {
-          return true;
+        if (this.part) {
+          if (this.nw == null) {
+            this.divide();
+          }
+          if (this.nw.insert(ent)) {
+            return true;
+          }
+          if (this.ne.insert(ent)) {
+            return true;
+          }
+          if (this.sw.insert(ent)) {
+            return true;
+          }
+          if (this.se.insert(ent)) {
+            return true;
+          }
         }
         return false;
       };
@@ -96,21 +102,21 @@
       };
 
       QuadTree.prototype.findUnder = function() {
-        var out;
-        out = this.entities.slice();
-        if (this.nw != null) {
-          out = out.concat(this.nw.findUnder());
-        }
-        if (this.sw != null) {
-          out = out.concat(this.sw.findUnder());
-        }
-        if (this.ne != null) {
-          out = out.concat(this.ne.findUnder());
-        }
-        if (this.se != null) {
-          out = out.concat(this.se.findUnder());
-        }
+        var out, recurseTree, root;
+        out = [];
+        root = this;
+        recurseTree = function(root) {
+          out = out.concat(root.entities);
+          if (root.nw != null) {
+            recurseTree(root.nw);
+            recurseTree(root.ne);
+            recurseTree(root.se);
+            return recurseTree(root.sw);
+          }
+        };
+        recurseTree(root);
         return out;
+        return entsInRange;
       };
 
       QuadTree.prototype.findQuadsInRectangle = function(rect, matrix) {
@@ -131,37 +137,34 @@
         return quads;
       };
 
-      QuadTree.prototype.findEntitiesInRectangle = function(range, matrix) {
-        var entsInRange, p, ret, transformBnds, _i, _len, _ref;
-        entsInRange = [];
+      QuadTree.prototype.findEntitiesInRectangle = function(range, matrix, out) {
+        var p, ret, transformBnds, _i, _len, _ref, _results;
         transformBnds = Geometry.transformRectangle(this.bounds, matrix);
-        if (!Geometry.rectangleIntersectsOrContainsRectangle(range, transformBnds)) {
-          return entsInRange;
-        }
-        _ref = this.entities;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          p = _ref[_i];
-          ret = Geometry.rectangleIntersectsOrContainsRectangle(range, Geometry.transformRectangle(p._bbox, Matrix3.mul([], p.transform(), matrix)));
-          if (!ret) {
-            continue;
+        if (Geometry.rectangleIntersectsOrContainsRectangle(range, transformBnds)) {
+          if (this.nw != null) {
+            this.nw.findEntitiesInRectangle(range, matrix, out);
+            this.ne.findEntitiesInRectangle(range, matrix, out);
+            this.sw.findEntitiesInRectangle(range, matrix, out);
+            this.se.findEntitiesInRectangle(range, matrix, out);
           }
-          entsInRange.push(p);
+          _ref = this.entities;
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            p = _ref[_i];
+            ret = Geometry.rectangleIntersectsOrContainsRectangle(Geometry.transformRectangle(p._bbox, Matrix3.mul([], p.transform(), matrix)), range);
+            if (!ret) {
+              continue;
+            }
+            _results.push(out.push(p));
+          }
+          return _results;
         }
-        if (this.nw == null) {
-          return entsInRange;
-        }
-        entsInRange = entsInRange.concat(this.nw.findEntitiesInRectangle(range, matrix));
-        entsInRange = entsInRange.concat(this.ne.findEntitiesInRectangle(range, matrix));
-        entsInRange = entsInRange.concat(this.sw.findEntitiesInRectangle(range, matrix));
-        entsInRange = entsInRange.concat(this.se.findEntitiesInRectangle(range, matrix));
-        return entsInRange;
       };
 
       QuadTree.prototype.divide = function() {
         var h, w;
         w = this.bounds[2] * 0.5;
         h = this.bounds[3] * 0.5;
-        this.entities = [];
         this.nw = new QuadTree([this.bounds[0], this.bounds[1], w, h]);
         this.ne = new QuadTree([this.bounds[0] + w, this.bounds[1], w, h]);
         this.sw = new QuadTree([this.bounds[0], this.bounds[1] + h, w, h]);

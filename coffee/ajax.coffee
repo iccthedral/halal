@@ -16,12 +16,17 @@ define [],
                 
     Ajax = new Object()
     
-    Ajax.get = (url, data, callbacks...) ->
+    Ajax.get = (url, data = '', callbacks...) ->
         result = new Result(document.domain + '/' + url)
         ajaxreq = new XMLHttpRequest()
-        ajaxreq.open("GET", "#{url}?#{data}")
+        
+        con_url = url
+        if typeof data is "function"
+            url = "#{url}?#{data}"
+            callbacks.unshift data
+        
+        ajaxreq.open("GET", con_url)
         ajaxreq.send()
-
         ajaxreq.onreadystatechange = () ->
             if (ajaxreq.readyState == 4)
                 type = ajaxreq.getResponseHeader("Content-Type")
@@ -37,7 +42,6 @@ define [],
                 result.always_(url || data)
                 callbacks[2](data) if callbacks[2]
         return result
-
 
     Ajax.post = (url, data, callbacks...) ->
         result = new Result(document.domain + '/' + url)

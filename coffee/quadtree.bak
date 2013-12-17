@@ -22,12 +22,16 @@ define ["vec2", "geometry", "matrix3"],
 
         insert: (ent) ->
             if not Geometry.isPointInRectangle(ent.position, @bounds)
+                #logd "Entity doesnt't interrsect #{@id}"
+                # console.debug ent.position
                 return false
+
             if (@entities.length < @capacity_ and not cache[ent.id]) or (not @part and not cache[ent.id])
                 @entities.push(ent)
                 cache[ent.id] = @
                 total++
                 return true
+
             if @part
                 if not @nw?
                     @divide()
@@ -39,6 +43,7 @@ define ["vec2", "geometry", "matrix3"],
                     return true
                 if @se.insert(ent)
                     return true
+
             return false
 
         remove: (ent) ->
@@ -125,20 +130,25 @@ define ["vec2", "geometry", "matrix3"],
             quads = quads.concat(@se.findQuadsInRectangle(rect, matrix))
             return quads
 
-        findEntitiesInRectangle: (range, matrix, out) ->
-            transformBnds = Geometry.transformRectangle(@bounds, matrix)
-            if Geometry.rectangleIntersectsOrContainsRectangle(range, transformBnds)
-                if @nw?
-                    @nw.findEntitiesInRectangle(range, matrix, out)
-                    @ne.findEntitiesInRectangle(range, matrix, out)
-                    @sw.findEntitiesInRectangle(range, matrix, out)
-                    @se.findEntitiesInRectangle(range, matrix, out)
+        findEntitiesInRectangle: (range, matrix) ->
+            entsInRange = []
+            # transformBnds = Geometry.transformRectangle(@bounds, matrix)
+            # if not Geometry.rectangleIntersectsOrContainsRectangle(range, transformBnds)
+            #     return entsInRange
 
-                for p in @entities
-                    ret = Geometry.rectangleIntersectsOrContainsRectangle(
-                        Geometry.transformRectangle(p._bbox, Matrix3.mul([], p.transform(), matrix)), range)
-                    continue if not ret
-                    out.push p
+            for p in @entities
+                ret = Geometry.rectangleIntersectsOrContainsRectangle(
+                    Geometry.transformRectangle(p._bbox, Matrix3.mul([], p.transform(), matrix)), range)
+                continue if not ret
+                entsInRange.push p
+            if not @nw?
+                return entsInRange
+            else
+                entsInRange = entsInRange.concat(@nw.findEntitiesInRectangle(range, matrix))
+                entsInRange = entsInRange.concat(@ne.findEntitiesInRectangle(range, matrix))
+                entsInRange = entsInRange.concat(@sw.findEntitiesInRectangle(range, matrix))
+                entsInRange = entsInRange.concat(@se.findEntitiesInRectangle(range, matrix))
+            return entsInRange
 
         # getAllInQuadRange: (subquad) ->
         #     while p in @entities

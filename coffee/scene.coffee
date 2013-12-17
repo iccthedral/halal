@@ -27,7 +27,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @cam_move_vector    = Vec2.from(0, 0)
             @is_camera_panning      = false
             @camera_panning_point   = [0, 0]
-            @zoom_step          = 0.1
+            @zoom_step          = 0.05
             @camera_speed       = 2
             @_update_zoom       = false
             @center             = Vec2.from(@bounds[2] * 0.5, @bounds[3] * 0.5)
@@ -40,7 +40,8 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             #@setOrigin(@center[0], @center[1])
             @combineTransform(@view_matrix)
             @prev_pos = [@position[0], @position[1]]
-
+            @zoom_limits = [0.1, 2.3]
+            @visible_ents = []
             #@init()
             return @
 
@@ -59,6 +60,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @entities.push(ent)
             @ent_cache[ent.id] = ent
             @trigger "ENTITY_ADDED", ent
+            @update_ents = true
             ent.trigger "ON_SCENE"
             return ent
 
@@ -83,7 +85,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             Hal.glass.ctx.fillText("Num of entities: #{@entities.length}", 0, 25)
             Hal.glass.ctx.fillText("Camera position: #{@position[0].toFixed(2)}, #{@position[1].toFixed(2)}", 0, 40)
             Hal.glass.ctx.fillText("Camera origin: #{@origin[0].toFixed(2)}, #{@origin[1].toFixed(2)}", 0, 55)
-            Hal.glass.ctx.fillText("Camera zoom: #{@scale[0].toFixed(2)}, #{@scale[1].toFixed(2)}", 0, 70)
+            Hal.glass.ctx.fillText("Num of visible entities: #{@visible_ents.length}", 0, 70)
             Hal.glass.ctx.fillText("Num of free pool vectors: #{Vec2.free}", 0, 85)
             Hal.glass.ctx.fillText("View origin: #{@view_matrix[2].toFixed(2)}, #{@view_matrix[5].toFixed(2)}", 0, 100)
             Hal.glass.ctx.fillText("View scale: #{@view_matrix[0].toFixed(2)}, #{@view_matrix[4].toFixed(2)}", 0, 115)
@@ -93,20 +95,13 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
 
         update: (delta) ->
             # @ctx.fillStyle = "rgba(0, 0, 0, 0.5)"
-            for ctx in @renderer.contexts
-                ctx.setTransform(1, 0, 0, 1, 0, 0)
-                ctx.clearRect(0, 0, @bounds[2], @bounds[3])
-
-            @ctx.setTransform(1, 0, 0, 1, 0, 0)
-            @ctx.fillStyle = @bg_color
-            @ctx.fillRect(0, 0, @bounds[2], @bounds[3])
-            @ctx.strokeRect(@center[0] - 1, @center[1] - 1, 2, 2)
-
             if @_update_transform
                 @combineTransform(@view_matrix)
                 @update_ents = true
-
-            for en in @entities
+            if @update_ents
+                @visible_ents = []
+                @quadtree.findEntitiesInRectangle(@search_range, @_transform, @visible_ents)
+            for en in @visible_ents
                 en.update(delta)
 
         checkForCollisions: () ->
@@ -127,11 +122,21 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                 #     en.trigger "COLLISION_ENDED", ent
 
         draw: (delta) ->
+            @clearRenderers()
             if @draw_stat
                 @drawStat()
-            for en in @entities
+            for en in @visible_ents
                 en.draw(delta)
             @update_ents = false
+
+        clearRenderers: () ->
+            for ctx in @renderer.contexts
+                ctx.setTransform(1, 0, 0, 1, 0, 0)
+                ctx.clearRect(0, 0, @bounds[2], @bounds[3])
+            @ctx.setTransform(1, 0, 0, 1, 0, 0)
+            @ctx.fillStyle = @bg_color
+            @ctx.fillRect(0, 0, @bounds[2], @bounds[3])
+            @ctx.strokeRect(@center[0] - 1, @center[1] - 1, 2, 2)
 
         pause: () ->
             @attr("paused", true)
@@ -147,10 +152,11 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             if ind is -1
                 lloge "No such entity #{ent.id} in entity list"
                 return
-            QuadTree.fromCache(ent.id).remove(ent)
+            QuadTree.fromCache(ent.id)?.remove(ent)
             delete @ent_cache[ent.id]
             @trigger "ENTITY_DESTROYED", ent
             @entities.splice(ind, 1)
+            @update_ents = true
 
         removeAllEntities: (destroy_children = false) ->
             for ent in @getAllEntities()
@@ -170,6 +176,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
         init: () ->
             super()
             @pause()
+            @search_range               = @bounds.slice()
             @camera_panning_started     = null
             @camera_panning_started     = null
             @camera_panning_ended       = null
@@ -332,6 +339,9 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                 else
                     @view_matrix[0] += @zoom_step
                     @view_matrix[4] += @zoom_step
+
+                @view_matrix[0] = Hal.math.clamp(@view_matrix[0], @zoom_limits[0], @zoom_limits[1])
+                @view_matrix[4] = Hal.math.clamp(@view_matrix[4], @zoom_limits[0], @zoom_limits[1])
 
                 @_update_transform = true
                 @_update_inverse = true

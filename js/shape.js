@@ -114,9 +114,6 @@
       this.scene.trigger("ENTITY_REQ_DESTROYING", this);
       this.destroyMesh();
       this.destructor();
-      delete this.scene;
-      delete this.quadtree;
-      delete this.sprite;
     };
     Shape.prototype.destroyMesh = function() {
       var p, _i, _len, _ref;

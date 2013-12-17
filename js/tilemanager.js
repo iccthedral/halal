@@ -190,6 +190,10 @@
         return layerobj;
       };
 
+      TileManager.prototype.loadTileLayerById = function(tile, id) {
+        return this.addTileLayerMetaByLayerId(tile.row, tile.col, id);
+      };
+
       return TileManager;
 
     })();

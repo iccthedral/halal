@@ -88,6 +88,7 @@ define [
         delta               = Math.min(delta, fstep)
 
         Hal.trigger "ENTER_FRAME", delta
+
         if focused_scene? and not focused_scene.paused
             focused_scene.update(delta)
             focused_scene.draw(delta)

@@ -23,6 +23,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             @selected_tile          = null
             @selected_tile_sprite   = null
 
+            @tiles_found = []
             ### Isometric shape ###
             @iso_shape = [
                 Vec2.from(-@tilew2, 0),
@@ -53,6 +54,31 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
 
             @world_bounds = [0, 0, (@ncols - 1) * @tilew2, (@nrows-0.5) * @tileh]
 
+
+            @section_dim = [Math.round(@world_bounds[2] / 3), Math.round((@nrows * @tileh) / 3)]
+            @cap = Math.round(@section_dim[0] / @tilew2) * Math.round(@section_dim[1] / @tileh)
+            console.error @cap
+            @sections =
+                "center": new QuadTree([@section_dim[0], @section_dim[1], @section_dim[0], @section_dim[1]], @cap, false)
+                "ne": new QuadTree([0, 0,                                       @section_dim[0], @section_dim[1]], @cap, false)
+                "n": new QuadTree([@section_dim[0], 0,                          @section_dim[0], @section_dim[1]], @cap, false)
+                "nw": new QuadTree([2*@section_dim[0], 0,                       @section_dim[0], @section_dim[1]], @cap, false)
+                "e": new QuadTree([0, @section_dim[1],                          @section_dim[0], @section_dim[1]], @cap, false)
+                "w": new QuadTree([2*@section_dim[0], @section_dim[1],          @section_dim[0], @section_dim[1]], @cap, false)
+                "se": new QuadTree([0, 2*@section_dim[1],                       @section_dim[0], @section_dim[1]], @cap, false)
+                "s": new QuadTree([@section_dim[0], 2*@section_dim[1],          @section_dim[0], @section_dim[1]], @cap, false)
+                "sw": new QuadTree([2*@section_dim[0], 2*@section_dim[1],       @section_dim[0], @section_dim[1]], @cap, false)
+
+            @sections["center"].divide()
+            @sections["ne"].divide()
+            @sections["n"].divide()
+            @sections["nw"].divide()
+            @sections["e"].divide()
+            @sections["w"].divide()
+            @sections["se"].divide()
+            @sections["s"].divide()
+            @sections["sw"].divide()
+
         drawStat: () ->
             super()
             if @tile_under_mouse?
@@ -61,6 +87,43 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 Hal.glass.ctx.fillText(@info.col + @tile_under_mouse.col, 0, 160)
                 Hal.glass.ctx.fillText(@info.tile_under_mouse + Vec2.str(@tile_under_mouse.position), 0, 175) 
                 Hal.glass.ctx.fillText(@info.world_position + Vec2.str(@world_pos) , 0, 190)    
+        
+        drawQuadTree: (quadtree) ->
+            @drawQuadSections(@sections["center"], "red")
+            @drawQuadSections(@sections["ne"], "gold")
+            @drawQuadSections(@sections["n"],  "green")
+            @drawQuadSections(@sections["nw"], "blue")
+            @drawQuadSections(@sections["e"],  "cyan")
+            @drawQuadSections(@sections["w"],  "orange")
+            @drawQuadSections(@sections["se"], "yellow")
+            @drawQuadSections(@sections["s"],  "violet")
+            @drawQuadSections(@sections["sw"], "brown")
+
+        drawQuadSections: (quadtree, color) ->
+            return if @paused
+            @ctx.textAlign = "center"
+            @ctx.fillStyle = "white"
+            @ctx.strokeStyle = color
+            
+            if quadtree.nw?
+                @drawQuadSections(quadtree.nw)
+                @ctx.strokeRect(quadtree.nw.bounds[0], quadtree.nw.bounds[1], quadtree.nw.bounds[2], quadtree.nw.bounds[3])
+                @ctx.fillText("#{quadtree.nw.id}", quadtree.nw.bounds[0] + quadtree.nw.bounds[2]*0.5, quadtree.nw.bounds[1] + quadtree.nw.bounds[3]*0.5)
+
+            if quadtree.ne?
+                @drawQuadSections(quadtree.ne)
+                @ctx.strokeRect(quadtree.ne.bounds[0], quadtree.ne.bounds[1], quadtree.ne.bounds[2], quadtree.ne.bounds[3])
+                @ctx.fillText("#{quadtree.ne.id}", quadtree.ne.bounds[0] + quadtree.ne.bounds[2]*0.5, quadtree.ne.bounds[1] + quadtree.ne.bounds[3]*0.5)
+
+            if quadtree.sw?
+                @drawQuadSections(quadtree.sw)
+                @ctx.strokeRect(quadtree.sw.bounds[0], quadtree.sw.bounds[1], quadtree.sw.bounds[2], quadtree.sw.bounds[3])
+                @ctx.fillText("#{quadtree.sw.id}", quadtree.sw.bounds[0] + quadtree.sw.bounds[2]*0.5, quadtree.sw.bounds[1] + quadtree.sw.bounds[3]*0.5)
+
+            if quadtree.se?
+                @drawQuadSections(quadtree.se)
+                @ctx.strokeRect(quadtree.se.bounds[0], quadtree.se.bounds[1], quadtree.se.bounds[2], quadtree.se.bounds[3])
+                @ctx.fillText("#{quadtree.se.id}", quadtree.se.bounds[0] + quadtree.se.bounds[2]*0.5, quadtree.se.bounds[1] + quadtree.se.bounds[3]*0.5)
 
         parseMeta: (meta) ->
             super(meta)
@@ -80,7 +143,6 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             ### @SUPPORTED_EDITOR_MODES ###
             @clicked_layer      = null
             @tile_under_mouse   = null
-            @search_range       = @bounds.slice()
             @initMap()
 
         #max rows on screen
@@ -109,7 +171,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 n = @getTile(tile.row, tile.col, tile.direction[dir])
                 if n?
                     out.push(n)
-            return out  
+            return out
 
         findInDirectionOf: (tile, dirstr, len) ->
             if not tile?
@@ -167,9 +229,19 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                         "row": i
                         "col": j
                     @map[k] = @addEntity(t)
+                    @sections["center"].insert(@map[k])
+                    @sections["ne"].insert(@map[k])
+                    @sections["n"].insert(@map[k])
+                    @sections["nw"].insert(@map[k])
+                    @sections["e"].insert(@map[k])
+                    @sections["w"].insert(@map[k])
+                    @sections["se"].insert(@map[k])
+                    @sections["s"].insert(@map[k])
+                    @sections["sw"].insert(@map[k])
                     k++
             t2 = performance.now() - t1
             llogd "Initializing sections took: #{t2} ms"
+            @trigger "MAP_TILES_INITIALIZED"
             @resume()
 
         initMap: () ->
@@ -252,7 +324,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     continue if layer_qword is -1
                     layer_id     = (layer_qword >> 32) & mask
                     layer_height = (layer_qword >> 16) & mask
-                    @tm.addTileLayerByLayerId(
+                    @tm.addTileLayerMetaByLayerId(
                         tile_row,
                         tile_col, 
                         layer_id, 
@@ -273,8 +345,11 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             if @clicked_layer?
                 @clicked_layer.trigger "DESELECTED"
                 @clicked_layer = null
+                
             t1 = performance.now()
-            for layer in @quadtree.findEntitiesInRectangle(@search_range, @_transform)
+            @tiles_found = []
+            @quadtree.findEntitiesInRectangle(@search_range, @_transform, @tiles_found)
+            for layer in @tiles_found
                 transp = Geometry.transformPoint(@world_pos[0], @world_pos[1], layer.inverseTransform())
                 if Hal.im.isTransparent(layer.sprite.img, transp[0] + layer.sprite.w2, transp[1] + layer.sprite.h2)
                     Vec2.release(transp)
@@ -283,37 +358,38 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 if not @clicked_layer?
                     @clicked_layer = layer
                 else
-                    if (layer.holder.col is @clicked_layer.holder.col) and (layer.holder.row is @clicked_layer.holder.row)
+                    if (layer.tile.col is @clicked_layer.tile.col) and (layer.tile.row is @clicked_layer.tile.row)
                         if layer.layer > @clicked_layer.layer
                             @clicked_layer = layer
-                    else if (layer.holder.row is @clicked_layer.holder.row)
+                    else if (layer.tile.row is @clicked_layer.tile.row)
                         if (layer.h + layer.position[1] > @clicked_layer.h + @clicked_layer.position[1])
                             @clicked_layer = layer
-                    else if (layer.holder.col is @clicked_layer.holder.col)
+                    else if (layer.tile.col is @clicked_layer.tile.col)
                         if (layer.h + layer.position[1] > @clicked_layer.h + @clicked_layer.position[1])
                             @clicked_layer = layer
-                    else if (layer.holder.col isnt @clicked_layer.holder.col) and (layer.holder.row isnt @clicked_layer.holder.row)
+                    else if (layer.tile.col isnt @clicked_layer.tile.col) and (layer.tile.row isnt @clicked_layer.tile.row)
                         if (layer.h + layer.position[1] > @clicked_layer.h + @clicked_layer.position[1])
                             @clicked_layer = layer
 
             t2 = performance.now() - t1
             llogd "Searching took: #{t2.toFixed(2)} ms"
+            llogd "Tiles found: #{@tiles_found.length}"
 
             if @clicked_layer?
                 @trigger "LAYER_SELECTED", @clicked_layer
                 @clicked_layer.trigger "SELECTED"
 
-        draw: (delta) ->
-            super(delta)
-            @ctx.setTransform(
-                @_transform[0],
-                @_transform[3],
-                @_transform[1],
-                @_transform[4],
-                @_transform[2],
-                @_transform[5]
-            )
-            @drawQuadTree(@quadtree)
+        # draw: (delta) ->
+        #     super(delta)
+            # @ctx.setTransform(
+            #     @_transform[0],
+            #     @_transform[3],
+            #     @_transform[1],
+            #     @_transform[4],
+            #     @_transform[2],
+            #     @_transform[5]
+            # )
+            # @drawQuadTree(@quadtree)
 
         destroy: () ->
             ### @todo @tm.destroy() ###
@@ -331,6 +407,12 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 Vec2.release(@world_pos) if @world_pos?
                 @world_pos = @screenToWorld(pos)
                 @tile_under_mouse = @getTileAt(@world_pos)
+
+            Hal.on "SAVE_MAP", () =>
+                @saveBitmapMap()
+            return
+
+        saveMap: () ->
             return
 
     return IsometricScene

@@ -239,27 +239,27 @@ define [
 
         @socket.on "LOAD_SPRITES", (data) =>
             list = JSON.parse(data.files)
-            len = list.length
+            len = list.length - 1
             @trigger "SPRITES_LOADING", len
             for g, i in list
                 do (g, i) =>
                     @addSprite(data.url + g)
                     .then () =>
                         @trigger "SPRITE_LOADED", g
-                        if i >= (len-1)
+                        if i is len
                             console.log "WTF WTF WTF"
                             @trigger "SPRITES_LOADED"
 
         @socket.on "LOAD_SOUNDS", (data) =>
             list = JSON.parse(data.files)
-            len = list.length
+            len = list.length - 1
             @trigger "SOUNDS_LOADING", len
             for g, i in list
                 do (g, i) =>
                     @addSound(data.url + g)
                     .then () =>
                         @trigger "SOUND_LOADED"
-                        if i >= (len-1)
+                        if i is len
                             @trigger "SOUNDS_LOADED"
 
         @socket.on "SPRITE_FOLDER_ADDED", (data) =>
@@ -272,7 +272,7 @@ define [
                 @addSprite(data.url + file)
                     .then () =>
                         @trigger "SPRITE_LOADED", file
-                        if i >= (len-1)
+                        if i is len
                             @trigger "SPRITES_LOADED"
 
         @socket.on "SPRITE_ADDED", (data) =>
@@ -298,16 +298,17 @@ define [
 
     AssetManager::loadSpritesFromFileList = (list) ->
         Ajax.get list, (data) =>
-            data = data.split("\r\n")
+            data = data.split("\n")
             data.splice(-1)
-            len = data.length
+            len = data.length - 1
+
             @trigger "SPRITES_LOADING", len
             for spr, i in data
                 do (spr, i) =>
                     @addSprite(spr)
                     .then () =>
                         @trigger "SPRITE_LOADED", spr
-                        if i >= (len-1)
+                        if i is len
                             @trigger "SPRITES_LOADED"
 
     AssetManager::loadFromArray = (type, array) ->
@@ -321,8 +322,8 @@ define [
         return @getSpriteFolders() if folder is "/"
         ind = folder.indexOf("/") 
         if ind is 0
-            folder = folder.substring(ind+1)      
-        ind = folder.charAt(folder.length-1)
+            folder = folder.substring(ind + 1)      
+        ind = folder.charAt(folder.length - 1)
         if ind isnt "/"
             folder = "#{folder}/"
         out = {}
@@ -336,7 +337,7 @@ define [
         ind = folder.indexOf("/") 
         if ind is 0
             folder = folder.substring(ind + 1)      
-        ind = folder.charAt(folder.length-1)
+        ind = folder.charAt(folder.length - 1)
         if ind isnt "/"
             folder = "#{folder}/"
         out = {}

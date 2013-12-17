@@ -32,7 +32,7 @@
         this.cam_move_vector = Vec2.from(0, 0);
         this.is_camera_panning = false;
         this.camera_panning_point = [0, 0];
-        this.zoom_step = 0.1;
+        this.zoom_step = 0.05;
         this.camera_speed = 2;
         this._update_zoom = false;
         this.center = Vec2.from(this.bounds[2] * 0.5, this.bounds[3] * 0.5);
@@ -42,6 +42,8 @@
         this.view_matrix[5] = this.center[1];
         this.combineTransform(this.view_matrix);
         this.prev_pos = [this.position[0], this.position[1]];
+        this.zoom_limits = [0.1, 2.3];
+        this.visible_ents = [];
         return this;
       }
 
@@ -65,6 +67,7 @@
         this.entities.push(ent);
         this.ent_cache[ent.id] = ent;
         this.trigger("ENTITY_ADDED", ent);
+        this.update_ents = true;
         ent.trigger("ON_SCENE");
         return ent;
       };
@@ -85,7 +88,7 @@
         Hal.glass.ctx.fillText("Num of entities: " + this.entities.length, 0, 25);
         Hal.glass.ctx.fillText("Camera position: " + (this.position[0].toFixed(2)) + ", " + (this.position[1].toFixed(2)), 0, 40);
         Hal.glass.ctx.fillText("Camera origin: " + (this.origin[0].toFixed(2)) + ", " + (this.origin[1].toFixed(2)), 0, 55);
-        Hal.glass.ctx.fillText("Camera zoom: " + (this.scale[0].toFixed(2)) + ", " + (this.scale[1].toFixed(2)), 0, 70);
+        Hal.glass.ctx.fillText("Num of visible entities: " + this.visible_ents.length, 0, 70);
         Hal.glass.ctx.fillText("Num of free pool vectors: " + Vec2.free, 0, 85);
         Hal.glass.ctx.fillText("View origin: " + (this.view_matrix[2].toFixed(2)) + ", " + (this.view_matrix[5].toFixed(2)), 0, 100);
         return Hal.glass.ctx.fillText("View scale: " + (this.view_matrix[0].toFixed(2)) + ", " + (this.view_matrix[4].toFixed(2)), 0, 115);
@@ -96,25 +99,19 @@
       };
 
       Scene.prototype.update = function(delta) {
-        var ctx, en, _i, _j, _len, _len1, _ref, _ref1, _results;
-        _ref = this.renderer.contexts;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          ctx = _ref[_i];
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.clearRect(0, 0, this.bounds[2], this.bounds[3]);
-        }
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-        this.ctx.fillStyle = this.bg_color;
-        this.ctx.fillRect(0, 0, this.bounds[2], this.bounds[3]);
-        this.ctx.strokeRect(this.center[0] - 1, this.center[1] - 1, 2, 2);
+        var en, _i, _len, _ref, _results;
         if (this._update_transform) {
           this.combineTransform(this.view_matrix);
           this.update_ents = true;
         }
-        _ref1 = this.entities;
+        if (this.update_ents) {
+          this.visible_ents = [];
+          this.quadtree.findEntitiesInRectangle(this.search_range, this._transform, this.visible_ents);
+        }
+        _ref = this.visible_ents;
         _results = [];
-        for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-          en = _ref1[_j];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          en = _ref[_i];
           _results.push(en.update(delta));
         }
         return _results;
@@ -149,15 +146,30 @@
 
       Scene.prototype.draw = function(delta) {
         var en, _i, _len, _ref;
+        this.clearRenderers();
         if (this.draw_stat) {
           this.drawStat();
         }
-        _ref = this.entities;
+        _ref = this.visible_ents;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           en = _ref[_i];
           en.draw(delta);
         }
         return this.update_ents = false;
+      };
+
+      Scene.prototype.clearRenderers = function() {
+        var ctx, _i, _len, _ref;
+        _ref = this.renderer.contexts;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          ctx = _ref[_i];
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, this.bounds[2], this.bounds[3]);
+        }
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.fillStyle = this.bg_color;
+        this.ctx.fillRect(0, 0, this.bounds[2], this.bounds[3]);
+        return this.ctx.strokeRect(this.center[0] - 1, this.center[1] - 1, 2, 2);
       };
 
       Scene.prototype.pause = function() {
@@ -169,7 +181,7 @@
       };
 
       Scene.prototype.removeEntity = function(ent) {
-        var ind;
+        var ind, _ref;
         if (!this.ent_cache[ent.id]) {
           lloge("No such entity " + ent.id + " in cache");
           return;
@@ -179,10 +191,13 @@
           lloge("No such entity " + ent.id + " in entity list");
           return;
         }
-        QuadTree.fromCache(ent.id).remove(ent);
+        if ((_ref = QuadTree.fromCache(ent.id)) != null) {
+          _ref.remove(ent);
+        }
         delete this.ent_cache[ent.id];
         this.trigger("ENTITY_DESTROYED", ent);
-        return this.entities.splice(ind, 1);
+        this.entities.splice(ind, 1);
+        return this.update_ents = true;
       };
 
       Scene.prototype.removeAllEntities = function(destroy_children) {
@@ -213,6 +228,7 @@
       Scene.prototype.init = function() {
         Scene.__super__.init.call(this);
         this.pause();
+        this.search_range = this.bounds.slice();
         this.camera_panning_started = null;
         this.camera_panning_started = null;
         this.camera_panning_ended = null;
@@ -392,6 +408,8 @@
             _this.view_matrix[0] += _this.zoom_step;
             _this.view_matrix[4] += _this.zoom_step;
           }
+          _this.view_matrix[0] = Hal.math.clamp(_this.view_matrix[0], _this.zoom_limits[0], _this.zoom_limits[1]);
+          _this.view_matrix[4] = Hal.math.clamp(_this.view_matrix[4], _this.zoom_limits[0], _this.zoom_limits[1]);
           _this._update_transform = true;
           return _this._update_inverse = true;
         });

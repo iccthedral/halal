@@ -137,9 +137,9 @@ define [
         @scene.trigger "ENTITY_REQ_DESTROYING", @
         @destroyMesh()
         @destructor()
-        delete @scene
-        delete @quadtree
-        delete @sprite
+        # delete @scene
+        # delete @quadtree
+        # delete @sprite
         return
 
     Shape::destroyMesh = () ->
