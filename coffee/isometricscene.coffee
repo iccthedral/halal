@@ -41,23 +41,18 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 world_position: "Mouse world position: "
 
             ### Create iso transparency mask ###
-            @mask           = Hal.asm.getSprite("test/tilemask_128x64")
+            @mask           = Hal.asm.getSprite("editor/tilemask_128x64")
             hittest         = Hal.dom.createCanvas(@tilew, @tileh).getContext("2d")
             hittest.drawImage(@mask.img, 0, 0)
             @mask_data      = hittest.getImageData(0, 0, @tilew, @tileh).data
             for i,j in @mask_data
                 @mask_data[j] = i < 120
 
-            @mouse_over_sprites =
-                 "green": Hal.asm.getSprite("test/grid_unit_over_green_128x64")
-                 "red": Hal.asm.getSprite("test/grid_unit_over_red_128x64")
-
             @world_bounds = [0, 0, (@ncols - 1) * @tilew2, (@nrows-0.5) * @tileh]
-
 
             @section_dim = [Math.round(@world_bounds[2] / 3), Math.round((@nrows * @tileh) / 3)]
             @cap = Math.round(@section_dim[0] / @tilew2) * Math.round(@section_dim[1] / @tileh)
-            console.error @cap
+
             @sections =
                 "center": new QuadTree([@section_dim[0], @section_dim[1], @section_dim[0], @section_dim[1]], @cap, false)
                 "ne": new QuadTree([0, 0,                                       @section_dim[0], @section_dim[1]], @cap, false)
@@ -140,7 +135,6 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
 
         init: () ->
             super()
-            ### @SUPPORTED_EDITOR_MODES ###
             @clicked_layer      = null
             @tile_under_mouse   = null
             @initMap()
@@ -277,25 +271,6 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             @trigger "SECTION_SAVED", out
             return out
 
-        # 54 bita fore da sacuvam informacije o tajlu
-        # na pocetku mi treba velicina rows, cols
-        # pa onda ide sekcija koju ucitavam, neka bude 200*200 za pocetak
-        # treba mi id sa kojim se povezujem sa tile menadzerom
-        
-        # treba mi row, col koji je tile
-        # id za tilelayer 0, height
-        # id za tilelayer 1 height
-        # i tako dalje
-        # za row, max nek je 2^16 granica, isto i za kol
-        # znaci taman stane u 4 bajta
-        # za id jednog tajla mi treba maks 2 ^ 16, znaci ostane mi
-        # jos toliko za height i ko zna sta jos
-        # dogovor je da se sve cita od msb-a ka lsb-u
-        # znaci, po 16 citam
-        # 2^32 - 1, pa shift u desno za 16  -> procitam map rows, pa
-        # jos jednom >> 16, pa map cols
-        # pa onda redom, za svaki tajl -> row, col, 
-        # pa id, pa height
         loadBitmapMap: (bitmap) ->
             bitmap = bitmap.slice()
             t1 = performance.now()
@@ -316,8 +291,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 tile_col = (tile_qword >> 16) & mask
                 tile = @getTile(tile_row, tile_col)
                 if not tile?
-                    console.warn "Oh snap, something's wrong"
-                    console.warn "Trying to recover"
+                    console.warn "Oh snap, something's wrong, will try to recover"
                     continue
                 for layer in [0...@max_layers]
                     layer_qword  = bitmap.shift()

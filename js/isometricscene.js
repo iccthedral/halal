@@ -38,7 +38,7 @@
         };
         /* Create iso transparency mask*/
 
-        this.mask = Hal.asm.getSprite("test/tilemask_128x64");
+        this.mask = Hal.asm.getSprite("editor/tilemask_128x64");
         hittest = Hal.dom.createCanvas(this.tilew, this.tileh).getContext("2d");
         hittest.drawImage(this.mask.img, 0, 0);
         this.mask_data = hittest.getImageData(0, 0, this.tilew, this.tileh).data;
@@ -47,14 +47,9 @@
           i = _ref[j];
           this.mask_data[j] = i < 120;
         }
-        this.mouse_over_sprites = {
-          "green": Hal.asm.getSprite("test/grid_unit_over_green_128x64"),
-          "red": Hal.asm.getSprite("test/grid_unit_over_red_128x64")
-        };
         this.world_bounds = [0, 0, (this.ncols - 1) * this.tilew2, (this.nrows - 0.5) * this.tileh];
         this.section_dim = [Math.round(this.world_bounds[2] / 3), Math.round((this.nrows * this.tileh) / 3)];
         this.cap = Math.round(this.section_dim[0] / this.tilew2) * Math.round(this.section_dim[1] / this.tileh);
-        console.error(this.cap);
         this.sections = {
           "center": new QuadTree([this.section_dim[0], this.section_dim[1], this.section_dim[0], this.section_dim[1]], this.cap, false),
           "ne": new QuadTree([0, 0, this.section_dim[0], this.section_dim[1]], this.cap, false),
@@ -140,8 +135,6 @@
 
       IsometricScene.prototype.init = function() {
         IsometricScene.__super__.init.call(this);
-        /* @SUPPORTED_EDITOR_MODES*/
-
         this.clicked_layer = null;
         this.tile_under_mouse = null;
         return this.initMap();
@@ -340,8 +333,7 @@
           tile_col = (tile_qword >> 16) & mask;
           tile = this.getTile(tile_row, tile_col);
           if (tile == null) {
-            console.warn("Oh snap, something's wrong");
-            console.warn("Trying to recover");
+            console.warn("Oh snap, something's wrong, will try to recover");
             continue;
           }
           for (layer = _i = 0, _ref = this.max_layers; 0 <= _ref ? _i < _ref : _i > _ref; layer = 0 <= _ref ? ++_i : --_i) {
