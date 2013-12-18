@@ -1,9 +1,7 @@
 fs      = require "fs"
 path    = require "path"
 wrench  = require "wrench"
-
 log     = console.log
-socket  = null
 
 ###
     Meta information and settings
@@ -12,57 +10,16 @@ config =
     pub_dir: "."
     js_dir: "js#{path.sep}"
     coffee_dir: "coffee#{path.sep}"
-    sprite_dir: "assets/sprites"
-    sprite_list: "assets/sprites.list"
     cur_dir: process.cwd()
-    tiles: "assets/tiles.list"
-    maps: "assets/maps.list"
 
 is_win         = !!process.platform.match(/^win/)
-is_sprite      = is_spritesheet = /^.*\.[png|jpg]+$/
 is_json        = /^.*\.[json]+$/
 
 console.log "Is windows: #{is_win}"
 console.log "Platform #{process.platform}"
 
-    #io.sockets.on "connection", (sck) ->
-    #console.log "Connection via socket.io established".green
-
-    # socket = sck
-
-    # allSprites  = getAllSprites()
-    # allTiles    = getAllTiles()
-
-    # saveSprites(allSprites)
-
-    # socket.emit("LOAD_SPRITES", {
-    #     files: JSON.stringify(allSprites)
-    #     url: "sprites/"
-    # })
-
-getAllTiles = () ->
-    allTiles = fs.readFileSync(config.tiles)
-    return allTiles
-
-getAllSprites = () ->
-    allSprites = wrench.readdirSyncRecursive(config.sprite_dir)
-
-    allSprites = allSprites.filter((x) -> return is_sprite.test(x))
-    if is_win
-        allSprites = allSprites.map (x) -> return x.replace(/\\/g,"\/")
-
-    return allSprites
-
-saveSprites = (sprites) ->
-    sprites = sprites.map(
-        (x) ->
-            return "sprites/#{x}"
-    )
-    fs.writeFileSync(config.sprite_list, sprites.join().replace(/,/g,"\n"))
-
 module.exports = (grunt) ->
     grunt.loadNpmTasks("grunt-contrib-coffee")
-    grunt.loadNpmTasks("grunt-contrib-connect")
     grunt.loadNpmTasks("grunt-contrib-watch")
 
     grunt.initConfig
@@ -105,7 +62,7 @@ module.exports = (grunt) ->
         spawn = require("child_process").spawn
         proc = spawn "r.js", ["-o", "build.js"]
         
-        console.log "wtf".yellow
+        console.log "Compiling Halal".yellow
 
         proc.stdout.setEncoding("utf8")
         proc.stderr.setEncoding("utf8")
