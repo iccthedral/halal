@@ -277,6 +277,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
                 @bounds[3]          = area.height
                 @_update_transform  = true
                 @_update_inverse    = true
+                @search_range = @bounds.slice()
 
             @camera_lerp_listener = 
             Hal.on "RIGHT_CLICK", (pos) =>

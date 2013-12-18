@@ -41,7 +41,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 world_position: "Mouse world position: "
 
             ### Create iso transparency mask ###
-            @mask           = Hal.asm.getSprite("editor/tilemask_128x64")
+            @mask           = Hal.asm.getSprite("tilemask_128x64")
             hittest         = Hal.dom.createCanvas(@tilew, @tileh).getContext("2d")
             hittest.drawImage(@mask.img, 0, 0)
             @mask_data      = hittest.getImageData(0, 0, @tilew, @tileh).data
@@ -49,9 +49,14 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 @mask_data[j] = i < 120
 
             @world_bounds = [0, 0, (@ncols - 1) * @tilew2, (@nrows-0.5) * @tileh]
+            @world_center = []
+            @world_center[0] = (@world_bounds[2] - @world_bounds[0]) * 0.5
+            @world_center[1] = (@world_bounds[3] - @world_bounds[1]) * 0.5
 
             @section_dim = [Math.round(@world_bounds[2] / 3), Math.round((@nrows * @tileh) / 3)]
             @cap = Math.round(@section_dim[0] / @tilew2) * Math.round(@section_dim[1] / @tileh)
+
+            @startTile = @endTile = null
 
             @sections =
                 "center": new QuadTree([@section_dim[0], @section_dim[1], @section_dim[0], @section_dim[1]], @cap, false)
@@ -73,6 +78,8 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             @sections["se"].divide()
             @sections["s"].divide()
             @sections["sw"].divide()
+
+            @screen_end = []
 
         drawStat: () ->
             super()
@@ -137,6 +144,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             super()
             @clicked_layer      = null
             @tile_under_mouse   = null
+            @screen_end = [@bounds[2] + 2*@tilew, @bounds[3] + 2*@tileh]
             @initMap()
 
         #max rows on screen
@@ -235,6 +243,10 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     k++
             t2 = performance.now() - t1
             llogd "Initializing sections took: #{t2} ms"
+            @startTile = @getTileAt([0, 0])
+            @endTile = @getTileAt([@bounds[2], @bounds[3]])
+            console.debug @startTile
+            console.debug @endTile
             @trigger "MAP_TILES_INITIALIZED"
             @resume()
 
@@ -243,6 +255,14 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             @on "TILE_MANAGER_LOADED", () ->
                 @loadMap()
             @tm = new TileManager(@)
+
+        worldCenter: () ->
+            @world_center[0] = (@world_bounds[2] - @world_bounds[0]) * 0.5
+            @world_center[1] = (@world_bounds[3] - @world_bounds[1]) * 0.5
+            return @world_center
+
+        worldCenterTile: () ->
+            return @getTileAt(@world_center)
 
         saveBitmapMap: () ->
             @pause()
@@ -269,24 +289,24 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             @resume()
             console.info "Saving took: #{t2} ms"
             @trigger "SECTION_SAVED", out
-            return out
+            return out.reverse()
 
         loadBitmapMap: (bitmap) ->
             bitmap = bitmap.slice()
             t1 = performance.now()
             @pause()
             mask        = 0xFFFF
-            qword       = bitmap.shift()
+            qword       = bitmap.pop()
             map_rows    = (qword >> 32) & mask
             map_cols    = (qword >> 16) & mask
             total       = map_rows * map_cols
-            if total > @nrows * @ncols
+            if total > @nrows * @ncols or total is 0
                 console.error "Can't load this bitmap, it's too big"
                 @resume()
                 return false
             @nrows = map_rows
             @ncols = map_cols
-            while (tile_qword = bitmap.shift())?
+            while (tile_qword = bitmap.pop())?
                 tile_row = (tile_qword >> 32) & mask
                 tile_col = (tile_qword >> 16) & mask
                 tile = @getTile(tile_row, tile_col)
@@ -294,13 +314,13 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     console.warn "Oh snap, something's wrong, will try to recover"
                     continue
                 for layer in [0...@max_layers]
-                    layer_qword  = bitmap.shift()
+                    layer_qword  = bitmap.pop()
                     continue if layer_qword is -1
                     layer_id     = (layer_qword >> 32) & mask
                     layer_height = (layer_qword >> 16) & mask
                     @tm.addTileLayerMetaByLayerId(
                         tile_row,
-                        tile_col, 
+                        tile_col,
                         layer_id, 
                         0,
                         layer_height
@@ -313,6 +333,8 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
 
         loadMap: () ->
             @setWorldBounds(@world_bounds)
+            @world_center[0] = (@world_bounds[2] - @world_bounds[0]) * 0.5
+            @world_center[1] = (@world_bounds[3] - @world_bounds[1]) * 0.5
             return @initMapTiles()
 
         processLeftClick: () ->
@@ -344,7 +366,6 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     else if (layer.tile.col isnt @clicked_layer.tile.col) and (layer.tile.row isnt @clicked_layer.tile.row)
                         if (layer.h + layer.position[1] > @clicked_layer.h + @clicked_layer.position[1])
                             @clicked_layer = layer
-
             t2 = performance.now() - t1
             llogd "Searching took: #{t2.toFixed(2)} ms"
             llogd "Tiles found: #{@tiles_found.length}"
@@ -353,8 +374,28 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 @trigger "LAYER_SELECTED", @clicked_layer
                 @clicked_layer.trigger "SELECTED"
 
-        # draw: (delta) ->
-        #     super(delta)
+        draw: (delta) ->
+            # super()
+            @drawStat()
+            @clearRenderers()
+            if @update_ents
+                @startTile = @getTileAt([0, 0])
+                world_end = @screenToWorld(@screen_end)
+                @endTile = @getTileAt(world_end)
+                Vec2.release(world_end)
+            for i in [@startTile.row...@endTile.row]
+                for j in [@startTile.col...@endTile.col]
+                    tile = @map[j+i*@ncols]
+                    # tile2 = @map[j-(j%2) + i*@ncols]
+                    # tile3 = @map[j-((j+1)%2) + i*@ncols]
+                    #continue if not tile?
+                    tile?.update(delta)
+                    tile?.draw(delta)
+                    # tile2?.update(delta)
+                    # tile3?.update(delta)
+                    # tile2?.draw(delta)
+                    # tile3?.draw(delta)
+            @update_ents = false
             # @ctx.setTransform(
             #     @_transform[0],
             #     @_transform[3],
@@ -375,6 +416,10 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
 
         initListeners: () ->
             super()
+            @change_end_start_coords = 
+            Hal.on "RESIZE", (pos) =>
+                @screen_end = [@bounds[2] + 2*@tilew, @bounds[3] + 2*@tileh]
+
             @mouse_moved_listener =
             Hal.on "MOUSE_MOVE", (pos) =>
                 Vec2.copy(@mpos, pos)

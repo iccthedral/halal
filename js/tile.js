@@ -44,13 +44,37 @@
       Tile.prototype.removeLayer = function(layer) {
         if (this.layers[layer] != null) {
           this.layers.splice(layer, 1);
-          return this.sortLayers();
         }
+        return this.sortLayers();
       };
 
       Tile.prototype.init = function(meta) {
         Tile.__super__.init.call(this, meta);
         return this;
+      };
+
+      Tile.prototype.update = function(delta) {
+        var layer, _i, _len, _ref, _results;
+        Tile.__super__.update.call(this, delta);
+        _ref = this.layers;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          layer = _ref[_i];
+          _results.push(layer != null ? layer.update(delta) : void 0);
+        }
+        return _results;
+      };
+
+      Tile.prototype.draw = function(delta) {
+        var layer, _i, _len, _ref, _results;
+        Tile.__super__.draw.call(this, delta);
+        _ref = this.layers;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          layer = _ref[_i];
+          _results.push(layer != null ? layer.draw(delta) : void 0);
+        }
+        return _results;
       };
 
       Tile.prototype.sortLayers = function() {

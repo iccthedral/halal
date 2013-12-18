@@ -14,7 +14,10 @@
         this.name = meta.name != null ? meta.name : "" + this.id;
         this.layer = meta.layer != null ? meta.layer : 0;
         this.h = 0;
-        this.attr("group", meta.group);
+        if (meta.group != null) {
+          this.attr("group", meta.group);
+        }
+        this.attr("group", meta.layer);
       }
 
       TileLayer.prototype.attachToTile = function(tile) {

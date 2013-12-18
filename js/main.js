@@ -8,6 +8,8 @@
     }
   });
 
-  require(["halal"], function(halal) {});
+  require(["halal"], function(halal) {
+    return halal;
+  });
 
 }).call(this);

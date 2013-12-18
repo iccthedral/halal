@@ -38,7 +38,7 @@
         };
         /* Create iso transparency mask*/
 
-        this.mask = Hal.asm.getSprite("editor/tilemask_128x64");
+        this.mask = Hal.asm.getSprite("tilemask_128x64");
         hittest = Hal.dom.createCanvas(this.tilew, this.tileh).getContext("2d");
         hittest.drawImage(this.mask.img, 0, 0);
         this.mask_data = hittest.getImageData(0, 0, this.tilew, this.tileh).data;
@@ -48,8 +48,12 @@
           this.mask_data[j] = i < 120;
         }
         this.world_bounds = [0, 0, (this.ncols - 1) * this.tilew2, (this.nrows - 0.5) * this.tileh];
+        this.world_center = [];
+        this.world_center[0] = (this.world_bounds[2] - this.world_bounds[0]) * 0.5;
+        this.world_center[1] = (this.world_bounds[3] - this.world_bounds[1]) * 0.5;
         this.section_dim = [Math.round(this.world_bounds[2] / 3), Math.round((this.nrows * this.tileh) / 3)];
         this.cap = Math.round(this.section_dim[0] / this.tilew2) * Math.round(this.section_dim[1] / this.tileh);
+        this.startTile = this.endTile = null;
         this.sections = {
           "center": new QuadTree([this.section_dim[0], this.section_dim[1], this.section_dim[0], this.section_dim[1]], this.cap, false),
           "ne": new QuadTree([0, 0, this.section_dim[0], this.section_dim[1]], this.cap, false),
@@ -70,6 +74,7 @@
         this.sections["se"].divide();
         this.sections["s"].divide();
         this.sections["sw"].divide();
+        this.screen_end = [];
       }
 
       IsometricScene.prototype.drawStat = function() {
@@ -137,6 +142,7 @@
         IsometricScene.__super__.init.call(this);
         this.clicked_layer = null;
         this.tile_under_mouse = null;
+        this.screen_end = [this.bounds[2] + 2 * this.tilew, this.bounds[3] + 2 * this.tileh];
         return this.initMap();
       };
 
@@ -266,6 +272,10 @@
         }
         t2 = performance.now() - t1;
         llogd("Initializing sections took: " + t2 + " ms");
+        this.startTile = this.getTileAt([0, 0]);
+        this.endTile = this.getTileAt([this.bounds[2], this.bounds[3]]);
+        console.debug(this.startTile);
+        console.debug(this.endTile);
         this.trigger("MAP_TILES_INITIALIZED");
         return this.resume();
       };
@@ -276,6 +286,16 @@
           return this.loadMap();
         });
         return this.tm = new TileManager(this);
+      };
+
+      IsometricScene.prototype.worldCenter = function() {
+        this.world_center[0] = (this.world_bounds[2] - this.world_bounds[0]) * 0.5;
+        this.world_center[1] = (this.world_bounds[3] - this.world_bounds[1]) * 0.5;
+        return this.world_center;
+      };
+
+      IsometricScene.prototype.worldCenterTile = function() {
+        return this.getTileAt(this.world_center);
       };
 
       IsometricScene.prototype.saveBitmapMap = function() {
@@ -308,7 +328,7 @@
         this.resume();
         console.info("Saving took: " + t2 + " ms");
         this.trigger("SECTION_SAVED", out);
-        return out;
+        return out.reverse();
       };
 
       IsometricScene.prototype.loadBitmapMap = function(bitmap) {
@@ -317,18 +337,18 @@
         t1 = performance.now();
         this.pause();
         mask = 0xFFFF;
-        qword = bitmap.shift();
+        qword = bitmap.pop();
         map_rows = (qword >> 32) & mask;
         map_cols = (qword >> 16) & mask;
         total = map_rows * map_cols;
-        if (total > this.nrows * this.ncols) {
+        if (total > this.nrows * this.ncols || total === 0) {
           console.error("Can't load this bitmap, it's too big");
           this.resume();
           return false;
         }
         this.nrows = map_rows;
         this.ncols = map_cols;
-        while ((tile_qword = bitmap.shift()) != null) {
+        while ((tile_qword = bitmap.pop()) != null) {
           tile_row = (tile_qword >> 32) & mask;
           tile_col = (tile_qword >> 16) & mask;
           tile = this.getTile(tile_row, tile_col);
@@ -337,7 +357,7 @@
             continue;
           }
           for (layer = _i = 0, _ref = this.max_layers; 0 <= _ref ? _i < _ref : _i > _ref; layer = 0 <= _ref ? ++_i : --_i) {
-            layer_qword = bitmap.shift();
+            layer_qword = bitmap.pop();
             if (layer_qword === -1) {
               continue;
             }
@@ -355,6 +375,8 @@
 
       IsometricScene.prototype.loadMap = function() {
         this.setWorldBounds(this.world_bounds);
+        this.world_center[0] = (this.world_bounds[2] - this.world_bounds[0]) * 0.5;
+        this.world_center[1] = (this.world_bounds[3] - this.world_bounds[1]) * 0.5;
         return this.initMapTiles();
       };
 
@@ -407,6 +429,30 @@
         }
       };
 
+      IsometricScene.prototype.draw = function(delta) {
+        var i, j, tile, world_end, _i, _j, _ref, _ref1, _ref2, _ref3;
+        this.drawStat();
+        this.clearRenderers();
+        if (this.update_ents) {
+          this.startTile = this.getTileAt([0, 0]);
+          world_end = this.screenToWorld(this.screen_end);
+          this.endTile = this.getTileAt(world_end);
+          Vec2.release(world_end);
+        }
+        for (i = _i = _ref = this.startTile.row, _ref1 = this.endTile.row; _ref <= _ref1 ? _i < _ref1 : _i > _ref1; i = _ref <= _ref1 ? ++_i : --_i) {
+          for (j = _j = _ref2 = this.startTile.col, _ref3 = this.endTile.col; _ref2 <= _ref3 ? _j < _ref3 : _j > _ref3; j = _ref2 <= _ref3 ? ++_j : --_j) {
+            tile = this.map[j + i * this.ncols];
+            if (tile != null) {
+              tile.update(delta);
+            }
+            if (tile != null) {
+              tile.draw(delta);
+            }
+          }
+        }
+        return this.update_ents = false;
+      };
+
       IsometricScene.prototype.destroy = function() {
         /* @todo @tm.destroy()*/
 
@@ -420,6 +466,9 @@
       IsometricScene.prototype.initListeners = function() {
         var _this = this;
         IsometricScene.__super__.initListeners.call(this);
+        this.change_end_start_coords = Hal.on("RESIZE", function(pos) {
+          return _this.screen_end = [_this.bounds[2] + 2 * _this.tilew, _this.bounds[3] + 2 * _this.tileh];
+        });
         this.mouse_moved_listener = Hal.on("MOUSE_MOVE", function(pos) {
           Vec2.copy(_this.mpos, pos);
           if (_this.world_pos != null) {

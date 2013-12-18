@@ -343,7 +343,8 @@
           _this.bounds[2] = area.width;
           _this.bounds[3] = area.height;
           _this._update_transform = true;
-          return _this._update_inverse = true;
+          _this._update_inverse = true;
+          return _this.search_range = _this.bounds.slice();
         });
         this.camera_lerp_listener = Hal.on("RIGHT_CLICK", function(pos) {
           if (_this.paused) {

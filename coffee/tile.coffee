@@ -32,11 +32,21 @@ define ["shape"], (Shape) ->
         removeLayer: (layer) ->
             if @layers[layer]?
                 @layers.splice(layer, 1)
-                @sortLayers()
+            @sortLayers()
 
         init: (meta) ->
             super(meta)
             return @
+
+        update: (delta) ->
+            super(delta)
+            for layer in @layers
+                layer?.update(delta)
+
+        draw: (delta) ->
+            super(delta)
+            for layer in @layers
+                layer?.draw(delta)
 
         sortLayers: () ->
             @layers.sort (a, b) ->

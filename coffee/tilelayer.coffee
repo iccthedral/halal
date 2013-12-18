@@ -11,7 +11,8 @@ define ["shape"],
             @name   = if meta.name? then meta.name else "#{@id}"
             @layer  = if meta.layer? then meta.layer else 0
             @h      = 0
-            @attr("group", meta.group)
+            @attr("group", meta.group) if meta.group?
+            @attr("group", meta.layer)
 
         attachToTile: (tile) ->
             @tile = tile
