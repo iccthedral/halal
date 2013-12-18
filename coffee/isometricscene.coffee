@@ -41,7 +41,6 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 world_position: "Mouse world position: "
 
             ### Create iso transparency mask ###
-            @mask           = Hal.asm.getSprite("tilemask_128x64")
             hittest         = Hal.dom.createCanvas(@tilew, @tileh).getContext("2d")
             hittest.drawImage(@mask.img, 0, 0)
             @mask_data      = hittest.getImageData(0, 0, @tilew, @tileh).data
@@ -139,7 +138,8 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 +meta.cols
             @max_layers = 
                 meta.max_layers or 5
-
+            @mask = meta.mask
+            
         init: () ->
             super()
             @clicked_layer      = null

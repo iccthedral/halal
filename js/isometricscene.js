@@ -38,7 +38,6 @@
         };
         /* Create iso transparency mask*/
 
-        this.mask = Hal.asm.getSprite("tilemask_128x64");
         hittest = Hal.dom.createCanvas(this.tilew, this.tileh).getContext("2d");
         hittest.drawImage(this.mask.img, 0, 0);
         this.mask_data = hittest.getImageData(0, 0, this.tilew, this.tileh).data;
@@ -135,7 +134,8 @@
         this.tileh = meta.tileh;
         this.nrows = +meta.rows;
         this.ncols = +meta.cols;
-        return this.max_layers = meta.max_layers || 5;
+        this.max_layers = meta.max_layers || 5;
+        return this.mask = meta.mask;
       };
 
       IsometricScene.prototype.init = function() {
