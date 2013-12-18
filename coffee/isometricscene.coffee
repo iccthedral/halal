@@ -341,7 +341,6 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             if @clicked_layer?
                 @clicked_layer.trigger "DESELECTED"
                 @clicked_layer = null
-                
             t1 = performance.now()
             @tiles_found = []
             @quadtree.findEntitiesInRectangle(@search_range, @_transform, @tiles_found)
