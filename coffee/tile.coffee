@@ -8,6 +8,7 @@ define ["shape"], (Shape) ->
             @row    = meta.row
             @col    = meta.col
             @layers = new Array()
+            @attr("stroke_width", 0.5)
             return @
 
         containsLayer: (layermeta) ->
@@ -27,7 +28,7 @@ define ["shape"], (Shape) ->
             return layerobj
 
         getLayers: () ->
-            return @layers.slice()
+            return @layers.filter (layer) -> return layer if not layer?
 
         removeLayer: (layer) ->
             if @layers[layer]?
@@ -57,5 +58,8 @@ define ["shape"], (Shape) ->
             @_mesh = null #zato sto deli mesh sa svim tajlovima
             super()
             return
+
+        toString: () ->
+            return "Row: #{@row}, Col: #{@col}, Layers: #{@getLayers().length}"
 
     return Tile

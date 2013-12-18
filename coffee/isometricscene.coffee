@@ -24,6 +24,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             @selected_tile_sprite   = null
 
             @tiles_found = []
+
             ### Isometric shape ###
             @iso_shape = [
                 Vec2.from(-@tilew2, 0),
@@ -128,6 +129,10 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
 
         parseMeta: (meta) ->
             super(meta)
+
+            console.debug "Scene meta"
+            console.debug meta
+
             @tilew = 
                 meta.tilew
             @tileh = 
@@ -136,10 +141,9 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 +meta.rows
             @ncols = 
                 +meta.cols
-            @max_layers = 
-                meta.max_layers or 5
+            @max_layers = if meta.max_layers? then meta.max_layers or 5
             @mask = meta.mask
-            
+
         init: () ->
             super()
             @clicked_layer      = null
@@ -215,6 +219,7 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             @pause()
             @section_center = []
             z_indices = []
+            console.debug "Max layers: #{@max_layers}"
             z_indices.push z for z in [1..@max_layers]
             @renderer.createLayers z_indices
             @map = new Array(@nrows * @ncols)
@@ -380,14 +385,17 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
             if @update_ents
                 @startTile = @getTileAt([0, 0])
                 world_end = @screenToWorld(@screen_end)
+                world_end[0] = Hal.math.clamp(world_end[0], 0, @world_bounds[2])
+                world_end[1] = Hal.math.clamp(world_end[1], 0, @world_bounds[3])
                 @endTile = @getTileAt(world_end)
                 Vec2.release(world_end)
+
             for i in [@startTile.row...@endTile.row]
                 for j in [@startTile.col...@endTile.col]
                     tile = @map[j+i*@ncols]
                     # tile2 = @map[j-(j%2) + i*@ncols]
                     # tile3 = @map[j-((j+1)%2) + i*@ncols]
-                    #continue if not tile?
+                    # continue if not tile?
                     tile?.update(delta)
                     tile?.draw(delta)
                     # tile2?.update(delta)
@@ -395,15 +403,16 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                     # tile2?.draw(delta)
                     # tile3?.draw(delta)
             @update_ents = false
-            # @ctx.setTransform(
-            #     @_transform[0],
-            #     @_transform[3],
-            #     @_transform[1],
-            #     @_transform[4],
-            #     @_transform[2],
-            #     @_transform[5]
-            # )
-            # @drawQuadTree(@quadtree)
+
+            @ctx.setTransform(
+                @_transform[0],
+                @_transform[3],
+                @_transform[1],
+                @_transform[4],
+                @_transform[2],
+                @_transform[5]
+            )
+            @drawQuadTree(@quadtree)
 
         destroy: () ->
             ### @todo @tm.destroy() ###
@@ -424,10 +433,15 @@ define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"],
                 Vec2.copy(@mpos, pos)
                 Vec2.release(@world_pos) if @world_pos?
                 @world_pos = @screenToWorld(pos)
-                @tile_under_mouse = @getTileAt(@world_pos)
+                t = @getTileAt(@world_pos)
+                return if not t?
+                if @tile_under_mouse isnt t
+                    @trigger "OVER_NEW_TILE", t
+                    @tile_under_mouse = t
 
             Hal.on "SAVE_MAP", () =>
                 @saveBitmapMap()
+                
             return
 
         saveMap: () ->

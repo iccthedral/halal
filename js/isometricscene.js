@@ -130,11 +130,13 @@
 
       IsometricScene.prototype.parseMeta = function(meta) {
         IsometricScene.__super__.parseMeta.call(this, meta);
+        console.debug("Scene meta");
+        console.debug(meta);
         this.tilew = meta.tilew;
         this.tileh = meta.tileh;
         this.nrows = +meta.rows;
         this.ncols = +meta.cols;
-        this.max_layers = meta.max_layers || 5;
+        this.max_layers = meta.max_layers != null ? meta.max_layers || 5 : void 0;
         return this.mask = meta.mask;
       };
 
@@ -239,6 +241,7 @@
         this.pause();
         this.section_center = [];
         z_indices = [];
+        console.debug("Max layers: " + this.max_layers);
         for (z = _i = 1, _ref = this.max_layers; 1 <= _ref ? _i <= _ref : _i >= _ref; z = 1 <= _ref ? ++_i : --_i) {
           z_indices.push(z);
         }
@@ -436,6 +439,8 @@
         if (this.update_ents) {
           this.startTile = this.getTileAt([0, 0]);
           world_end = this.screenToWorld(this.screen_end);
+          world_end[0] = Hal.math.clamp(world_end[0], 0, this.world_bounds[2]);
+          world_end[1] = Hal.math.clamp(world_end[1], 0, this.world_bounds[3]);
           this.endTile = this.getTileAt(world_end);
           Vec2.release(world_end);
         }
@@ -450,7 +455,9 @@
             }
           }
         }
-        return this.update_ents = false;
+        this.update_ents = false;
+        this.ctx.setTransform(this._transform[0], this._transform[3], this._transform[1], this._transform[4], this._transform[2], this._transform[5]);
+        return this.drawQuadTree(this.quadtree);
       };
 
       IsometricScene.prototype.destroy = function() {
@@ -470,12 +477,20 @@
           return _this.screen_end = [_this.bounds[2] + 2 * _this.tilew, _this.bounds[3] + 2 * _this.tileh];
         });
         this.mouse_moved_listener = Hal.on("MOUSE_MOVE", function(pos) {
+          var t;
           Vec2.copy(_this.mpos, pos);
           if (_this.world_pos != null) {
             Vec2.release(_this.world_pos);
           }
           _this.world_pos = _this.screenToWorld(pos);
-          return _this.tile_under_mouse = _this.getTileAt(_this.world_pos);
+          t = _this.getTileAt(_this.world_pos);
+          if (t == null) {
+            return;
+          }
+          if (_this.tile_under_mouse !== t) {
+            _this.trigger("OVER_NEW_TILE", t);
+            return _this.tile_under_mouse = t;
+          }
         });
         Hal.on("SAVE_MAP", function() {
           return _this.saveBitmapMap();

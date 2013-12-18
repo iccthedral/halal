@@ -40,7 +40,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             #@setOrigin(@center[0], @center[1])
             @combineTransform(@view_matrix)
             @prev_pos = [@position[0], @position[1]]
-            @zoom_limits = [0.1, 2.3]
+            @zoom_limits = [0.3, 2.3]
             @visible_ents = []
             #@init()
             return @
@@ -50,6 +50,7 @@ define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geo
             @bg_color           = if meta.bg_color? then meta.bg_color else "white"
             @draw_stat          = if meta.draw_stat? then meta.draw_stat else true 
             @world_bounds       = if meta.world_bounds? then meta.world_bounds else Hal.viewportBounds()
+            @zoom_limits        = if meta.zoom_limits? then meta.zoom_limits
         
         addEntity: (ent, ctx = @ctx) ->
             if not ent?

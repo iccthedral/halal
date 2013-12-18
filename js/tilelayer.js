@@ -48,7 +48,7 @@
       };
 
       TileLayer.prototype.toString = function() {
-        return "" + this.tile.row + ", " + this.tile.col;
+        return typeof tile !== "undefined" && tile !== null ? tile.toString() : void 0;
       };
 
       return TileLayer;

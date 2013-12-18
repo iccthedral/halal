@@ -13,6 +13,7 @@
         this.row = meta.row;
         this.col = meta.col;
         this.layers = new Array();
+        this.attr("stroke_width", 0.5);
         return this;
       }
 
@@ -38,7 +39,11 @@
       };
 
       Tile.prototype.getLayers = function() {
-        return this.layers.slice();
+        return this.layers.filter(function(layer) {
+          if (layer == null) {
+            return layer;
+          }
+        });
       };
 
       Tile.prototype.removeLayer = function(layer) {
@@ -89,6 +94,10 @@
       Tile.prototype.destroyMesh = function() {
         this._mesh = null;
         Tile.__super__.destroyMesh.call(this);
+      };
+
+      Tile.prototype.toString = function() {
+        return "Row: " + this.row + ", Col: " + this.col + ", Layers: " + (this.getLayers().length);
       };
 
       return Tile;

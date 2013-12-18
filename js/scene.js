@@ -42,7 +42,7 @@
         this.view_matrix[5] = this.center[1];
         this.combineTransform(this.view_matrix);
         this.prev_pos = [this.position[0], this.position[1]];
-        this.zoom_limits = [0.1, 2.3];
+        this.zoom_limits = [0.3, 2.3];
         this.visible_ents = [];
         return this;
       }
@@ -51,7 +51,8 @@
         this.name = meta.name != null ? meta.name : "" + (Hal.ID());
         this.bg_color = meta.bg_color != null ? meta.bg_color : "white";
         this.draw_stat = meta.draw_stat != null ? meta.draw_stat : true;
-        return this.world_bounds = meta.world_bounds != null ? meta.world_bounds : Hal.viewportBounds();
+        this.world_bounds = meta.world_bounds != null ? meta.world_bounds : Hal.viewportBounds();
+        return this.zoom_limits = meta.zoom_limits != null ? meta.zoom_limits : void 0;
       };
 
       Scene.prototype.addEntity = function(ent, ctx) {
