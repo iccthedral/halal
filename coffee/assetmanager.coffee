@@ -240,7 +240,9 @@ define [
         @socket.on "LOAD_SPRITES", (data) =>
             list = JSON.parse(data.files)
             len = list.length - 1
-            @trigger "SPRITES_LOADED" if len is 0 and data[0].toString() is ""
+            if len is 0 and data[0].toString() is ""
+                @trigger "SPRITES_LOADED"
+                return
             @trigger "SPRITES_LOADING", len
             for g, i in list
                 do (g, i) =>
@@ -301,7 +303,9 @@ define [
             data = data.split("\n")
             data.splice(-1)
             len = data.length - 1
-            @trigger "SPRITES_LOADED" if len is 0 and data[0].toString() is ""
+            if len is 0 and data[0].toString() is ""
+                @trigger "SPRITES_LOADED"
+                return
             @trigger "SPRITES_LOADING", len
             for spr, i in data
                 do (spr, i) =>

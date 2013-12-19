@@ -266,6 +266,7 @@ usage:
         len = list.length - 1;
         if (len === 0 && data[0].toString() === "") {
           _this.trigger("SPRITES_LOADED");
+          return;
         }
         _this.trigger("SPRITES_LOADING", len);
         _results = [];
@@ -354,6 +355,7 @@ usage:
         len = data.length - 1;
         if (len === 0 && data[0].toString() === "") {
           _this.trigger("SPRITES_LOADED");
+          return;
         }
         _this.trigger("SPRITES_LOADING", len);
         _results = [];
