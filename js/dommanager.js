@@ -91,7 +91,6 @@
       canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
-      canvas.style["z-index"] = ind;
       if (!transp) {
         canvas.style["background"] = "white";
       } else {
@@ -99,6 +98,7 @@
         canvas.style["background"] = "transparent";
         console.log("it shall be transparent " + ind);
       }
+      canvas.style["z-index"] = ind;
       return canvas;
     };
     DOMManager.prototype.createCanvasLayer = function(width, height, z, transp) {
@@ -113,7 +113,8 @@
       if (this.canvases[ind]) {
         return this.canvases[ind];
       }
-      return canvas = this.createCanvas(width, height, z, transp);
+      canvas = this.createCanvas(width, height, z, transp);
+      return this.default_zindex += 1;
     };
     DOMManager.prototype.addCanvas = function(canvas, x, y) {
       var z;
@@ -124,6 +125,8 @@
         y = 0;
       }
       z = canvas.style["z-index"];
+      canvas.style["left"] = "" + x + "px";
+      canvas.style["top"] = "" + y + "px";
       if (this.canvases[z]) {
         llogw("Canvas with z-index of " + z + " already exists");
         return;

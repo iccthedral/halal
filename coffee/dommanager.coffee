@@ -97,7 +97,7 @@ define [],
 
     DOMManager::addCanvas = (canvas, x = 0, y = 0) ->
         z = canvas.style["z-index"]
-        canvas.style["left" = "#{x}px"
+        canvas.style["left"] = "#{x}px"
         canvas.style["top"]  = "#{y}px"            
         if @canvases[z]
             llogw "Canvas with z-index of #{z} already exists"
