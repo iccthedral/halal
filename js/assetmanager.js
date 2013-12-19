@@ -264,10 +264,10 @@ usage:
         var g, i, len, list, _i, _len, _results;
         list = JSON.parse(data.files);
         len = list.length - 1;
-        _this.trigger("SPRITES_LOADING", len);
         if (len === 0 && data[0].toString() === "") {
           _this.trigger("SPRITES_LOADED");
         }
+        _this.trigger("SPRITES_LOADING", len);
         _results = [];
         for (i = _i = 0, _len = list.length; _i < _len; i = ++_i) {
           g = list[i];

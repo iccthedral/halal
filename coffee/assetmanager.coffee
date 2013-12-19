@@ -240,8 +240,8 @@ define [
         @socket.on "LOAD_SPRITES", (data) =>
             list = JSON.parse(data.files)
             len = list.length - 1
-            @trigger "SPRITES_LOADING", len
             @trigger "SPRITES_LOADED" if len is 0 and data[0].toString() is ""
+            @trigger "SPRITES_LOADING", len
             for g, i in list
                 do (g, i) =>
                     @addSprite(data.url + g)
