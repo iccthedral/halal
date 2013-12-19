@@ -301,7 +301,6 @@ define [
     AssetManager::loadSpritesFromFileList = (list) ->
         Ajax.get list, (data) =>
             data = data.split("\n")
-            data.splice(-1)
             len = data.length - 1
             if len is 0 and data[0].toString() is ""
                 @trigger "SPRITES_LOADED"

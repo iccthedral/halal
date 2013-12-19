@@ -351,7 +351,6 @@ usage:
       return Ajax.get(list, function(data) {
         var i, len, spr, _i, _len, _results;
         data = data.split("\n");
-        data.splice(-1);
         len = data.length - 1;
         if (len === 0 && data[0].toString() === "") {
           _this.trigger("SPRITES_LOADED");
