@@ -1,6 +1,6 @@
 "use strict"
 
-define ["shape", "tilemanager", "quadtree", "geometry", "vec2"], 
+define ["scene", "tilemanager", "quadtree", "geometry", "vec2"], 
 
 (Scene, TileManager, QuadTree, Geometry, Vec2) ->
 
