@@ -1,8 +1,8 @@
 "use strict"
 
-define ["scene", "shape", "tilemanager", "quadtree", "geometry", "vec2"], 
+define ["shape", "tilemanager", "quadtree", "geometry", "vec2"], 
 
-(Scene, Entity, TileManager, QuadTree, Geometry, Vec2) ->
+(Scene, TileManager, QuadTree, Geometry, Vec2) ->
 
     class IsometricScene extends Scene
         constructor: (meta) ->

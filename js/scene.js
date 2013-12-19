@@ -4,7 +4,7 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
-  define(["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geometry", "transformable", "groupy"], function(HalalEntity, Renderer, Camera, Matrix3, QuadTree, Vec2, Geometry, Transformable, Groupy) {
+  define(["halalentity", "renderer", "matrix3", "quadtree", "vec2", "geometry", "transformable", "groupy"], function(HalalEntity, Renderer, Matrix3, QuadTree, Vec2, Geometry, Transformable, Groupy) {
     var Scene, reactives;
     reactives = ["angle", "scale", "position", "origin"];
     Scene = (function(_super) {

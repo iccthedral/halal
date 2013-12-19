@@ -3,55 +3,54 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["vec2"], function(Vec2) {
-    var BBoxAlgos, BBoxDownSampler, BBoxResolver, BBoxSampler, DouglasPecker, HorizontalSampler, _ref, _ref1;
-    BBoxAlgos = {
-      polyBBoxFromSprite: function(sprite, sampler, downsampler) {
+  define(["vec2", "mathutil", "geometry"], function(Vec2, MathUtil, Geometry) {
+    var BBDownSampler, BBResolvers, BBSampler, BBSamplerResolver, DouglasPecker, HorizontalSampler, _ref, _ref1;
+    BBResolvers = {
+      AABPolygonFromSprite: function(sprite, sampler, downsampler) {
         if (sampler == null) {
           sampler = HorizontalSampler;
         }
         if (downsampler == null) {
           downsampler = DouglasPecker;
         }
-        return BBoxResolver(sprite, sampler, downsampler);
+        return BBSamplerResolver(sprite, sampler, downsampler);
       },
-      rectBBoxFromSprite: function(sprite) {
-        return [-sprite.w * 0.5, -sprite.h * 0.5, sprite.w, sprite.h];
+      AABBoxFromSprite: function(sprite) {
+        var out;
+        out = new MathUtil.ARRAY_TYPE(4);
+        out[0] = -sprite.w * 0.5;
+        out[1] = -sprite.h * 0.5;
+        out[2] = sprite.w;
+        out[3] = sprite.h;
+        return out;
       },
-      rectFromPolyShape: function(shape) {
-        var maxX, maxY, minX, minY, pt, _i, _len;
+      AABCircleFromSprite: function(sprite) {
+        var rad;
+        rad = Math.sqrt((sprite.w * sprite.w) + (sprite.h * sprite.h)) * 0.5;
+        return rad;
+      },
+      AABBFromPolygon: function(polygon) {
+        var maxX, maxY, minX, minY, out, pt, _i, _len;
         minX = Number.MAX_VALUE;
         minY = Number.MAX_VALUE;
         maxX = -Number.MIN_VALUE;
         maxY = -Number.MIN_VALUE;
-        for (_i = 0, _len = shape.length; _i < _len; _i++) {
-          pt = shape[_i];
+        for (_i = 0, _len = polygon.length; _i < _len; _i++) {
+          pt = polygon[_i];
           minX = Math.min(pt[0], minX);
           minY = Math.min(pt[1], minY);
           maxX = Math.max(pt[0], maxX);
           maxY = Math.max(pt[1], maxY);
         }
-        return [minX, minY, Math.abs(minX) + maxX, Math.abs(minY) + maxY];
-      },
-      circularBBoxFromSprite: function(sprite) {
-        var rad;
-        rad = Math.sqrt((sprite.w * sprite.w) + (sprite.h * sprite.h)) * 0.5;
-        return [rad];
-      },
-      rectIntersectsRect: function(rect) {
-        return Hal.math.rectIntersectsRect(rect, [this.pos[0], this.pos[1], this.bounds[2], this.bounds[3]]);
-      },
-      rectIntersectsCircle: function(rect) {
-        return Hal.math.rectIntersectsAndHullsCircle(rect, this.pos, this.bounds[0]);
-      },
-      rectBoundCheck: function(pos) {
-        return Hal.math.isPointInRect(pos, [this.pos[0], this.pos[1], this.bounds[2], this.bounds[3]]);
-      },
-      circularBoundCheck: function(pos) {
-        return Hal.math.isPointInCircle(pos, this.pos, this.bounds[0]);
+        out = new MathUtil.ARRAY_TYPE(4);
+        out[0] = minX;
+        out[1] = minY;
+        out[2] = Math.abs(minX) + maxX;
+        out[3] = Math.abs(minY) + maxY;
+        return out;
       }
     };
-    BBoxResolver = function(sprite, sampler, downsampler) {
+    BBSamplerResolver = function(sprite, sampler, downsampler) {
       var canvas, critical, criticals, ctx, findCriticalPoint, height, pixels, points, width;
       points = [];
       width = sprite.w;
@@ -67,7 +66,7 @@
         degs = 0;
         angle_treshold = 1 / 33;
         if (points.length < 2) {
-          return void 0;
+          return points;
         }
         for (q = _i = 0, _len = points.length; _i < _len; q = ++_i) {
           p = points[q];
@@ -75,15 +74,15 @@
           if (next == null) {
             break;
           }
-          first = Vec2.fromValues(p.x, p.y);
-          second = Vec2.fromValues(next.x, next.y);
+          first = Vec2.from(p[0], p[1]);
+          second = Vec2.from(next[0], next[1]);
           vecA = Vec2.sub([], second, first);
           if (vecA != null) {
             third = points[q + 2];
             if (third == null) {
               break;
             }
-            vecB = Vec2.sub([], second, Vec2.fromValues(third.x, third.y));
+            vecB = Vec2.sub([], second, Vec2.from(third[0], third[1]));
           }
           if ((vecA != null) && (vecB != null)) {
             Vec2.normalize(vecA, vecA);
@@ -93,7 +92,7 @@
             degs = Vec2.dot(vecA, vecB);
             degs_diff = Math.abs(degs - prev_degs);
             if (degs_diff > angle_treshold) {
-              pt = [points[q + 2].x - Hal.math.epsilon, points[q + 2].y - Hal.math.epsilon];
+              pt = [points[q + 2][0] - MathUtil.EPSILON, points[q + 2][1] - MathUtil.EPSILON];
               points.splice(0, q + 2);
               return pt;
             }
@@ -101,14 +100,14 @@
         }
       };
       points = new sampler(pixels.data, width, height);
-      while ((critical = findCriticalPoint())) {
+      while ((critical = findCriticalPoint()) != null) {
         criticals.push(critical);
       }
-      Hal.log.debug("num criticals: " + criticals.length);
+      llogd("Number of critical points: " + criticals.length);
       return new downsampler(criticals);
     };
-    BBoxSampler = (function() {
-      function BBoxSampler(data, width, height, sample_rate) {
+    BBSampler = (function() {
+      function BBSampler(data, width, height, sample_rate) {
         this.data = data != null ? data : [];
         this.width = width;
         this.height = height;
@@ -116,19 +115,23 @@
         return this.samplingFunc();
       }
 
-      BBoxSampler.prototype.samplingFunc = function() {
+      BBSampler.prototype.samplingFunc = function() {
         return [];
       };
 
-      BBoxSampler.prototype.getPixelAt = function(x, y) {
+      BBSampler.prototype.getPixelAt = function(x, y) {
         var pos;
         pos = (x + this.width * y) * 4;
         return [this.data[pos], this.data[pos + 1], this.data[pos + 2], this.data[pos + 3]];
       };
 
-      return BBoxSampler;
+      return BBSampler;
 
     })();
+    /*
+        @todo Vertical sampler
+    */
+
     HorizontalSampler = (function(_super) {
       __extends(HorizontalSampler, _super);
 
@@ -141,8 +144,8 @@
         var alpha_treshold, i, j, pix, points, _i, _j, _k, _l, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6;
         alpha_treshold = 130;
         points = [];
-        for (i = _i = 0, _ref1 = this.width - 1, _ref2 = this.sample_rate; _ref2 > 0 ? _i <= _ref1 : _i >= _ref1; i = _i += _ref2) {
-          for (j = _j = 0, _ref3 = this.height; 0 <= _ref3 ? _j <= _ref3 : _j >= _ref3; j = 0 <= _ref3 ? ++_j : --_j) {
+        for (i = _i = 0, _ref1 = this.width, _ref2 = this.sample_rate; _ref2 > 0 ? _i < _ref1 : _i > _ref1; i = _i += _ref2) {
+          for (j = _j = 0, _ref3 = this.height; 0 <= _ref3 ? _j < _ref3 : _j > _ref3; j = 0 <= _ref3 ? ++_j : --_j) {
             pix = this.getPixelAt(i, j);
             if (pix[3] > alpha_treshold) {
               points.push({
@@ -153,8 +156,8 @@
             }
           }
         }
-        for (i = _k = 0, _ref4 = this.width - 1, _ref5 = this.sample_rate; _ref5 > 0 ? _k <= _ref4 : _k >= _ref4; i = _k += _ref5) {
-          for (j = _l = _ref6 = this.height; _l >= 0; j = _l += -1) {
+        for (i = _k = 0, _ref4 = this.width, _ref5 = this.sample_rate; _ref5 > 0 ? _k < _ref4 : _k > _ref4; i = _k += _ref5) {
+          for (j = _l = _ref6 = this.height; _l > 0; j = _l += -1) {
             pix = this.getPixelAt(i, j);
             if (pix[3] > alpha_treshold) {
               points.unshift({
@@ -170,17 +173,17 @@
 
       return HorizontalSampler;
 
-    })(BBoxSampler);
-    BBoxDownSampler = (function() {
-      function BBoxDownSampler(pts) {
+    })(BBSampler);
+    BBDownSampler = (function() {
+      function BBDownSampler(pts) {
         return this.downsamplingFunc(pts);
       }
 
-      BBoxDownSampler.prototype.downsamplingFunc = function() {
+      BBDownSampler.prototype.downsamplingFunc = function() {
         return [];
       };
 
-      return BBoxDownSampler;
+      return BBDownSampler;
 
     })();
     DouglasPecker = (function(_super) {
@@ -192,18 +195,19 @@
       }
 
       DouglasPecker.prototype.downsamplingFunc = function(pts) {
-        var dist, end, epsilon, i, index, max_dist, res, res1, res2, start, _i, _ref2;
+        var dist, end, epsilon, i, index, len, max_dist, res, res1, res2, start, _i, _ref2;
         epsilon = 3;
         start = pts[0];
-        end = pts[pts.length - 1];
+        len = pts.length;
+        end = pts[len - 1];
         max_dist = 0;
         index = 0;
         res = [];
-        if (pts.length < 2) {
+        if (len < 2) {
           return pts;
         }
-        for (i = _i = 1, _ref2 = pts.length - 2; 1 <= _ref2 ? _i <= _ref2 : _i >= _ref2; i = 1 <= _ref2 ? ++_i : --_i) {
-          dist = Hal.math.perpDistance(pts[i], start, end);
+        for (i = _i = 1, _ref2 = len - 1; 1 <= _ref2 ? _i < _ref2 : _i > _ref2; i = 1 <= _ref2 ? ++_i : --_i) {
+          dist = Geometry.perpDistance(pts[i], start, end);
           if (dist > max_dist) {
             index = i;
             max_dist = dist;
@@ -211,20 +215,20 @@
         }
         if (max_dist > epsilon) {
           res1 = this.downsamplingFunc(pts.slice(0, +index + 1 || 9e9));
-          res2 = this.downsamplingFunc(pts.slice(index, +(pts.length - 1) + 1 || 9e9));
+          res2 = this.downsamplingFunc(pts.slice(index, len));
           res1 = res1.slice(0, res1.length - 1);
           res = res1.concat(res2);
         } else {
-          res.push(pts[0]);
-          res.push(pts[pts.length - 1]);
+          res.push(start);
+          res.push(end);
         }
         return res;
       };
 
       return DouglasPecker;
 
-    })(BBoxDownSampler);
-    return BBoxAlgos;
+    })(BBDownSampler);
+    return BBResolvers;
   });
 
 }).call(this);

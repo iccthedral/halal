@@ -14,8 +14,6 @@ define [
     "domeventmanager"
     "assetmanager"
     "imgutils"
-    "entity"
-    "spriteentity" 
     "isometricscene"
     "ajax"
     "shape"
@@ -38,9 +36,7 @@ define [
     DeferredCounter, 
     DOMEventManager, 
     AssetManager, 
-    ImgUtils, 
-    Entity, 
-    SpriteEntity, 
+    ImgUtils,
     IsometricScene, 
     Ajax, 
     Shape,

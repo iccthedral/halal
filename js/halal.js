@@ -3,7 +3,7 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  define(["logger", "eventdispatcher", "scene", "dommanager", "renderer", "geometry", "vec2", "matrix3", "deferred", "deferredcounter", "domeventmanager", "assetmanager", "imgutils", "entity", "spriteentity", "isometricscene", "ajax", "shape", "line", "mathutil", "bbresolvers", "drawable"], function(Logger, EventDispatcher, Scene, DOMManager, Renderer, Geometry, Vec2, Matrix3, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, Entity, SpriteEntity, IsometricScene, Ajax, Shape, Line, MathUtil, BBResolvers, Drawable) {
+  define(["logger", "eventdispatcher", "scene", "dommanager", "renderer", "geometry", "vec2", "matrix3", "deferred", "deferredcounter", "domeventmanager", "assetmanager", "imgutils", "isometricscene", "ajax", "shape", "line", "mathutil", "bbresolvers", "drawable"], function(Logger, EventDispatcher, Scene, DOMManager, Renderer, Geometry, Vec2, Matrix3, Deferred, DeferredCounter, DOMEventManager, AssetManager, ImgUtils, IsometricScene, Ajax, Shape, Line, MathUtil, BBResolvers, Drawable) {
     /*
         A shim (sort of) to support RAF execution
     */
