@@ -241,6 +241,7 @@ define [
             list = JSON.parse(data.files)
             len = list.length - 1
             @trigger "SPRITES_LOADING", len
+            @trigger "SPRITES_LOADED" if len is 0 and data[0].toString() is ""
             for g, i in list
                 do (g, i) =>
                     @addSprite(data.url + g)
@@ -301,7 +302,7 @@ define [
             data = data.split("\n")
             data.splice(-1)
             len = data.length - 1
-
+            @trigger "SPRITES_LOADED" if len is 0 and data[0].toString() is ""
             @trigger "SPRITES_LOADING", len
             for spr, i in data
                 do (spr, i) =>

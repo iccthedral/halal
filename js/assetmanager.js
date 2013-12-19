@@ -265,6 +265,9 @@ usage:
         list = JSON.parse(data.files);
         len = list.length - 1;
         _this.trigger("SPRITES_LOADING", len);
+        if (len === 0 && data[0].toString() === "") {
+          _this.trigger("SPRITES_LOADED");
+        }
         _results = [];
         for (i = _i = 0, _len = list.length; _i < _len; i = ++_i) {
           g = list[i];
@@ -350,6 +353,9 @@ usage:
         data = data.split("\n");
         data.splice(-1);
         len = data.length - 1;
+        if (len === 0 && data[0].toString() === "") {
+          _this.trigger("SPRITES_LOADED");
+        }
         _this.trigger("SPRITES_LOADING", len);
         _results = [];
         for (i = _i = 0, _len = data.length; _i < _len; i = ++_i) {
