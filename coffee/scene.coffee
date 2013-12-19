@@ -1,8 +1,8 @@
 "use strict"
 
-define ["halalentity", "renderer", "camera", "matrix3", "quadtree", "vec2", "geometry", "transformable", "groupy"],
+define ["halalentity", "renderer", "matrix3", "quadtree", "vec2", "geometry", "transformable", "groupy"],
 
-(HalalEntity, Renderer, Camera, Matrix3, QuadTree, Vec2, Geometry, Transformable, Groupy) ->
+(HalalEntity, Renderer, Matrix3, QuadTree, Vec2, Geometry, Transformable, Groupy) ->
     
     reactives = ["angle", "scale", "position", "origin"]
     class Scene extends HalalEntity
