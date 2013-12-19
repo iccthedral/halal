@@ -143,6 +143,9 @@ define ["tile", "tilelayer"],
             @map.trigger "TILE_MANAGER_LOADED"
 
         add: (tile) ->
+            t = @tile_name_map[tile.name]
+            if t?
+                delete @tile_layer_map[t.layer][t.name]
             @tile_name_map[tile.name] = tile
             @tile_id_map[tile.id]     = tile
             if not @tile_layer_map[tile.layer]?

@@ -45,6 +45,11 @@
       };
 
       TileManager.prototype.add = function(tile) {
+        var t;
+        t = this.tile_name_map[tile.name];
+        if (t != null) {
+          delete this.tile_layer_map[t.layer][t.name];
+        }
         this.tile_name_map[tile.name] = tile;
         this.tile_id_map[tile.id] = tile;
         if (this.tile_layer_map[tile.layer] == null) {
