@@ -93,7 +93,7 @@ define [],
         if @canvases[ind]
             return @canvases[ind]
         canvas = @createCanvas(width, height, z, transp)
-        @default_zindex += 1
+        return canvas
 
     DOMManager::addCanvas = (canvas, x = 0, y = 0) ->
         z = canvas.style["z-index"]

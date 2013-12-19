@@ -275,7 +275,6 @@ usage:
             return _this.addSprite(data.url + g).then(function() {
               _this.trigger("SPRITE_LOADED", g);
               if (i === len) {
-                console.log("WTF WTF WTF");
                 return _this.trigger("SPRITES_LOADED");
               }
             });

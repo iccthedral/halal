@@ -114,7 +114,7 @@
         return this.canvases[ind];
       }
       canvas = this.createCanvas(width, height, z, transp);
-      return this.default_zindex += 1;
+      return canvas;
     };
     DOMManager.prototype.addCanvas = function(canvas, x, y) {
       var z;
