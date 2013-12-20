@@ -16,16 +16,11 @@ define [],
                 
     Ajax = new Object()
     
-    Ajax.get = (url, data = '', callbacks...) ->
+    Ajax.get = (url, callbacks...) ->
         result = new Result(document.domain + '/' + url)
         ajaxreq = new XMLHttpRequest()
-        
-        con_url = url
-        if typeof data is "function"
-            url = "#{url}?#{data}"
-            callbacks.unshift data
-        
-        ajaxreq.open("GET", con_url)
+
+        ajaxreq.open("GET", url)
         ajaxreq.send()
         ajaxreq.onreadystatechange = () ->
             if (ajaxreq.readyState == 4)

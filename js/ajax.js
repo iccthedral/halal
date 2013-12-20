@@ -27,22 +27,14 @@
     })();
     Ajax = new Object();
     Ajax.get = function() {
-      var ajaxreq, callbacks, con_url, data, result, url;
-      url = arguments[0], data = arguments[1], callbacks = 3 <= arguments.length ? __slice.call(arguments, 2) : [];
-      if (data == null) {
-        data = '';
-      }
+      var ajaxreq, callbacks, result, url;
+      url = arguments[0], callbacks = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
       result = new Result(document.domain + '/' + url);
       ajaxreq = new XMLHttpRequest();
-      con_url = url;
-      if (typeof data === "function") {
-        url = "" + url + "?" + data;
-        callbacks.unshift(data);
-      }
-      ajaxreq.open("GET", con_url);
+      ajaxreq.open("GET", url);
       ajaxreq.send();
       ajaxreq.onreadystatechange = function() {
-        var type;
+        var data, type;
         if (ajaxreq.readyState === 4) {
           type = ajaxreq.getResponseHeader("Content-Type");
           if (ajaxreq.status === 200) {
