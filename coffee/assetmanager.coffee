@@ -239,15 +239,18 @@ define [
 
         @socket.on "LOAD_SPRITES", (data) =>
             list = JSON.parse(data.files)
-            len = list.length - 1
+            len = list.length
+            list.splice(-1)
+            if len is 0 and data[0].toString() is ""
+                @trigger "SPRITES_LOADED"
+                return
             @trigger "SPRITES_LOADING", len
-            @trigger "SPRITES_LOADED" if len is 0 and data[0].toString() is ""
             for g, i in list
                 do (g, i) =>
                     @addSprite(data.url + g)
                     .then () =>
                         @trigger "SPRITE_LOADED", g
-                        if i is len
+                        if i is len - 1
                             @trigger "SPRITES_LOADED"
 
         @socket.on "LOAD_SOUNDS", (data) =>
@@ -299,16 +302,17 @@ define [
     AssetManager::loadSpritesFromFileList = (list) ->
         Ajax.get list, (data) =>
             data = data.split("\n")
-            data.splice(-1)
-            len = data.length - 1
-            @trigger "SPRITES_LOADED" if len is 0 and data[0].toString() is ""
+            len = data.length
+            if len is 0 and data[0].toString() is ""
+                @trigger "SPRITES_LOADED"
+                return
             @trigger "SPRITES_LOADING", len
             for spr, i in data
                 do (spr, i) =>
                     @addSprite(spr)
                     .then () =>
                         @trigger "SPRITE_LOADED", spr
-                        if i is len
+                        if i is len - 1
                             @trigger "SPRITES_LOADED"
 
     AssetManager::loadFromArray = (type, array) ->

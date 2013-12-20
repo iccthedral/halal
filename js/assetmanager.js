@@ -263,18 +263,20 @@ usage:
       this.socket.on("LOAD_SPRITES", function(data) {
         var g, i, len, list, _i, _len, _results;
         list = JSON.parse(data.files);
-        len = list.length - 1;
-        _this.trigger("SPRITES_LOADING", len);
+        len = list.length;
+        list.splice(-1);
         if (len === 0 && data[0].toString() === "") {
           _this.trigger("SPRITES_LOADED");
+          return;
         }
+        _this.trigger("SPRITES_LOADING", len);
         _results = [];
         for (i = _i = 0, _len = list.length; _i < _len; i = ++_i) {
           g = list[i];
           _results.push((function(g, i) {
             return _this.addSprite(data.url + g).then(function() {
               _this.trigger("SPRITE_LOADED", g);
-              if (i === len) {
+              if (i === len - 1) {
                 return _this.trigger("SPRITES_LOADED");
               }
             });
@@ -350,10 +352,10 @@ usage:
       return Ajax.get(list, function(data) {
         var i, len, spr, _i, _len, _results;
         data = data.split("\n");
-        data.splice(-1);
-        len = data.length - 1;
+        len = data.length;
         if (len === 0 && data[0].toString() === "") {
           _this.trigger("SPRITES_LOADED");
+          return;
         }
         _this.trigger("SPRITES_LOADING", len);
         _results = [];
@@ -362,7 +364,7 @@ usage:
           _results.push((function(spr, i) {
             return _this.addSprite(spr).then(function() {
               _this.trigger("SPRITE_LOADED", spr);
-              if (i === len) {
+              if (i === len - 1) {
                 return _this.trigger("SPRITES_LOADED");
               }
             });
