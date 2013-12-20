@@ -1,0 +1,16 @@
+{
+  "name": "halal",
+  "dependencies": {
+    "requirejs": null
+  },
+  "homepage": "https://github.com/iccthedral/halal",
+  "_release": "455e876846",
+  "_resolution": {
+    "type": "branch",
+    "branch": "master",
+    "commit": "455e8768465fde20f71edb1754ae683c77a1be8c"
+  },
+  "_source": "https://github.com/iccthedral/halal.git",
+  "_target": "*",
+  "_originalSource": "https://github.com/iccthedral/halal.git"
+}

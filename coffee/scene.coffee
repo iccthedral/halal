@@ -238,10 +238,42 @@ define ["halalentity", "renderer", "matrix3", "quadtree", "vec2", "geometry", "t
             Hal.removeTrigger "DRAG_ENDED", @camera_panning_ended
             Hal.removeTrigger "MOUSE_MOVE", @camera_panning_listener
 
+            @camera_panning_listener = null
+            @camera_panning_ended = null
+            @camera_panning_started = null
+
         enablePanning: () ->
-            Hal.on "DRAG_STARTED", @camera_panning_started
-            Hal.on "DRAG_ENDED", @camera_panning_ended
-            Hal.on "MOUSE_MOVE", @camera_panning_listener
+            if not @camera_panning_listener?
+                @camera_panning_started = 
+                Hal.on "DRAG_STARTED", (pos) =>
+                    return if @paused
+                    @is_camera_panning               = true
+                    @camera_panning_point[0]    = pos[0]
+                    @camera_panning_point[1]    = pos[1]
+                    @prev_pos               = [@position[0], @position[1]]
+                    @_update_transform      = true
+                    @_update_inverse        = true
+                    
+                    if @camera_frame_listener
+                        Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
+                        @camera_frame_listener = null
+
+            if not @camera_panning_ended?
+                @camera_panning_ended = 
+                Hal.on "DRAG_ENDED", (pos) =>
+                    @is_camera_panning = false
+                    @_update_transform = true
+                    @_update_inverse = true
+
+            if not @camera_panning_listener?
+                @camera_panning_listener =
+                Hal.on "MOUSE_MOVE", (pos) =>
+                    return if @paused
+                    if @is_camera_panning
+                        @position[0] = (@prev_pos[0] + (pos[0] - @camera_panning_point[0]))
+                        @position[1] = (@prev_pos[1] + (pos[1] - @camera_panning_point[1]))
+                        @_update_transform = true
+                        @_update_inverse = true
             
         destroy: () ->
             @pause()
@@ -305,35 +337,6 @@ define ["halalentity", "renderer", "matrix3", "quadtree", "vec2", "geometry", "t
                     if (~~Math.abs(@position[0] - @cam_move_vector[0]) + ~~Math.abs(-@position[1] + @cam_move_vector[1])) < 2
                         Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
                         @camera_frame_listener = null
-                    @_update_transform = true
-                    @_update_inverse = true
-
-            @camera_panning_started = 
-            Hal.on "DRAG_STARTED", (pos) =>
-                return if @paused
-                @is_camera_panning               = true
-                @camera_panning_point[0]    = pos[0]
-                @camera_panning_point[1]    = pos[1]
-                @prev_pos               = [@position[0], @position[1]]
-                @_update_transform      = true
-                @_update_inverse        = true
-
-                if @camera_frame_listener
-                    Hal.removeTrigger "EXIT_FRAME", @camera_frame_listener
-                    @camera_frame_listener = null
-
-            @camera_panning_ended = 
-            Hal.on "DRAG_ENDED", (pos) =>
-                @is_camera_panning = false
-                @_update_transform = true
-                @_update_inverse = true
-
-            @camera_panning_listener =
-            Hal.on "MOUSE_MOVE", (pos) =>
-                return if @paused
-                if @is_camera_panning
-                    @position[0] = (@prev_pos[0] + (pos[0] - @camera_panning_point[0]))
-                    @position[1] = (@prev_pos[1] + (pos[1] - @camera_panning_point[1]))
                     @_update_transform = true
                     @_update_inverse = true
 

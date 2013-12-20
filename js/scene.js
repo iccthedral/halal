@@ -297,13 +297,51 @@
       Scene.prototype.disablePanning = function() {
         Hal.removeTrigger("DRAG_STARTED", this.camera_panning_started);
         Hal.removeTrigger("DRAG_ENDED", this.camera_panning_ended);
-        return Hal.removeTrigger("MOUSE_MOVE", this.camera_panning_listener);
+        Hal.removeTrigger("MOUSE_MOVE", this.camera_panning_listener);
+        this.camera_panning_listener = null;
+        this.camera_panning_ended = null;
+        return this.camera_panning_started = null;
       };
 
       Scene.prototype.enablePanning = function() {
-        Hal.on("DRAG_STARTED", this.camera_panning_started);
-        Hal.on("DRAG_ENDED", this.camera_panning_ended);
-        return Hal.on("MOUSE_MOVE", this.camera_panning_listener);
+        var _this = this;
+        if (this.camera_panning_listener == null) {
+          this.camera_panning_started = Hal.on("DRAG_STARTED", function(pos) {
+            if (_this.paused) {
+              return;
+            }
+            _this.is_camera_panning = true;
+            _this.camera_panning_point[0] = pos[0];
+            _this.camera_panning_point[1] = pos[1];
+            _this.prev_pos = [_this.position[0], _this.position[1]];
+            _this._update_transform = true;
+            _this._update_inverse = true;
+            if (_this.camera_frame_listener) {
+              Hal.removeTrigger("EXIT_FRAME", _this.camera_frame_listener);
+              return _this.camera_frame_listener = null;
+            }
+          });
+        }
+        if (this.camera_panning_ended == null) {
+          this.camera_panning_ended = Hal.on("DRAG_ENDED", function(pos) {
+            _this.is_camera_panning = false;
+            _this._update_transform = true;
+            return _this._update_inverse = true;
+          });
+        }
+        if (this.camera_panning_listener == null) {
+          return this.camera_panning_listener = Hal.on("MOUSE_MOVE", function(pos) {
+            if (_this.paused) {
+              return;
+            }
+            if (_this.is_camera_panning) {
+              _this.position[0] = _this.prev_pos[0] + (pos[0] - _this.camera_panning_point[0]);
+              _this.position[1] = _this.prev_pos[1] + (pos[1] - _this.camera_panning_point[1]);
+              _this._update_transform = true;
+              return _this._update_inverse = true;
+            }
+          });
+        }
       };
 
       Scene.prototype.destroy = function() {
@@ -373,37 +411,6 @@
             _this._update_transform = true;
             return _this._update_inverse = true;
           });
-        });
-        this.camera_panning_started = Hal.on("DRAG_STARTED", function(pos) {
-          if (_this.paused) {
-            return;
-          }
-          _this.is_camera_panning = true;
-          _this.camera_panning_point[0] = pos[0];
-          _this.camera_panning_point[1] = pos[1];
-          _this.prev_pos = [_this.position[0], _this.position[1]];
-          _this._update_transform = true;
-          _this._update_inverse = true;
-          if (_this.camera_frame_listener) {
-            Hal.removeTrigger("EXIT_FRAME", _this.camera_frame_listener);
-            return _this.camera_frame_listener = null;
-          }
-        });
-        this.camera_panning_ended = Hal.on("DRAG_ENDED", function(pos) {
-          _this.is_camera_panning = false;
-          _this._update_transform = true;
-          return _this._update_inverse = true;
-        });
-        this.camera_panning_listener = Hal.on("MOUSE_MOVE", function(pos) {
-          if (_this.paused) {
-            return;
-          }
-          if (_this.is_camera_panning) {
-            _this.position[0] = _this.prev_pos[0] + (pos[0] - _this.camera_panning_point[0]);
-            _this.position[1] = _this.prev_pos[1] + (pos[1] - _this.camera_panning_point[1]);
-            _this._update_transform = true;
-            return _this._update_inverse = true;
-          }
         });
         return this.camera_zoom_listener = Hal.on("SCROLL", function(ev) {
           if (_this.paused) {

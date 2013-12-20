@@ -208,6 +208,11 @@
         x = (tile.col / 2) * this.map.tilew;
         y = (tile.row + ((tile.col % 2) / 2)) * this.map.tileh;
         layerobj = this.newTileLayer(layermeta);
+        if (layerobj.sprite == null) {
+          console.error("No sprite available for given tile: " + layermeta.name);
+          layerobj.destroy();
+          return;
+        }
         tile.addTileLayer(layerobj);
         off_x = layerobj.sprite.w * 0.5 - this.map.tilew2;
         off_y = layerobj.sprite.h * 0.5 - this.map.tileh2;
