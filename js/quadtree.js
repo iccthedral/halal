@@ -138,7 +138,7 @@
       };
 
       QuadTree.prototype.findEntitiesInRectangle = function(range, matrix, out) {
-        var p, ret, transformBnds, _i, _len, _ref, _results;
+        var p, ret, transformBnds, _i, _len, _ref;
         transformBnds = Geometry.transformRectangle(this.bounds, matrix);
         if (Geometry.rectangleIntersectsOrContainsRectangle(range, transformBnds)) {
           if (this.nw != null) {
@@ -148,17 +148,18 @@
             this.se.findEntitiesInRectangle(range, matrix, out);
           }
           _ref = this.entities;
-          _results = [];
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             p = _ref[_i];
             ret = Geometry.rectangleIntersectsOrContainsRectangle(Geometry.transformRectangle(p._bbox, Matrix3.mul([], p.transform(), matrix)), range);
             if (!ret) {
               continue;
             }
-            _results.push(out.push(p));
+            out.push(p);
           }
-          return _results;
         }
+        return out.sort(function(a, b) {
+          return (a.position[1] + a.sprite.h) - (b.position[1] + b.sprite.h);
+        });
       };
 
       QuadTree.prototype.divide = function() {

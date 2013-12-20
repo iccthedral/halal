@@ -42,6 +42,9 @@
       }
 
       DOMEventManager.prototype.wheelMoved = function(evt) {
+        if (this.under_hud) {
+          return;
+        }
         this.getMousePos(evt);
         return Hal.trigger("SCROLL", {
           down: evt.wheelDelta < 0,

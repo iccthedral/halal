@@ -50,8 +50,8 @@
         this.world_center = [];
         this.world_center[0] = (this.world_bounds[2] - this.world_bounds[0]) * 0.5;
         this.world_center[1] = (this.world_bounds[3] - this.world_bounds[1]) * 0.5;
-        this.section_dim = [Math.round(this.world_bounds[2] / 3), Math.round((this.nrows * this.tileh) / 3)];
-        this.cap = Math.round(this.section_dim[0] / this.tilew2) * Math.round(this.section_dim[1] / this.tileh);
+        this.section_dim = [Math.floor(this.world_bounds[2] / 3), Math.floor((this.nrows * this.tileh) / 3)];
+        this.cap = Math.floor(this.section_dim[0] / this.tilew2) * Math.floor(this.section_dim[1] / this.tileh);
         this.startTile = this.endTile = null;
         this.sections = {
           "center": new QuadTree([this.section_dim[0], this.section_dim[1], this.section_dim[0], this.section_dim[1]], this.cap, false),
@@ -285,9 +285,12 @@
 
       IsometricScene.prototype.initMap = function() {
         this.clicked_layer = null;
-        this.on("TILE_MANAGER_LOADED", function() {
+        this.on("TM_TILES_LOADED", function() {
           return this.loadMap();
         });
+        /* @todo wait for markers*/
+
+        this.on("TM_MARKERS_LOADED", function() {});
         return this.tm = new TileManager(this);
       };
 
@@ -433,29 +436,7 @@
       };
 
       IsometricScene.prototype.draw = function(delta) {
-        var i, j, tile, world_end, _i, _j, _ref, _ref1, _ref2, _ref3;
-        this.drawStat();
-        this.clearRenderers();
-        if (this.update_ents) {
-          this.startTile = this.getTileAt([0, 0]);
-          world_end = this.screenToWorld(this.screen_end);
-          world_end[0] = Hal.math.clamp(world_end[0], 0, this.world_bounds[2]);
-          world_end[1] = Hal.math.clamp(world_end[1], 0, this.world_bounds[3]);
-          this.endTile = this.getTileAt(world_end);
-          Vec2.release(world_end);
-        }
-        for (i = _i = _ref = this.startTile.row, _ref1 = this.endTile.row; _ref <= _ref1 ? _i < _ref1 : _i > _ref1; i = _ref <= _ref1 ? ++_i : --_i) {
-          for (j = _j = _ref2 = this.startTile.col, _ref3 = this.endTile.col; _ref2 <= _ref3 ? _j < _ref3 : _j > _ref3; j = _ref2 <= _ref3 ? ++_j : --_j) {
-            tile = this.map[j + i * this.ncols];
-            if (tile != null) {
-              tile.update(delta);
-            }
-            if (tile != null) {
-              tile.draw(delta);
-            }
-          }
-        }
-        this.update_ents = false;
+        IsometricScene.__super__.draw.call(this, delta);
         this.ctx.setTransform(this._transform[0], this._transform[3], this._transform[1], this._transform[4], this._transform[2], this._transform[5]);
         return this.drawQuadTree(this.quadtree);
       };

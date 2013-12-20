@@ -121,17 +121,35 @@ define ["tile", "tilelayer"],
             @tile_layer_map = {}
             @tile_name_map  = {}
             @tile_id_map    = {}
+            @markers        = []
             @_id            = 0
             @max_layers     = @map.max_layers
 
             Hal.on "TILE_MNGR_NEW_TILE", (tile) =>
                 @add(tile)
 
+            Hal.on "TILE_MNGR_LOAD_MARKERS", (markers) =>
+                @loadMarkers(markers)
+
+            Hal.on "TILE_MNGR_NEW_MARKER", (marker) =>
+                @addMarker(marker)
+
             Hal.on "TILE_MNGR_LOAD_TILES", (tiles) =>
                 @load(tiles)
 
-        loadFromList: (list = "assets/TilesList.list") ->
-            Ajax.get "assets/amjad/TilesList.json", (tiles) =>
+        loadMarkers: (markers) ->
+            for marker in markers
+                @addMarker(marker)
+            @map.trigger "TM_MARKERS_LOADED"
+
+        addMarker: (marker) ->
+            if @markers.indexOf(marker) is -1
+                @markers.push(marker)
+            else
+                llogw "Marker #{marker} exists!"
+
+        loadFromList: (list = "assets/tiles.list") ->
+            Ajax.get list, (tiles) =>
             llogd "TileManager loaded tiles."
             tiles = JSON.parse(tiles)
             @load(tiles)
@@ -140,7 +158,7 @@ define ["tile", "tilelayer"],
             llogd "Loading tiles..."
             for i, t of tiles
                 @add(t)
-            @map.trigger "TILE_MANAGER_LOADED"
+            @map.trigger "TM_TILES_LOADED"
 
         add: (tile) ->
             t = @tile_name_map[tile.name]

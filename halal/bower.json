@@ -1,7 +1,0 @@
-{
-    "name": "halal",
-    "version": "0.0.1.2",
-    "dependencies": {
-        "requirejs": null
-    }
-}
