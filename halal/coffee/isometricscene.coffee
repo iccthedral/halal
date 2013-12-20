@@ -257,8 +257,13 @@ define ["scene", "tilemanager", "quadtree", "geometry", "vec2"],
 
         initMap: () ->
             @clicked_layer = null
-            @on "TILE_MANAGER_LOADED", () ->
+            @on "TM_TILES_LOADED", () ->
                 @loadMap()
+
+            ### @todo wait for markers ###
+            @on "TM_MARKERS_LOADED", () ->
+                return
+                
             @tm = new TileManager(@)
 
         worldCenter: () ->

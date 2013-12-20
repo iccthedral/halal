@@ -140,6 +140,7 @@ define ["tile", "tilelayer"],
         loadMarkers: (markers) ->
             for marker in markers
                 @addMarker(marker)
+            @map.trigger "TM_MARKERS_LOADED"
 
         addMarker: (marker) ->
             if @markers.indexOf(marker) is -1
@@ -157,7 +158,7 @@ define ["tile", "tilelayer"],
             llogd "Loading tiles..."
             for i, t of tiles
                 @add(t)
-            @map.trigger "TILE_MANAGER_LOADED"
+            @map.trigger "TM_TILES_LOADED"
 
         add: (tile) ->
             t = @tile_name_map[tile.name]
