@@ -53,8 +53,8 @@ define ["scene", "tilemanager", "quadtree", "geometry", "vec2"],
             @world_center[0] = (@world_bounds[2] - @world_bounds[0]) * 0.5
             @world_center[1] = (@world_bounds[3] - @world_bounds[1]) * 0.5
 
-            @section_dim = [Math.round(@world_bounds[2] / 3), Math.round((@nrows * @tileh) / 3)]
-            @cap = Math.round(@section_dim[0] / @tilew2) * Math.round(@section_dim[1] / @tileh)
+            @section_dim = [Math.floor(@world_bounds[2] / 3), Math.floor((@nrows * @tileh) / 3)]
+            @cap = Math.floor(@section_dim[0] / @tilew2) * Math.floor(@section_dim[1] / @tileh)
 
             @startTile = @endTile = null
 
@@ -257,8 +257,13 @@ define ["scene", "tilemanager", "quadtree", "geometry", "vec2"],
 
         initMap: () ->
             @clicked_layer = null
-            @on "TILE_MANAGER_LOADED", () ->
+            @on "TM_TILES_LOADED", () ->
                 @loadMap()
+
+            ### @todo wait for markers ###
+            @on "TM_MARKERS_LOADED", () ->
+                return
+                
             @tm = new TileManager(@)
 
         worldCenter: () ->
@@ -379,30 +384,30 @@ define ["scene", "tilemanager", "quadtree", "geometry", "vec2"],
                 @clicked_layer.trigger "SELECTED"
 
         draw: (delta) ->
-            # super()
-            @drawStat()
-            @clearRenderers()
-            if @update_ents
-                @startTile = @getTileAt([0, 0])
-                world_end = @screenToWorld(@screen_end)
-                world_end[0] = Hal.math.clamp(world_end[0], 0, @world_bounds[2])
-                world_end[1] = Hal.math.clamp(world_end[1], 0, @world_bounds[3])
-                @endTile = @getTileAt(world_end)
-                Vec2.release(world_end)
+            super(delta)
+            # @drawStat()
+            # @clearRenderers()
+            # if @update_ents
+            #     @startTile = @getTileAt([0, 0])
+            #     world_end = @screenToWorld(@screen_end)
+            #     world_end[0] = Hal.math.clamp(world_end[0], 0, @world_bounds[2])
+            #     world_end[1] = Hal.math.clamp(world_end[1], 0, @world_bounds[3])
+            #     @endTile = @getTileAt(world_end)
+            #     Vec2.release(world_end)
 
-            for i in [@startTile.row...@endTile.row]
-                for j in [@startTile.col...@endTile.col]
-                    tile = @map[j+i*@ncols]
-                    # tile2 = @map[j-(j%2) + i*@ncols]
-                    # tile3 = @map[j-((j+1)%2) + i*@ncols]
-                    # continue if not tile?
-                    tile?.update(delta)
-                    tile?.draw(delta)
-                    # tile2?.update(delta)
-                    # tile3?.update(delta)
-                    # tile2?.draw(delta)
-                    # tile3?.draw(delta)
-            @update_ents = false
+            # for i in [@startTile.row...@endTile.row]
+            #     for j in [@startTile.col...@endTile.col]
+            #         tile = @map[j+i*@ncols]
+            #         # tile2 = @map[j-(j%2) + i*@ncols]
+            #         # tile3 = @map[j-((j+1)%2) + i*@ncols]
+            #         # continue if not tile?
+            #         tile?.update(delta)
+            #         tile?.draw(delta)
+            #         # tile2?.update(delta)
+            #         # tile3?.update(delta)
+            #         # tile2?.draw(delta)
+            #         # tile3?.draw(delta)
+            # @update_ents = false
 
             @ctx.setTransform(
                 @_transform[0],
@@ -418,31 +423,48 @@ define ["scene", "tilemanager", "quadtree", "geometry", "vec2"],
             ### @todo @tm.destroy() ###
             Vec2.release(@mpos)
             Vec2.release(@world_pos)
-            Hal.removeTrigger "MOUSE_MOVE", @mouse_moved_listener
-            Hal.removeTrigger "LEFT_CLICK", @left_click_listener
+            for list in @mouse_moved_listeners
+                Hal.removeTrigger "MOUSE_MOVE", list
+
+            for list in @mouse_left_click_listeners
+                Hal.removeTrigger "LEFT_CLICK", list
             super()
 
         initListeners: () ->
             super()
+            @mouse_left_click_listeners = []
+            @mouse_moved_listeners = []
+
             @change_end_start_coords = 
             Hal.on "RESIZE", (pos) =>
                 @screen_end = [@bounds[2] + 2*@tilew, @bounds[3] + 2*@tileh]
 
-            @mouse_moved_listener =
-            Hal.on "MOUSE_MOVE", (pos) =>
-                Vec2.copy(@mpos, pos)
-                Vec2.release(@world_pos) if @world_pos?
-                @world_pos = @screenToWorld(pos)
-                t = @getTileAt(@world_pos)
-                return if not t?
-                if @tile_under_mouse isnt t
-                    @trigger "OVER_NEW_TILE", t
-                    @tile_under_mouse = t
+            @setMouseMoveListener(
+                (pos) ->
+                    Vec2.copy(@mpos, pos)
+                    Vec2.release(@world_pos) if @world_pos?
+                    @world_pos = @screenToWorld(pos)
+                    t = @getTileAt(@world_pos)
+                    return if not t?
+                    if @tile_under_mouse isnt t
+                        @trigger "OVER_NEW_TILE", t
+                        @tile_under_mouse = t
+            )
 
             Hal.on "SAVE_MAP", () =>
                 @saveBitmapMap()
                 
             return
+
+        setMouseLeftClickListener: (mouse_click) ->
+            @mouse_left_click_listeners.push mouse_click
+            Hal.on "LEFT_CLICK", (pos) =>
+                mouse_click.call(@, pos)
+
+        setMouseMoveListener: (mouse_moved) ->
+            @mouse_moved_listeners.push mouse_moved
+            Hal.on "MOUSE_MOVE", (pos) =>
+                mouse_moved.call(@, pos)
 
         saveMap: () ->
             return

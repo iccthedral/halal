@@ -240,7 +240,6 @@ define [
         @socket.on "LOAD_SPRITES", (data) =>
             list = JSON.parse(data.files)
             len = list.length
-            list.splice(-1)
             if len is 0 and data[0].toString() is ""
                 @trigger "SPRITES_LOADED"
                 return

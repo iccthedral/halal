@@ -12,23 +12,47 @@
         this.tile_layer_map = {};
         this.tile_name_map = {};
         this.tile_id_map = {};
+        this.markers = [];
         this._id = 0;
         this.max_layers = this.map.max_layers;
         Hal.on("TILE_MNGR_NEW_TILE", function(tile) {
           return _this.add(tile);
+        });
+        Hal.on("TILE_MNGR_LOAD_MARKERS", function(markers) {
+          return _this.loadMarkers(markers);
+        });
+        Hal.on("TILE_MNGR_NEW_MARKER", function(marker) {
+          return _this.addMarker(marker);
         });
         Hal.on("TILE_MNGR_LOAD_TILES", function(tiles) {
           return _this.load(tiles);
         });
       }
 
+      TileManager.prototype.loadMarkers = function(markers) {
+        var marker, _i, _len;
+        for (_i = 0, _len = markers.length; _i < _len; _i++) {
+          marker = markers[_i];
+          this.addMarker(marker);
+        }
+        return this.map.trigger("TM_MARKERS_LOADED");
+      };
+
+      TileManager.prototype.addMarker = function(marker) {
+        if (this.markers.indexOf(marker) === -1) {
+          return this.markers.push(marker);
+        } else {
+          return llogw("Marker " + marker + " exists!");
+        }
+      };
+
       TileManager.prototype.loadFromList = function(list) {
         var tiles,
           _this = this;
         if (list == null) {
-          list = "assets/TilesList.list";
+          list = "assets/tiles.list";
         }
-        Ajax.get("assets/amjad/TilesList.json", function(tiles) {});
+        Ajax.get(list, function(tiles) {});
         llogd("TileManager loaded tiles.");
         tiles = JSON.parse(tiles);
         return this.load(tiles);
@@ -41,7 +65,7 @@
           t = tiles[i];
           this.add(t);
         }
-        return this.map.trigger("TILE_MANAGER_LOADED");
+        return this.map.trigger("TM_TILES_LOADED");
       };
 
       TileManager.prototype.add = function(tile) {

@@ -300,6 +300,12 @@
         return Hal.removeTrigger("MOUSE_MOVE", this.camera_panning_listener);
       };
 
+      Scene.prototype.enablePanning = function() {
+        Hal.on("DRAG_STARTED", this.camera_panning_started);
+        Hal.on("DRAG_ENDED", this.camera_panning_ended);
+        return Hal.on("MOUSE_MOVE", this.camera_panning_listener);
+      };
+
       Scene.prototype.destroy = function() {
         this.pause();
         Vec2.release(this.center);
@@ -388,7 +394,7 @@
           _this._update_transform = true;
           return _this._update_inverse = true;
         });
-        this.camera_panning_started = Hal.on("MOUSE_MOVE", function(pos) {
+        this.camera_panning_listener = Hal.on("MOUSE_MOVE", function(pos) {
           if (_this.paused) {
             return;
           }

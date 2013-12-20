@@ -238,6 +238,11 @@ define ["halalentity", "renderer", "matrix3", "quadtree", "vec2", "geometry", "t
             Hal.removeTrigger "DRAG_ENDED", @camera_panning_ended
             Hal.removeTrigger "MOUSE_MOVE", @camera_panning_listener
 
+        enablePanning: () ->
+            Hal.on "DRAG_STARTED", @camera_panning_started
+            Hal.on "DRAG_ENDED", @camera_panning_ended
+            Hal.on "MOUSE_MOVE", @camera_panning_listener
+            
         destroy: () ->
             @pause()
             Vec2.release(@center)
@@ -323,7 +328,7 @@ define ["halalentity", "renderer", "matrix3", "quadtree", "vec2", "geometry", "t
                 @_update_transform = true
                 @_update_inverse = true
 
-            @camera_panning_started =
+            @camera_panning_listener =
             Hal.on "MOUSE_MOVE", (pos) =>
                 return if @paused
                 if @is_camera_panning

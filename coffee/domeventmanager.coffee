@@ -34,6 +34,7 @@ define [],
             window.addEventListener("keyup", @keyUp)
 
         wheelMoved: (evt) =>
+            return if @under_hud
             @getMousePos(evt)
             Hal.trigger "SCROLL", {down: evt.wheelDelta < 0, pos: @pos}
 

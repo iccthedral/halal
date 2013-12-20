@@ -264,7 +264,6 @@ usage:
         var g, i, len, list, _i, _len, _results;
         list = JSON.parse(data.files);
         len = list.length;
-        list.splice(-1);
         if (len === 0 && data[0].toString() === "") {
           _this.trigger("SPRITES_LOADED");
           return;
