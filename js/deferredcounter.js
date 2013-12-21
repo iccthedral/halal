@@ -29,7 +29,7 @@
         target = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
         DeferredCounter.__super__.reject.call(this, target, args);
         if ((this.num_approved + this.num_rejected) === this.total_trigs) {
-          return this.resolve(target, args);
+          return this.resolve.apply(target, args);
         }
       };
 
@@ -37,14 +37,14 @@
         var args, target;
         target = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
         this.num_rejected++;
-        return this.reject(target, args);
+        return this.reject.apply(target, args);
       };
 
       DeferredCounter.prototype.release = function() {
         var args, target;
         target = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
         this.num_approved++;
-        return this.resolve(target, args);
+        return this.resolve.apply(target, args);
       };
 
       return DeferredCounter;
