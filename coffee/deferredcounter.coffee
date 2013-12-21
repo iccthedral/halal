@@ -10,11 +10,11 @@ define ["deferred"],
             @num_rejected = 0
             super()
 
-        resolve: (target, args) ->
+        resolve: (target, args...) ->
             if (@num_approved + @num_rejected) is @total_trigs
                 super(target, args) 
 
-        reject: (target, args) -> 
+        reject: (target, args...) -> 
             super(target, args)
             #zato sto moze da se desi reject na poslednjem trigu 
             #sto bi takodje trebalo oznaciti zavrsen posao
