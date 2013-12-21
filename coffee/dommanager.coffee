@@ -43,9 +43,9 @@ define [],
                     @area = @renderspace.getBoundingClientRect()
                     #Hal.scm.exitFullScreen([1, 1])
                     
-            Hal.on "DOM_ADD", (callb) =>
+            Hal.on "DOM_ADD", (callb, args...) =>
                 if callb?
-                    callb.call({}, @hud)
+                    callb.apply({}, args)
                     
             Hal.on "REQUEST_FULLSCREEN", (scene) =>
                 if not Hal.supports("FULLSCREEN")

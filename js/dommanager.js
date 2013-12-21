@@ -1,5 +1,7 @@
 (function() {
   "use strict";
+  var __slice = [].slice;
+
   define([], function() {
     var DOMManager;
     DOMManager = (function() {
@@ -40,9 +42,11 @@
             return _this.area = _this.renderspace.getBoundingClientRect();
           }
         });
-        Hal.on("DOM_ADD", function(callb) {
+        Hal.on("DOM_ADD", function() {
+          var args, callb;
+          callb = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
           if (callb != null) {
-            return callb.call({}, _this.hud);
+            return callb.apply({}, args);
           }
         });
         Hal.on("REQUEST_FULLSCREEN", function(scene) {
