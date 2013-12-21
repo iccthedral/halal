@@ -3,9 +3,9 @@
   var __slice = [].slice;
 
   define([], function() {
-    var Ajax, Result;
-    Result = (function() {
-      function Result(url) {
+    var Ajax, AjaxResult;
+    AjaxResult = (function() {
+      function AjaxResult(url) {
         this.url = url;
         this.success_ = this.fail_ = this.always_ = function() {};
         this.success = function(success_) {
@@ -22,14 +22,15 @@
         };
       }
 
-      return Result;
+      return AjaxResult;
 
     })();
     Ajax = new Object();
+    Ajax.Result = AjaxResult;
     Ajax.get = function() {
       var ajaxreq, callbacks, result, url;
       url = arguments[0], callbacks = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-      result = new Result(document.domain + '/' + url);
+      result = new AjaxResult(document.domain + '/' + url);
       ajaxreq = new XMLHttpRequest();
       ajaxreq.open("GET", url);
       ajaxreq.send();
@@ -63,7 +64,7 @@
     Ajax.post = function() {
       var ajaxreq, callbacks, data, result, url;
       url = arguments[0], data = arguments[1], callbacks = 3 <= arguments.length ? __slice.call(arguments, 2) : [];
-      result = new Result(document.domain + '/' + url);
+      result = new AjaxResult(document.domain + '/' + url);
       ajaxreq = new XMLHttpRequest();
       ajaxreq.open("POST", url);
       ajaxreq.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
