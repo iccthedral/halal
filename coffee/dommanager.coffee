@@ -45,7 +45,7 @@ define [],
                     
             Hal.on "DOM_ADD", (callb, args...) =>
                 if callb?
-                    callb.apply({}, args)
+                    callb.apply({}, [@hud].concat(args))
                     
             Hal.on "REQUEST_FULLSCREEN", (scene) =>
                 if not Hal.supports("FULLSCREEN")

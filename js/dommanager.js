@@ -46,7 +46,7 @@
           var args, callb;
           callb = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
           if (callb != null) {
-            return callb.apply({}, args);
+            return callb.apply({}, [_this.hud].concat(args));
           }
         });
         Hal.on("REQUEST_FULLSCREEN", function(scene) {
