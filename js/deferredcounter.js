@@ -16,17 +16,13 @@
         DeferredCounter.__super__.constructor.call(this);
       }
 
-      DeferredCounter.prototype.resolve = function() {
-        var args, target;
-        target = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      DeferredCounter.prototype.resolve = function(target, args) {
         if ((this.num_approved + this.num_rejected) === this.total_trigs) {
           return DeferredCounter.__super__.resolve.call(this, target, args);
         }
       };
 
-      DeferredCounter.prototype.reject = function() {
-        var args, target;
-        target = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      DeferredCounter.prototype.reject = function(target, args) {
         DeferredCounter.__super__.reject.call(this, target, args);
         if ((this.num_approved + this.num_rejected) === this.total_trigs) {
           return this.resolve.apply(this, [target].concat(args));
