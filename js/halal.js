@@ -247,6 +247,8 @@
     Halal.prototype.BBResolvers = BBResolvers;
     Halal.prototype.DrawableStates = Drawable.DrawableStates;
     Halal.prototype.IsometricScene = IsometricScene;
+    Halal.prototype.Deferred = Deferred;
+    Halal.prototype.DeferredCounter = DeferredCounter;
     Halal.prototype.Keys = {
       SHIFT: 16,
       G: 71,

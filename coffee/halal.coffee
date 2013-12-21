@@ -251,6 +251,7 @@ define [
     Halal::geometry = Geometry
     Halal::asm      = new AssetManager()
     Halal::im       = new ImgUtils()
+    
     ### classes ###
     Halal::Line             = Line
     Halal::Vec2             = Vec2
@@ -261,6 +262,9 @@ define [
     Halal::BBResolvers      = BBResolvers
     Halal::DrawableStates   = Drawable.DrawableStates
     Halal::IsometricScene   = IsometricScene
+    Halal::Deferred         = Deferred
+    Halal::DeferredCounter  = DeferredCounter
+
     Halal::Keys = 
         SHIFT: 16
         G: 71
