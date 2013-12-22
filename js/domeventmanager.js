@@ -90,11 +90,19 @@
         return Hal.trigger("MOUSE_CLICK", this.pos);
       };
 
+      DOMEventManager.prototype.isMouseUnderHood = function() {
+        if (this.hud_check) {
+          return this.hud.querySelectorAll(':hover').length > 0;
+        } else {
+          return false;
+        }
+      };
+
       DOMEventManager.prototype.mouseMove = function(evt) {
-        this.getMousePos(evt);
-        if ((this.under_hud = (this.hud.querySelectorAll(':hover').length > 0) && this.hud_check)) {
+        if ((this.under_hud = this.isMouseUnderHud())) {
           return;
         }
+        this.getMousePos(evt);
         Hal.trigger("MOUSE_MOVE", this.pos);
         if (this.mouse_leftbtn_down && (!this.dragging && this.can_drag)) {
           Hal.trigger("DRAG_STARTED", this.pos);
