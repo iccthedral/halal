@@ -9,7 +9,7 @@ define ["eventdispatcher"],
             @ent_groups = {}
             @group = "default"
 
-            @on "ENTITY_DESTROYED", @group_ent_destr = (ent) ->
+            @on "ENTITY_DESTROYED", (ent) ->
                 group = @ent_groups[ent.group]
                 if group?
                     ind = group.indexOf(ent)
@@ -18,6 +18,10 @@ define ["eventdispatcher"],
             @on "ENTITY_ADDED", (ent) ->
                 @trigger "GROUP_CHANGE", ent
 
+            @on "CHANGE", (key) ->
+                if key is "group"
+                    @trigger "GROUP_CHANGE"
+                    
             @on "GROUP_CHANGE", (ent) ->
                 group = @ent_groups[ent.group]
                 if not group?

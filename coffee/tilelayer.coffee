@@ -37,6 +37,6 @@ define ["shape"],
             delete @tile
 
         toString: () ->
-            return tile?.toString()
+            return @tile?.toString()
 
     return TileLayer

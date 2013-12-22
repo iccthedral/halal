@@ -6,7 +6,7 @@
       function Groupy() {
         this.ent_groups = {};
         this.group = "default";
-        this.on("ENTITY_DESTROYED", this.group_ent_destr = function(ent) {
+        this.on("ENTITY_DESTROYED", function(ent) {
           var group, ind;
           group = this.ent_groups[ent.group];
           if (group != null) {
@@ -16,6 +16,11 @@
         });
         this.on("ENTITY_ADDED", function(ent) {
           return this.trigger("GROUP_CHANGE", ent);
+        });
+        this.on("CHANGE", function(key) {
+          if (key === "group") {
+            return this.trigger("GROUP_CHANGE");
+          }
         });
         this.on("GROUP_CHANGE", function(ent) {
           var group, ind;
