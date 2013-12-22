@@ -28,7 +28,7 @@ define ["shape"], (Shape) ->
             return layerobj
 
         getLayers: () ->
-            return @layers.filter (layer) -> return layer if not layer?
+            return @layers.filter (layer) -> return layer?
 
         removeLayer: (layer) ->
             if @layers[layer]?

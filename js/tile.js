@@ -40,9 +40,7 @@
 
       Tile.prototype.getLayers = function() {
         return this.layers.filter(function(layer) {
-          if (layer == null) {
-            return layer;
-          }
+          return layer != null;
         });
       };
 
