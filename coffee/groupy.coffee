@@ -7,7 +7,7 @@ define ["eventdispatcher"],
     class Groupy
         constructor: () ->
             @ent_groups = {}
-            @group = "default"
+            @groups = ["default"]
 
             @on "ENTITY_DESTROYED", (ent) ->
                 group = @ent_groups[ent.group]
@@ -21,8 +21,8 @@ define ["eventdispatcher"],
             @on "CHANGE", (key) ->
                 if key is "group"
                     @trigger "GROUP_CHANGE"
-                    
-            @on "GROUP_CHANGE", (ent) ->
+
+            @on "GROUP_CHANGE", (ent = @) ->
                 group = @ent_groups[ent.group]
                 if not group?
                     group = @ent_groups[ent.group] = []
