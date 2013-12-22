@@ -91,11 +91,10 @@
       };
 
       DOMEventManager.prototype.mouseMove = function(evt) {
-        this.under_hud = this.hud.querySelectorAll(':hover').length > 0;
-        if (this.under_hud && this.hud_check) {
+        this.getMousePos(evt);
+        if ((this.under_hud = (this.hud.querySelectorAll(':hover').length > 0) && this.hud_check)) {
           return;
         }
-        this.getMousePos(evt);
         Hal.trigger("MOUSE_MOVE", this.pos);
         if (this.mouse_leftbtn_down && (!this.dragging && this.can_drag)) {
           Hal.trigger("DRAG_STARTED", this.pos);
