@@ -91,8 +91,8 @@
       };
 
       DOMEventManager.prototype.mouseMove = function(evt) {
-        this.under_hud = this.hud.querySelectorAll(':hover').length > 0 && this.hud_check;
-        if (this.under_hud) {
+        this.under_hud = this.hud.querySelectorAll(':hover').length > 0;
+        if (this.under_hud && this.hud_check) {
           return;
         }
         this.getMousePos(evt);

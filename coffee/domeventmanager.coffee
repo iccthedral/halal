@@ -65,8 +65,8 @@ define [],
             Hal.trigger("MOUSE_CLICK", @pos)
 
         mouseMove: (evt) =>
-            @under_hud = @hud.querySelectorAll(':hover').length > 0 and @hud_check
-            return if @under_hud
+            @under_hud = (@hud.querySelectorAll(':hover').length > 0)
+            return if @under_hud and @hud_check
             @getMousePos(evt)
             Hal.trigger("MOUSE_MOVE", @pos)
             if (@mouse_leftbtn_down and (not @dragging and @can_drag))
