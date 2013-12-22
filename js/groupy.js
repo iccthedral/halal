@@ -5,7 +5,7 @@
     Groupy = (function() {
       function Groupy() {
         this.ent_groups = {};
-        this.groups = ["default"];
+        this.groups = "default";
         this.on("ENTITY_DESTROYED", function(ent) {
           var group, ind;
           group = this.ent_groups[ent.group];

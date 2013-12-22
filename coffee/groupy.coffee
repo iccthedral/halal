@@ -7,7 +7,7 @@ define ["eventdispatcher"],
     class Groupy
         constructor: () ->
             @ent_groups = {}
-            @groups = ["default"]
+            @groups = "default"
 
             @on "ENTITY_DESTROYED", (ent) ->
                 group = @ent_groups[ent.group]
