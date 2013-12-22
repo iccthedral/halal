@@ -158,7 +158,7 @@
           }
         }
         return out.sort(function(a, b) {
-          return (a.position[1] + a.sprite.h) - (b.position[1] + b.sprite.h);
+          return (a.position[1] + (a != null ? a.sprite.h : void 0)) - (b.position[1] + (b != null ? b.sprite.h : void 0));
         });
       };
 

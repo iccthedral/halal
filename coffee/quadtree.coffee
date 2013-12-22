@@ -139,7 +139,7 @@ define ["vec2", "geometry", "matrix3"],
                         Geometry.transformRectangle(p._bbox, Matrix3.mul([], p.transform(), matrix)), range)
                     continue if not ret
                     out.push p
-            return out.sort (a, b) -> return (a.position[1] + a.sprite.h) - (b.position[1] + b.sprite.h)
+            return out.sort (a, b) -> return (a.position[1] + a?.sprite.h) - (b.position[1] + b?.sprite.h)
 
         
         # getAllInQuadRange: (subquad) ->
