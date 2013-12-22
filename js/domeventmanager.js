@@ -108,8 +108,10 @@
         if (this.mouse_leftbtn_down && (!this.dragging && this.can_drag)) {
           Hal.trigger("DRAG_STARTED", this.pos);
           this.dragging = true;
-          return this.can_drag = false;
+          this.can_drag = false;
         }
+        evt.stopPropagation();
+        return evt.preventDefault();
       };
 
       DOMEventManager.prototype.mouseUp = function(evt) {
