@@ -64,7 +64,7 @@ define [],
             @getMousePos(evt)
             Hal.trigger("MOUSE_CLICK", @pos)
 
-        isMouseUnderHood: () ->
+        isMouseUnderHud: () ->
             if @hud_check
                 return (@hud.querySelectorAll(':hover').length > 0)
             else 

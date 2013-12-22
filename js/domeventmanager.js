@@ -90,7 +90,7 @@
         return Hal.trigger("MOUSE_CLICK", this.pos);
       };
 
-      DOMEventManager.prototype.isMouseUnderHood = function() {
+      DOMEventManager.prototype.isMouseUnderHud = function() {
         if (this.hud_check) {
           return this.hud.querySelectorAll(':hover').length > 0;
         } else {
