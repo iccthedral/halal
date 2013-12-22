@@ -92,14 +92,15 @@
 
       DOMEventManager.prototype.isMouseUnderHud = function() {
         if (this.hud_check) {
-          return this.hud.querySelectorAll(':hover').length > 0;
+          this.under_hud = this.hud.querySelectorAll(':hover').length > 0;
         } else {
-          return false;
+          this.under_hud = false;
         }
+        return this.under_hud;
       };
 
       DOMEventManager.prototype.mouseMove = function(evt) {
-        if ((this.under_hud = this.isMouseUnderHud())) {
+        if (this.isMouseUnderHud()) {
           return;
         }
         this.getMousePos(evt);
