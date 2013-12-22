@@ -72,18 +72,14 @@ define [],
             return @under_hud
 
         mouseMove: (evt) =>
-            if @isMouseUnderHud()
-                evt.stopPropagation()
-                return
+            return if @isMouseUnderHud()
             @getMousePos(evt)
             Hal.trigger("MOUSE_MOVE", @pos)
             if (@mouse_leftbtn_down and (not @dragging and @can_drag))
                 Hal.trigger("DRAG_STARTED", @pos)
                 @dragging = true
                 @can_drag = false
-            # evt.stopPropagation()
-            # evt.preventDefault()
-
+                
         mouseUp: (evt) =>
             if @under_hud
                 @mouse_leftbtn_down = false

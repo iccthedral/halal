@@ -101,7 +101,6 @@
 
       DOMEventManager.prototype.mouseMove = function(evt) {
         if (this.isMouseUnderHud()) {
-          evt.stopPropagation();
           return;
         }
         this.getMousePos(evt);
