@@ -23,6 +23,7 @@
         this.hud = Hal.dom.hud;
         this.dragging = false;
         this.under_hud = false;
+        this.hud_check = true;
         /* @todo ovo izbaciti iz engina posle*/
 
         /* end @todo*/
@@ -40,6 +41,14 @@
         window.addEventListener("keydown", this.keyDown);
         window.addEventListener("keyup", this.keyUp);
       }
+
+      DOMEventManager.prototype.disableHudCheck = function() {
+        return this.hud_check = false;
+      };
+
+      DOMEventManager.prototype.enableHudCheck = function() {
+        return this.hud_check = true;
+      };
 
       DOMEventManager.prototype.wheelMoved = function(evt) {
         if (this.under_hud) {
@@ -80,7 +89,7 @@
       };
 
       DOMEventManager.prototype.mouseMove = function(evt) {
-        this.under_hud = this.hud.querySelectorAll(':hover').length > 0;
+        this.under_hud = this.hud.querySelectorAll(':hover').length > 0 && this.hud_check;
         if (this.under_hud) {
           return;
         }

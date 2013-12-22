@@ -14,6 +14,7 @@ define [],
             @hud                     = Hal.dom.hud
             @dragging                = false
             @under_hud               = false
+            @hud_check               = true
 
             ### @todo ovo izbaciti iz engina posle ###
             #ako ne podrzava queryselectorall
@@ -32,6 +33,12 @@ define [],
 
             window.addEventListener("keydown", @keyDown)
             window.addEventListener("keyup", @keyUp)
+
+        disableHudCheck: () ->
+            @hud_check = false
+
+        enableHudCheck: () ->
+            @hud_check = true
 
         wheelMoved: (evt) =>
             return if @under_hud
@@ -56,7 +63,7 @@ define [],
             Hal.trigger("MOUSE_CLICK", @pos)
 
         mouseMove: (evt) =>
-            @under_hud = @hud.querySelectorAll(':hover').length > 0
+            @under_hud = @hud.querySelectorAll(':hover').length > 0 and @hud_check
             return if @under_hud
             @getMousePos(evt)
             Hal.trigger("MOUSE_MOVE", @pos)
