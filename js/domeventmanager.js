@@ -43,10 +43,12 @@
       }
 
       DOMEventManager.prototype.disableHudCheck = function() {
-        return this.hud_check = false;
+        this.hud_check = false;
+        return this.under_hud = false;
       };
 
       DOMEventManager.prototype.enableHudCheck = function() {
+        this.under_hud = false;
         return this.hud_check = true;
       };
 

@@ -36,8 +36,10 @@ define [],
 
         disableHudCheck: () ->
             @hud_check = false
+            @under_hud = false
 
         enableHudCheck: () ->
+            @under_hud = false
             @hud_check = true
 
         wheelMoved: (evt) =>
